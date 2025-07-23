@@ -42,13 +42,39 @@ function ChatComponent(props) {
           },
         }
       )
+      .then((response) => {
+        let conversationId = response.data.conversation_id;
+        let messageId = response.data.message_id;
+        setTimeout(() => {
+          axios
+            .get(
+              `https://e2-demo-field-eng.cloud.databricks.com/api/2.0/genie/spaces/01f055d6ca9f1bf59693113af3d9280f/conversations/${conversationId}/messages/${messageId}`,
+              {
+                //Adding token to the request
+                headers: {
+                  Authorization: "Bearer dapi8a974c6446ea7534a358355ee4e8b56a", //gitleaks:allow
+                },
+              }
+            )
+            .then((messageResponse) => {
+              appendMessage({
+                text: messageResponse.data.attachments[0].text.content,
+                isUser: false,
+              });
+            });
+        }, 5000);
+      })
       .catch((e) => {
         console.log(e);
       });
     setChatField("");
   }
   function appendMessage(message) {
-    setChatMessages([...chatMessages, message]);
+    message.key = messageNumber;
+    console.log(chatMessages);
+    setChatMessages((chatMessages) => [...chatMessages, message]);
+    setMessageNumber(messageNumber + 1);
+    console.log(chatMessages);
   }
   return (
     <div className="ChatComponent">
@@ -80,38 +106,24 @@ function ChatComponent(props) {
           </div>
           <Divider variant="middle" />
           <Stack direction="column" style={{ margin: "10px" }} spacing={2}>
-            {chatMessages.map((message) => {
-              if (message.isUser) {
-                return (
-                  <Chip
-                    sx={{
-                      height: "auto",
-                      "& .MuiChip-label": {
-                        display: "block",
-                        whiteSpace: "normal",
-                      },
-                    }}
-                    label={message.text}
-                    style={{ marginLeft: "100px" }}
-                  />
-                );
-              } else {
-                return (
-                  <Chip
-                    sx={{
-                      height: "auto",
-                      "& .MuiChip-label": {
-                        display: "block",
-                        whiteSpace: "normal",
-                      },
-                    }}
-                    label={message.text}
-                    style={{ marginRight: "100px" }}
-                    variant="outlined"
-                  />
-                );
-              }
-            })}
+            {chatMessages.map((message) => (
+              <Chip
+                key={message.key}
+                sx={{
+                  height: "auto",
+                  "& .MuiChip-label": {
+                    display: "block",
+                    whiteSpace: "normal",
+                  },
+                }}
+                label={message.text}
+                style={
+                  message.isUser
+                    ? { marginLeft: "100px" }
+                    : { marginRight: "100px" }
+                }
+              />
+            ))}
           </Stack>
           <div
             style={{
