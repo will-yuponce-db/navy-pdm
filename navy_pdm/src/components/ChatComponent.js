@@ -39,10 +39,6 @@ function ChatComponent(props) {
           //Adding token to the request
           headers: {
             Authorization: "Bearer dapi8a974c6446ea7534a358355ee4e8b56a", //gitleaks:allow
-            "Access-Control-Allow-Origin": "*",
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Methods": "POST, GET, OPTIONS, DELETE",
-            "Access-Control-Allow-Headers": "Content-Type, x-requested-with",
           },
         }
       )
