@@ -62,7 +62,7 @@ function ChatComponent(props) {
                 isUser: false,
               });
             });
-        }, 5000);
+        }, 10000);
       })
       .catch((e) => {
         console.log(e);
