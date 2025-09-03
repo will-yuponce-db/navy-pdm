@@ -5,6 +5,7 @@ import CardActions from "@mui/material/CardActions";
 import CardContent from "@mui/material/CardContent";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
+import { v4 as uuidv4 } from "uuid";
 
 export default function MaintenanceOverview() {
   const kpis = [
@@ -36,10 +37,9 @@ export default function MaintenanceOverview() {
         </Typography>
         <div style={{ gap: "20px", display: "flex", padding: "10px" }}>
           {kpis.map((item) => {
-            let key = 0;
             return (
               <Card
-                key={key++}
+                key={uuidv4()}
                 elevation="0"
                 sx={{ minWidth: 275 }}
                 style={{ outline: "gray solid 1px" }}

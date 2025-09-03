@@ -82,13 +82,17 @@ export default function NavComponent() {
   const theme = useTheme();
   const [open, setOpen] = React.useState(false);
   const navigate = useNavigate();
-
+  const [appHeader, setAppHeader] = React.useState("Home");
   const handleDrawerOpen = () => {
     setOpen(true);
   };
 
   const handleDrawerClose = () => {
     setOpen(false);
+  };
+
+  const handleAppHeader = (header) => {
+    setAppHeader(header);
   };
 
   return (
@@ -111,7 +115,7 @@ export default function NavComponent() {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div">
-            Persistent drawer
+            {appHeader}
           </Typography>
         </Toolbar>
       </AppBar>
@@ -144,6 +148,7 @@ export default function NavComponent() {
               <ListItem key={item.title} disablePadding>
                 <ListItemButton
                   onClick={() => {
+                    handleAppHeader(item.title);
                     navigate(item.route);
                   }}
                 >

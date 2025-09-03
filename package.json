@@ -12,13 +12,19 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.1",
-    "@mui/material": "^7.3.1",
+    "@mui/material": "^7.3.2",
+    "@mui/x-data-grid": "^8.11.0",
     "@react-router/node": "^7.7.1",
     "@react-router/serve": "^7.7.1",
+    "@reduxjs/toolkit": "^2.9.0",
+    "@vitejs/plugin-react-swc": "^4.0.1",
     "isbot": "^5.1.27",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router": "^7.7.1"
+    "react-redux": "^9.2.0",
+    "react-router": "^7.7.1",
+    "uuid": "^11.1.0",
+    "vitest": "^3.2.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.34.0",

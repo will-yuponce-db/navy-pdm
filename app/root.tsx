@@ -9,7 +9,21 @@ import {
 import type { Route } from "./+types/root";
 import "./app.css";
 import NavComponent from "./components/NavComponent";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { store } from "../app/redux/store/store";
+import { Provider } from "react-redux";
 
+const theme = createTheme({
+  palette: {
+    mode: "light",
+    primary: {
+      main: "#ed3c2c",
+    },
+    secondary: {
+      main: "rgb(27 49 57 / var(--tw-bg-opacity, 1))",
+    },
+  },
+});
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
@@ -36,7 +50,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body style={{ height: "100vh", color: "#e5e7eb", background: "white" }}>
+      <body style={{ height: "fit-content", width: "fit-content" }}>
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -47,9 +61,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <>
-      <NavComponent />
-    </>
+    <ThemeProvider theme={theme}>
+      <Provider store={store}>
+        <NavComponent />
+      </Provider>
+    </ThemeProvider>
   );
 }
 
