@@ -50,7 +50,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body style={{width: "fit-content" }}>
+      <body
+        style={{
+          width: "fit-content",
+          height: "100vh",
+          backgroundColor: "white",
+        }}
+      >
         {children}
         <ScrollRestoration />
         <Scripts />
