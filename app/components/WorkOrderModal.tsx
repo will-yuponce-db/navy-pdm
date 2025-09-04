@@ -4,6 +4,8 @@ import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import Modal from "@mui/material/Modal";
 import TextField from "@mui/material/TextField";
+import { addWorkOrder } from "../redux/services/workOrderSlice";
+import { useSelector, useDispatch } from "react-redux";
 
 const style = {
   position: "absolute",
@@ -18,6 +20,14 @@ const style = {
 };
 
 export default function WorkOrderModal(props) {
+  const dispatch = useDispatch();
+  const [ship, setShip] = React.useState("");
+  const [homeport, setHomeport] = React.useState("");
+  const [gte, setGte] = React.useState("");
+  const [fm, setFm] = React.useState("");
+  const [priority, setPriority] = React.useState("");
+  const [eta, setEta] = React.useState("");
+
   return (
     <div>
       <Modal
@@ -38,8 +48,18 @@ export default function WorkOrderModal(props) {
               paddingTop: "20px",
             }}
           >
-            <TextField id="outlined-basic" label="Ship" variant="outlined" />
             <TextField
+              onChange={(e) => {
+                setShip(e.target.value);
+              }}
+              id="outlined-basic"
+              label="Ship"
+              variant="outlined"
+            />
+            <TextField
+              onChange={(e) => {
+                setHomeport(e.target.value);
+              }}
               id="outlined-basic"
               label="Homeport"
               variant="outlined"
@@ -54,11 +74,17 @@ export default function WorkOrderModal(props) {
             }}
           >
             <TextField
+              onChange={(e) => {
+                setGte(e.target.value);
+              }}
               id="outlined-basic"
               label="GTE / System"
               variant="outlined"
             />
             <TextField
+              onChange={(e) => {
+                setFm(e.target.value);
+              }}
               id="outlined-basic"
               label="Failure Mode"
               variant="outlined"
@@ -74,11 +100,17 @@ export default function WorkOrderModal(props) {
           >
             <TextField
               id="outlined-basic"
+              onChange={(e) => {
+                setPriority(e.target.value);
+              }}
               label="Priority"
               variant="outlined"
             />
             <TextField
               id="outlined-basic"
+              onChange={(e) => {
+                setEta(e.target.value);
+              }}
               label="Target ETA (days)"
               variant="outlined"
             />
@@ -130,10 +162,36 @@ export default function WorkOrderModal(props) {
               justifyContent: "flex-end",
             }}
           >
-            <Button variant="outlined" color="secondary" onClick={props.handleModalClose}>
+            <Button
+              variant="outlined"
+              color="secondary"
+              onClick={props.handleModalClose}
+            >
               Cancel
             </Button>
-            <Button variant="contained" color="primary">
+            <Button
+              onClick={() => {
+                dispatch(
+                  addWorkOrder({
+                    ship: ship,
+                    homeport: homeport,
+                    fm: fm,
+                    gte: gte,
+                    priority: priority,
+                    status: "unresolved",
+                    eta: eta,
+                  })
+                );
+                setShip("");
+                setHomeport("");
+                setGte("");
+                setPriority("");
+                setEta("");
+                props.closeWorkOrderModal();
+              }}
+              variant="contained"
+              color="primary"
+            >
               Submit
             </Button>
           </div>

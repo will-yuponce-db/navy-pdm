@@ -5,7 +5,7 @@ export const navItems = [
     route: "/",
   },
   {
-    title: "Readiness",
+    title: "Readiness Dashboard",
     icon: "check_box",
     route: "/readiness",
   },

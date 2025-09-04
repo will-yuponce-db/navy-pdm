@@ -44,7 +44,7 @@ const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })(
         },
       },
     ],
-  }),
+  })
 );
 
 const AppBar = styled(MuiAppBar, {
@@ -165,7 +165,8 @@ export default function NavComponent() {
       <Main open={open}>
         <DrawerHeader />
         <div>
-          <Outlet />
+
+            <Outlet />
         </div>
       </Main>
     </Box>
