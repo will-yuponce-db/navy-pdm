@@ -4,7 +4,7 @@ import MaintenanceOverview from "~/components/MaintenanceOverview";
 import WorkOrderTable from "~/components/WorkOrderTable";
 import WorkOrderModal from "~/components/WorkOrderModal";
 import { useState } from "react";
-import { useGetPokemonByNameQuery } from '../redux/services/pokemon'
+import { useGetPokemonByNameQuery } from "../redux/services/pokemon";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -15,10 +15,10 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Readiness() {
   const [workOrderModalOpen, setWorkOrderModalOpen] = useState(false);
-  const { data, error, isLoading } = useGetPokemonByNameQuery('bulbasaur')
+  const { data, error, isLoading } = useGetPokemonByNameQuery("bulbasaur");
 
   function openWorkOrderModal() {
-    console.log(data)
+    console.log(data);
     setWorkOrderModalOpen(true);
   }
 
@@ -26,11 +26,11 @@ export default function Readiness() {
     setWorkOrderModalOpen(false);
   }
   return (
-<iframe
-  src="https://e2-demo-field-eng.cloud.databricks.com/embed/dashboardsv3/01f068bce09e1c689fa25b66d73296b9?o=1444828305810485"
-  width="100%"
-  height="100%"
-  frameborder="0">
-</iframe>
+    <iframe
+      src="https://e2-demo-field-eng.cloud.databricks.com/embed/dashboardsv3/01f068bce09e1c689fa25b66d73296b9?o=1444828305810485"
+      width="100%"
+      style={{ height: "100vh" }}
+      frameborder="0"
+    ></iframe>
   );
 }
