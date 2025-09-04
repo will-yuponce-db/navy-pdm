@@ -29,7 +29,7 @@ export default function Readiness() {
 <iframe
   src="https://e2-demo-field-eng.cloud.databricks.com/embed/dashboardsv3/01f068bce09e1c689fa25b66d73296b9?o=1444828305810485"
   width="100%"
-  height="600"
+  height="100%"
   frameborder="0">
 </iframe>
   );
