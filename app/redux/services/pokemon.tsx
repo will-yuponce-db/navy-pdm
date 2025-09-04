@@ -5,16 +5,16 @@ export const pokemonApi = createApi({
   reducerPath: "pokemonApi",
   baseQuery: fetchBaseQuery({
     baseUrl:
-      "https://e2-demo-field-eng.cloud.databricks.com/api/2.0/sql/statements/",
+      "https://e2-demo-field-eng.cloud.databricks.com/api/2.0/sql/statements",
     headers: {
-      Authorization: "Bearer dapiec2b97816dbe739bb8990ce144fe79a4", //gitleaks:allow
+      "Authorization": "Bearer dapiec2b97816dbe739bb8990ce144fe79a4", //gitleaks:allow
       "Content-Type": "application/json",
     },
   }), //gitleaks:allow
   endpoints: (build) => ({
     getPokemonByName: build.query({
       query: (sql) => ({
-        url: "",
+        url: "/",
         method: "POST",
         body: {
           warehouse_id: "8baced1ff014912d",
