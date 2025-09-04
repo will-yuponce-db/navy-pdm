@@ -19,4 +19,9 @@ export const navItems = [
     icon: "category",
     route: "/",
   },
+    {
+    title: "About",
+    icon: "info",
+    route: "/about",
+  },
 ];

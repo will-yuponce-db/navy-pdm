@@ -23,6 +23,7 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import { visuallyHidden } from "@mui/utils";
 import Button from "@mui/material/Button";
 import { useSelector, useDispatch } from "react-redux";
+import Chip from "@mui/material/Chip";
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
@@ -207,7 +208,7 @@ function EnhancedTableToolbar(props) {
       )}
       {numSelected > 0 ? (
         <Tooltip title="Delete">
-          <IconButton>
+          <IconButton onClick={() => {console.log(selected)}}>
             <DeleteIcon />
           </IconButton>
         </Tooltip>
@@ -339,7 +340,7 @@ export default function WorkOrderTable(props) {
                     <TableCell align="right">{row.gte}</TableCell>
                     <TableCell align="right">{row.fm}</TableCell>
                     <TableCell align="right">{row.priority}</TableCell>
-                    <TableCell align="right">{row.status}</TableCell>
+                    <TableCell align="right"><Chip label={row.status} /></TableCell>
                     <TableCell align="right">{row.eta}</TableCell>
                   </TableRow>
                 );

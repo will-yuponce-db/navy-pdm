@@ -1,7 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { v4 as uuidv4 } from "uuid";
 
-
 const initialState = [
   {
     wo: uuidv4().split("-")[0].toUpperCase(),
@@ -31,6 +30,14 @@ const workOrderSlice = createSlice({
         eta: action.payload.eta,
       };
       state.push(newWorkOrder);
+    },
+    deleteTodo: (state, action) => {
+      const index = state.findIndex(
+        (workOrder) => action.payload.any(workOrder.wo)
+      );
+      if (index !== -1) {
+        state.splice(index, 1);
+      }
     },
   },
 });
