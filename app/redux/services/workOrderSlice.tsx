@@ -5,12 +5,12 @@ import { v4 as uuidv4 } from "uuid";
 const initialState = [
   {
     wo: uuidv4().split("-")[0].toUpperCase(),
-    ship: 2,
-    homeport: 3,
-    fm: 4,
-    gte: 5,
-    priority: 6,
-    status: 7,
+    ship: "USS Bainbridge (DDG-96)",
+    homeport: "NB Norfolk",
+    fm: "Vibration – Hot Section",
+    gte: "LM2500",
+    priority: "Routine",
+    status: "Submitted",
     eta: 8,
   },
 ];

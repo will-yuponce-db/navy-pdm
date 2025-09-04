@@ -178,7 +178,7 @@ export default function WorkOrderModal(props) {
                     fm: fm,
                     gte: gte,
                     priority: priority,
-                    status: "unresolved",
+                    status: "Submitted",
                     eta: eta,
                   })
                 );
