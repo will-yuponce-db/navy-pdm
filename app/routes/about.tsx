@@ -4,7 +4,7 @@ import MaintenanceOverview from "~/components/MaintenanceOverview";
 import WorkOrderTable from "~/components/WorkOrderTable";
 import WorkOrderModal from "~/components/WorkOrderModal";
 import { useState } from "react";
-import { useGetPokemonByNameQuery } from '../redux/services/pokemon'
+import { useGetPokemonByNameQuery } from "../redux/services/pokemon";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -15,10 +15,10 @@ export function meta({}: Route.MetaArgs) {
 
 export default function About() {
   const [workOrderModalOpen, setWorkOrderModalOpen] = useState(false);
-  const { data, error, isLoading } = useGetPokemonByNameQuery('bulbasaur')
+  const { data, error, isLoading } = useGetPokemonByNameQuery("bulbasaur");
 
   function openWorkOrderModal() {
-    console.log(data)
+    console.log(data);
     setWorkOrderModalOpen(true);
   }
 
@@ -26,6 +26,15 @@ export default function About() {
     setWorkOrderModalOpen(false);
   }
   return (
-    <img src="/assets/demo.png" alt="Italian Trulli"/>
+    <div style={{ gap: "20px", display: "flex", flexDirection: "column" }}>
+      <img src="/assets/demo.png" alt="Demo flow" />
+      <img src="/assets/end_2_end.png" alt="End to end workflow" />
+      <img src="/assets/edge_analytics.png" alt="Edge analytics" />
+      <img
+        src="/assets/maintianance_analytics.png"
+        alt="Maintainance analytics"
+      />
+      <img src="/assets/logistic_analytics.png" alt="Maintainance analytics" />
+    </div>
   );
 }
