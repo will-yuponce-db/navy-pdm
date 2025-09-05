@@ -26,7 +26,7 @@ export default function Home() {
     setWorkOrderModalOpen(false);
   }
   return (
-    <div style={{ display: "flex", gap: "20px", flexDirection: "column" }}>
+    <div style={{ display: "flex", gap: "20px", flexDirection: "column" ,    height: "100vh"}}>
       <div style={{ display: "flex", gap: "20px" }}>
         <MaintenanceOverview /> <QuickActions />
       </div>
