@@ -197,7 +197,7 @@ export default function WorkOrderModal(props) {
                 setGte("");
                 setPriority("");
                 setEta("");
-                props.closeWorkOrderModal();
+                props.handleModalClose();
               }}
               variant="contained"
               color="primary"
