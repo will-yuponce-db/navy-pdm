@@ -32,8 +32,8 @@ const workOrderSlice = createSlice({
       state.push(newWorkOrder);
     },
     deleteTodo: (state, action) => {
-      const index = state.findIndex(
-        (workOrder) => action.payload.any(workOrder.wo)
+      const index = state.findIndex((workOrder) =>
+        action.payload.any(workOrder.wo),
       );
       if (index !== -1) {
         state.splice(index, 1);

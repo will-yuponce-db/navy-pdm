@@ -39,10 +39,10 @@ type Order = "asc" | "desc";
 
 function getComparator<Key extends keyof any>(
   order: Order,
-  orderBy: Key
+  orderBy: Key,
 ): (
   a: { [key in Key]: number | string },
-  b: { [key in Key]: number | string }
+  b: { [key in Key]: number | string },
 ) => number {
   return order === "desc"
     ? (a, b) => descendingComparator(a, b, orderBy)
@@ -104,7 +104,7 @@ interface EnhancedTableProps {
   numSelected: number;
   onRequestSort: (
     event: React.MouseEvent<unknown>,
-    property: keyof Data
+    property: keyof Data,
   ) => void;
   onSelectAllClick: (event: React.ChangeEvent<HTMLInputElement>) => void;
   order: Order;
@@ -125,7 +125,7 @@ function EnhancedTableHead(props: EnhancedTableProps) {
     (property: keyof Data) => (event: React.MouseEvent<unknown>) => {
       onRequestSort(event, property);
     };
- const dispatch = useDispatch();
+  const dispatch = useDispatch();
 
   return (
     <TableHead>
@@ -182,7 +182,7 @@ function EnhancedTableToolbar(props) {
           bgcolor: (theme) =>
             alpha(
               theme.palette.primary.main,
-              theme.palette.action.activatedOpacity
+              theme.palette.action.activatedOpacity,
             ),
         },
       ]}
@@ -208,7 +208,11 @@ function EnhancedTableToolbar(props) {
       )}
       {numSelected > 0 ? (
         <Tooltip title="Delete">
-          <IconButton onClick={() => {console.log(selected)}}>
+          <IconButton
+            onClick={() => {
+              console.log(selected);
+            }}
+          >
             <DeleteIcon />
           </IconButton>
         </Tooltip>
@@ -232,7 +236,7 @@ export default function WorkOrderTable(props) {
 
   const handleRequestSort = (
     event: React.MouseEvent<unknown>,
-    property: keyof Data
+    property: keyof Data,
   ) => {
     const isAsc = orderBy === property && order === "asc";
     setOrder(isAsc ? "desc" : "asc");
@@ -261,7 +265,7 @@ export default function WorkOrderTable(props) {
     } else if (selectedIndex > 0) {
       newSelected = newSelected.concat(
         selected.slice(0, selectedIndex),
-        selected.slice(selectedIndex + 1)
+        selected.slice(selectedIndex + 1),
       );
     }
     setSelected(newSelected);
@@ -272,7 +276,7 @@ export default function WorkOrderTable(props) {
   };
 
   const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
@@ -282,7 +286,7 @@ export default function WorkOrderTable(props) {
   const emptyRows =
     page > 0 ? Math.max(0, (1 + page) * rowsPerPage - workOrders.length) : 0;
 
-  const visibleRows = workOrders
+  const visibleRows = workOrders;
 
   return (
     <Box sx={{ width: "100%" }}>
@@ -340,7 +344,9 @@ export default function WorkOrderTable(props) {
                     <TableCell align="right">{row.gte}</TableCell>
                     <TableCell align="right">{row.fm}</TableCell>
                     <TableCell align="right">{row.priority}</TableCell>
-                    <TableCell align="right"><Chip label={row.status} /></TableCell>
+                    <TableCell align="right">
+                      <Chip label={row.status} />
+                    </TableCell>
                     <TableCell align="right">{row.eta}</TableCell>
                   </TableRow>
                 );
@@ -348,7 +354,7 @@ export default function WorkOrderTable(props) {
               {emptyRows > 0 && (
                 <TableRow
                   style={{
-                    height: (53) * emptyRows,
+                    height: 53 * emptyRows,
                   }}
                 >
                   <TableCell colSpan={6} />

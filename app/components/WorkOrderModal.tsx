@@ -116,7 +116,7 @@ export default function WorkOrderModal(props) {
               <MenuItem value={"CASREP"}>CASREP</MenuItem>
             </Select>
             <TextField
-            style={{width: "100%"}}
+              style={{ width: "100%" }}
               id="outlined-basic"
               onChange={(e) => {
                 setEta(e.target.value);
@@ -190,7 +190,7 @@ export default function WorkOrderModal(props) {
                     priority: priority,
                     status: "Submitted",
                     eta: eta,
-                  })
+                  }),
                 );
                 setShip("");
                 setHomeport("");

@@ -52,8 +52,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body
         style={{
+          height: "fit-content",
           width: "fit-content",
-          height: "100vh",
           backgroundColor: "white",
         }}
       >

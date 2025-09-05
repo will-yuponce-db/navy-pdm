@@ -7,7 +7,7 @@ export const pokemonApi = createApi({
     baseUrl:
       "https://e2-demo-field-eng.cloud.databricks.com/api/2.0/sql/statements",
     headers: {
-      "Authorization": "Bearer dapiec2b97816dbe739bb8990ce144fe79a4", //gitleaks:allow
+      Authorization: "Bearer dapiec2b97816dbe739bb8990ce144fe79a4", //gitleaks:allow
       "Content-Type": "application/json",
     },
   }), //gitleaks:allow
