@@ -1,4 +1,9 @@
 export const navItems = [
+    {
+    title: "Home",
+    icon: "home",
+    route: "/",
+  },
   {
     title: "Work Order",
     icon: "work",

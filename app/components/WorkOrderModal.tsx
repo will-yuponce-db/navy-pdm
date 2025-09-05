@@ -6,6 +6,8 @@ import Modal from "@mui/material/Modal";
 import TextField from "@mui/material/TextField";
 import { addWorkOrder } from "../redux/services/workOrderSlice";
 import { useSelector, useDispatch } from "react-redux";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
 
 const style = {
   position: "absolute",
@@ -25,8 +27,12 @@ export default function WorkOrderModal(props) {
   const [homeport, setHomeport] = React.useState("");
   const [gte, setGte] = React.useState("");
   const [fm, setFm] = React.useState("");
-  const [priority, setPriority] = React.useState("");
+  const [priority, setPriority] = React.useState("Routine");
   const [eta, setEta] = React.useState("");
+
+  function handleChange(e) {
+    setPriority(e.target.value);
+  }
 
   return (
     <div>
@@ -98,15 +104,19 @@ export default function WorkOrderModal(props) {
               paddingTop: "20px",
             }}
           >
-            <TextField
-              id="outlined-basic"
-              onChange={(e) => {
-                setPriority(e.target.value);
-              }}
+            <Select
+              labelId="demo-simple-select-label"
+              id="demo-simple-select"
+              value={priority}
               label="Priority"
-              variant="outlined"
-            />
+              onChange={handleChange}
+            >
+              <MenuItem value={"Routine"}>Routine</MenuItem>
+              <MenuItem value={"Priority"}>Priority</MenuItem>
+              <MenuItem value={"CASREP"}>CASREP</MenuItem>
+            </Select>
             <TextField
+            style={{width: "100%"}}
               id="outlined-basic"
               onChange={(e) => {
                 setEta(e.target.value);

@@ -26,6 +26,6 @@ export default function About() {
     setWorkOrderModalOpen(false);
   }
   return (
-    <img src="../public/demo.png" alt="Italian Trulli"/>
+    <img src="/assets/demo.png" alt="Italian Trulli"/>
   );
 }
