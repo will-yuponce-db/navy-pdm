@@ -24,6 +24,7 @@ import { visuallyHidden } from "@mui/utils";
 import Button from "@mui/material/Button";
 import { useSelector, useDispatch } from "react-redux";
 import Chip from "@mui/material/Chip";
+import { deleteWorkOrder } from "../redux/services/workOrderSlice";
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
@@ -125,7 +126,6 @@ function EnhancedTableHead(props: EnhancedTableProps) {
     (property: keyof Data) => (event: React.MouseEvent<unknown>) => {
       onRequestSort(event, property);
     };
-  const dispatch = useDispatch();
 
   return (
     <TableHead>
@@ -170,6 +170,7 @@ interface EnhancedTableToolbarProps {
   numSelected: number;
 }
 function EnhancedTableToolbar(props) {
+  const dispatch = useDispatch();
   const { numSelected } = props;
   return (
     <Toolbar
@@ -210,7 +211,8 @@ function EnhancedTableToolbar(props) {
         <Tooltip title="Delete">
           <IconButton
             onClick={() => {
-              console.log(selected);
+              dispatch(deleteWorkOrder(props.selected));
+              props.handleDeselect();
             }}
           >
             <DeleteIcon />
@@ -242,7 +244,9 @@ export default function WorkOrderTable(props) {
     setOrder(isAsc ? "desc" : "asc");
     setOrderBy(property);
   };
-
+  function handleDeselect() {
+    setSelected([]);
+  }
   const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
       const newSelected = workOrders.map((n) => n.wo);
@@ -291,7 +295,12 @@ export default function WorkOrderTable(props) {
   return (
     <Box sx={{ width: "100%" }}>
       <Paper sx={{ width: "100%", mb: 2 }}>
-        <EnhancedTableToolbar numSelected={selected.length} {...props} />
+        <EnhancedTableToolbar
+          numSelected={selected.length}
+          selected={selected}
+          handleDeselect={handleDeselect}
+          {...props}
+        />
         <TableContainer>
           <Table
             sx={{ minWidth: 750 }}
@@ -300,11 +309,9 @@ export default function WorkOrderTable(props) {
           >
             <EnhancedTableHead
               numSelected={selected.length}
-              order={order}
-              orderBy={orderBy}
               onSelectAllClick={handleSelectAllClick}
               onRequestSort={handleRequestSort}
-              rowCount={workOrders.length}
+              rowCount={visibleRows.length}
             />
             <TableBody>
               {visibleRows.map((row, index) => {
@@ -366,7 +373,7 @@ export default function WorkOrderTable(props) {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
           component="div"
-          count={workOrders.length}
+          count={visibleRows.length}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}

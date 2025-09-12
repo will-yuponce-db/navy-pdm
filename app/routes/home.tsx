@@ -4,8 +4,6 @@ import MaintenanceOverview from "~/components/MaintenanceOverview";
 import WorkOrderTable from "~/components/WorkOrderTable";
 import WorkOrderModal from "~/components/WorkOrderModal";
 import { useState } from "react";
-import { useGetPokemonByNameQuery } from "../redux/services/pokemon";
-
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Home" },
@@ -15,10 +13,7 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Home() {
   const [workOrderModalOpen, setWorkOrderModalOpen] = useState(false);
-  const { data, error, isLoading } = useGetPokemonByNameQuery("bulbasaur");
-
   function openWorkOrderModal() {
-    console.log(data);
     setWorkOrderModalOpen(true);
   }
 
@@ -26,7 +21,14 @@ export default function Home() {
     setWorkOrderModalOpen(false);
   }
   return (
-    <div style={{ display: "flex", gap: "20px", flexDirection: "column" ,    height: "100vh"}}>
+    <div
+      style={{
+        display: "flex",
+        gap: "20px",
+        flexDirection: "column",
+        height: "100vh",
+      }}
+    >
       <div style={{ display: "flex", gap: "20px" }}>
         <MaintenanceOverview /> <QuickActions />
       </div>

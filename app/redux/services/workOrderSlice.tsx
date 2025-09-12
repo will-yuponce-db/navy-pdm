@@ -31,16 +31,18 @@ const workOrderSlice = createSlice({
       };
       state.push(newWorkOrder);
     },
-    deleteTodo: (state, action) => {
-      const index = state.findIndex((workOrder) =>
-        action.payload.any(workOrder.wo),
-      );
-      if (index !== -1) {
-        state.splice(index, 1);
-      }
+    deleteWorkOrder: (state, action) => {
+      action.payload.forEach((wo) => {
+        state.splice(
+          state.findIndex((elem) => {
+            return elem.wo == wo;
+          }),
+          1,
+        );
+      });
     },
   },
 });
 
-export const { addWorkOrder } = workOrderSlice.actions;
+export const { addWorkOrder, deleteWorkOrder } = workOrderSlice.actions;
 export default workOrderSlice.reducer;

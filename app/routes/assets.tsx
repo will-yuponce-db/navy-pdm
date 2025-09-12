@@ -4,8 +4,6 @@ import MaintenanceOverview from "~/components/MaintenanceOverview";
 import WorkOrderTable from "~/components/WorkOrderTable";
 import WorkOrderModal from "~/components/WorkOrderModal";
 import { useState } from "react";
-import { useGetPokemonByNameQuery } from "../redux/services/pokemon";
-
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Asset Analysis" },
@@ -15,7 +13,6 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Assets() {
   const [workOrderModalOpen, setWorkOrderModalOpen] = useState(false);
-  const { data, error, isLoading } = useGetPokemonByNameQuery("bulbasaur");
 
   function openWorkOrderModal() {
     console.log(data);

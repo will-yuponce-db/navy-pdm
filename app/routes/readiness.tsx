@@ -4,7 +4,6 @@ import MaintenanceOverview from "~/components/MaintenanceOverview";
 import WorkOrderTable from "~/components/WorkOrderTable";
 import WorkOrderModal from "~/components/WorkOrderModal";
 import { useState } from "react";
-import { useGetPokemonByNameQuery } from "../redux/services/pokemon";
 
 export function meta({}: Route.MetaArgs) {
   return [
