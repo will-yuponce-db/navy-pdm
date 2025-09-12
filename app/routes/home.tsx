@@ -32,11 +32,11 @@ export default function Home() {
       <div style={{ display: "flex", gap: "20px" }}>
         <MaintenanceOverview /> <QuickActions />
       </div>
-      <WorkOrderModal
+      <WorkOrderTable openWorkOrderModal={openWorkOrderModal} />
+            <WorkOrderModal
         modalOpen={workOrderModalOpen}
         handleModalClose={closeWorkOrderModal}
       />
-      <WorkOrderTable openWorkOrderModal={openWorkOrderModal} />
     </div>
   );
 }

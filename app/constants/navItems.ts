@@ -1,4 +1,8 @@
-export const navItems = [
+export const navItems: {
+    title: string;
+    icon: string;
+    route: string;
+}[] = [
   {
     title: "Home",
     icon: "home",
@@ -7,7 +11,7 @@ export const navItems = [
   {
     title: "Work Order",
     icon: "work",
-    route: "/",
+    route: "/work-order",
   },
   {
     title: "Readiness Dashboard",

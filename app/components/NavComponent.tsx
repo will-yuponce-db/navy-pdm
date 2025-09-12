@@ -19,7 +19,7 @@ import ListItemText from "@mui/material/ListItemText";
 import { Outlet } from "react-router";
 import Icon from "@mui/material/Icon";
 import { useNavigate } from "react-router";
-import { navItems } from "../constants/navItems.js";
+import { navItems } from "../constants/navItems";
 
 const drawerWidth = 240;
 

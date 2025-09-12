@@ -16,39 +16,11 @@ import Paper from "@mui/material/Paper";
 import Checkbox from "@mui/material/Checkbox";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Switch from "@mui/material/Switch";
 import DeleteIcon from "@mui/icons-material/Delete";
-import FilterListIcon from "@mui/icons-material/FilterList";
 import { visuallyHidden } from "@mui/utils";
-import Button from "@mui/material/Button";
 import { useSelector, useDispatch } from "react-redux";
 import Chip from "@mui/material/Chip";
 import { deleteWorkOrder } from "../redux/services/workOrderSlice";
-
-function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
-  if (b[orderBy] < a[orderBy]) {
-    return -1;
-  }
-  if (b[orderBy] > a[orderBy]) {
-    return 1;
-  }
-  return 0;
-}
-
-type Order = "asc" | "desc";
-
-function getComparator<Key extends keyof any>(
-  order: Order,
-  orderBy: Key,
-): (
-  a: { [key in Key]: number | string },
-  b: { [key in Key]: number | string },
-) => number {
-  return order === "desc"
-    ? (a, b) => descendingComparator(a, b, orderBy)
-    : (a, b) => -descendingComparator(a, b, orderBy);
-}
 
 const headCells = [
   {
@@ -101,19 +73,14 @@ const headCells = [
   },
 ];
 
-interface EnhancedTableProps {
-  numSelected: number;
-  onRequestSort: (
-    event: React.MouseEvent<unknown>,
-    property: keyof Data,
-  ) => void;
-  onSelectAllClick: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  order: Order;
-  orderBy: string;
-  rowCount: number;
-}
-
-function EnhancedTableHead(props: EnhancedTableProps) {
+function EnhancedTableHead(props: {
+  onSelectAllClick: any;
+  order: any;
+  orderBy: any;
+  numSelected: any;
+  rowCount: any;
+  onRequestSort: any;
+}) {
   const {
     onSelectAllClick,
     order,
@@ -123,7 +90,7 @@ function EnhancedTableHead(props: EnhancedTableProps) {
     onRequestSort,
   } = props;
   const createSortHandler =
-    (property: keyof Data) => (event: React.MouseEvent<unknown>) => {
+    (property: string) => (event: React.MouseEvent<unknown>) => {
       onRequestSort(event, property);
     };
 
@@ -166,10 +133,13 @@ function EnhancedTableHead(props: EnhancedTableProps) {
     </TableHead>
   );
 }
-interface EnhancedTableToolbarProps {
-  numSelected: number;
-}
-function EnhancedTableToolbar(props) {
+
+function EnhancedTableToolbar(props: {
+  selected?: any;
+  handleDeselect?: any;
+  openWorkOrderModal?: any;
+  numSelected?: any;
+}) {
   const dispatch = useDispatch();
   const { numSelected } = props;
   return (
@@ -183,7 +153,7 @@ function EnhancedTableToolbar(props) {
           bgcolor: (theme) =>
             alpha(
               theme.palette.primary.main,
-              theme.palette.action.activatedOpacity,
+              theme.palette.action.activatedOpacity
             ),
         },
       ]}
@@ -228,17 +198,17 @@ function EnhancedTableToolbar(props) {
     </Toolbar>
   );
 }
-export default function WorkOrderTable(props) {
+export default function WorkOrderTable(props: any) {
   const workOrders = useSelector((state) => state.workOrders);
   const [order, setOrder] = React.useState<Order>("asc");
-  const [orderBy, setOrderBy] = React.useState<keyof Data>("");
+  const [orderBy, setOrderBy] = React.useState("");
   const [selected, setSelected] = React.useState<readonly number[]>([]);
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = React.useState(5);
 
   const handleRequestSort = (
     event: React.MouseEvent<unknown>,
-    property: keyof Data,
+    property: React.SetStateAction<string>
   ) => {
     const isAsc = orderBy === property && order === "asc";
     setOrder(isAsc ? "desc" : "asc");
@@ -249,7 +219,7 @@ export default function WorkOrderTable(props) {
   }
   const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
-      const newSelected = workOrders.map((n) => n.wo);
+      const newSelected = workOrders.map((n: { wo: any }) => n.wo);
       setSelected(newSelected);
       return;
     }
@@ -269,7 +239,7 @@ export default function WorkOrderTable(props) {
     } else if (selectedIndex > 0) {
       newSelected = newSelected.concat(
         selected.slice(0, selectedIndex),
-        selected.slice(selectedIndex + 1),
+        selected.slice(selectedIndex + 1)
       );
     }
     setSelected(newSelected);
@@ -280,7 +250,7 @@ export default function WorkOrderTable(props) {
   };
 
   const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement>,
+    event: React.ChangeEvent<HTMLInputElement>
   ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
@@ -289,8 +259,8 @@ export default function WorkOrderTable(props) {
   // Avoid a layout jump when reaching the last page with empty workOrders.
   const emptyRows =
     page > 0 ? Math.max(0, (1 + page) * rowsPerPage - workOrders.length) : 0;
-
-  const visibleRows = workOrders;
+  
+    const paginatedData = workOrders.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   return (
     <Box sx={{ width: "100%" }}>
@@ -311,53 +281,47 @@ export default function WorkOrderTable(props) {
               numSelected={selected.length}
               onSelectAllClick={handleSelectAllClick}
               onRequestSort={handleRequestSort}
-              rowCount={visibleRows.length}
+              rowCount={workOrders.length}
             />
             <TableBody>
-              {visibleRows.map((row, index) => {
+              {paginatedData.map((row, index) => {
                 const isItemSelected = selected.includes(row.wo);
                 const labelId = `enhanced-table-checkbox-${index}`;
 
-                return (
-                  <TableRow
-                    hover
-                    onClick={(event) => handleClick(event, row.wo)}
-                    role="checkbox"
-                    aria-checked={isItemSelected}
-                    tabIndex={-1}
-                    key={row.wo}
-                    selected={isItemSelected}
-                    sx={{ cursor: "pointer" }}
-                  >
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        color="primary"
-                        checked={isItemSelected}
-                        inputProps={{
-                          "aria-labelledby": labelId,
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell
-                      component="th"
-                      id={labelId}
-                      scope="row"
-                      padding="none"
+                  return (
+                    <TableRow
+                      hover
+                      onClick={(event) => handleClick(event, row.wo)}
+                      role="checkbox"
+                      aria-checked={isItemSelected}
+                      tabIndex={-1}
+                      selected={isItemSelected}
+                      sx={{ cursor: "pointer" }}
                     >
-                      {row.wo}
-                    </TableCell>
-                    <TableCell align="right">{row.ship}</TableCell>
-                    <TableCell align="right">{row.homeport}</TableCell>
-                    <TableCell align="right">{row.gte}</TableCell>
-                    <TableCell align="right">{row.fm}</TableCell>
-                    <TableCell align="right">{row.priority}</TableCell>
-                    <TableCell align="right">
-                      <Chip label={row.status} />
-                    </TableCell>
-                    <TableCell align="right">{row.eta}</TableCell>
-                  </TableRow>
-                );
-              })}
+                      <TableCell padding="checkbox">
+                        <Checkbox color="primary" checked={isItemSelected} />
+                      </TableCell>
+                      <TableCell
+                        component="th"
+                        id={labelId}
+                        scope="row"
+                        padding="none"
+                      >
+                        {row.wo}
+                      </TableCell>
+                      <TableCell align="right">{row.ship}</TableCell>
+                      <TableCell align="right">{row.homeport}</TableCell>
+                      <TableCell align="right">{row.gte}</TableCell>
+                      <TableCell align="right">{row.fm}</TableCell>
+                      <TableCell align="right">{row.priority}</TableCell>
+                      <TableCell align="right">
+                        <Chip label={row.status} />
+                      </TableCell>
+                      <TableCell align="right">{row.eta}</TableCell>
+                    </TableRow>
+                  );
+                }
+              )}
               {emptyRows > 0 && (
                 <TableRow
                   style={{
@@ -370,15 +334,15 @@ export default function WorkOrderTable(props) {
             </TableBody>
           </Table>
         </TableContainer>
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
-          component="div"
-          count={visibleRows.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-        />
+                    <TablePagination
+              rowsPerPageOptions={[5, 10, 25]}
+              component="div"
+              count={workOrders.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+            />
       </Paper>
     </Box>
   );

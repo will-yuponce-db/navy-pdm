@@ -1,5 +1,3 @@
-import * as React from "react";
-import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import CardActions from "@mui/material/CardActions";
 import CardContent from "@mui/material/CardContent";
@@ -30,7 +28,7 @@ export default function MaintenanceOverview() {
       <CardContent>
         <Typography variant="h5">Fleet Maintenance Overview</Typography>
         <Typography variant="p2" sx={{ color: "text.secondary", mb: 1.5 }}>
-          Commanders' view for Gas Turbine Engines (GTEs): readiness, predicted
+          Commanders&apos; view for Gas Turbine Engines (GTEs): readiness, predicted
           maintenance, and CASREP status across homeports. This demo mirrors
           Databricks SQL dashboards and Lakehouse workflows with a simplified
           UI.

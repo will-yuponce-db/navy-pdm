@@ -27,8 +27,10 @@ export default function QuickActions() {
             Readiness Dashboard
           </Button>
         </Tooltip>
-        <Tooltip title={"Open Asset Management"}>
-          <Button variant="outlined">Asset Management</Button>
+        <Tooltip title={"Open Work Order Management"}>
+          <Button            onClick={() => {
+              navigate("/work-order");
+            }} variant="outlined">Work Order Management</Button>
         </Tooltip>
       </CardActions>
     </Card>
