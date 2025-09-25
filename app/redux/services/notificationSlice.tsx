@@ -17,8 +17,8 @@ const notificationSlice = createSlice({
       action: PayloadAction<Omit<Notification, "id" | "timestamp" | "read">>,
     ) => {
       const newNotification: Notification = {
-        id: uuidv4(),
-        timestamp: new Date(),
+        id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: new Date().toISOString(),
         read: false,
         ...action.payload,
       };

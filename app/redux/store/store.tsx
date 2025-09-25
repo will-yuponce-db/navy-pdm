@@ -5,7 +5,6 @@ import workOrderReducer from "../services/workOrderSlice";
 import notificationReducer from "../services/notificationSlice";
 import partsReducer from "../services/partsSlice";
 import authReducer from "../services/authSlice";
-import type { RootState } from "../../types";
 
 export const store = configureStore({
   reducer: {
@@ -20,7 +19,16 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
         ignoredActionsPaths: ['meta.arg', 'payload.timestamp'],
-        ignoredPaths: ['items.dates'],
+        ignoredPaths: [
+          'items.dates',
+          'parts.parts.lastUpdated',
+          'parts.parts.0.lastUpdated',
+          'parts.parts.1.lastUpdated',
+          'parts.parts.2.lastUpdated',
+          'parts.parts.3.lastUpdated',
+          'parts.parts.4.lastUpdated',
+          'parts.parts.5.lastUpdated',
+        ],
       },
     }),
 });

@@ -100,6 +100,10 @@ export const NotificationCenter = ({
         pointerEvents: "none",
         maxHeight: "calc(100vh - 64px - 32px)",
         overflow: "hidden",
+        // Ensure this container doesn't interfere with clicks
+        "& > *": {
+          pointerEvents: "auto",
+        },
       }}
       role="region"
       aria-label="Notification center"
@@ -306,7 +310,7 @@ export const NotificationCenter = ({
                         color="text.secondary"
                         sx={{ fontSize: "0.75rem" }}
                       >
-                        {notification.timestamp.toLocaleString()}
+                        {new Date(notification.timestamp).toLocaleString()}
                       </Typography>
                     </Box>
                   </Box>

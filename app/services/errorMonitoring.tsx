@@ -217,7 +217,7 @@ class ErrorMonitoringService {
     this.sendToExternalService(errorEntry);
 
     // Log to console in development
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.error('Error logged:', errorEntry);
     }
   }
@@ -367,7 +367,7 @@ class ErrorMonitoringService {
     // - Bugsnag
     // - Custom logging endpoint
     
-    if (process.env.REACT_APP_ERROR_REPORTING_ENABLED === 'true') {
+    if (import.meta.env.VITE_ERROR_REPORTING_ENABLED === 'true') {
       try {
         await fetch('/api/errors', {
           method: 'POST',
@@ -427,7 +427,7 @@ const DefaultErrorFallback: React.FC<{ error: Error }> = ({ error }) => (
   <div style={{ padding: '20px', textAlign: 'center' }}>
     <h2>Something went wrong</h2>
     <p>We're sorry, but something unexpected happened.</p>
-    {process.env.NODE_ENV === 'development' && (
+    {import.meta.env.DEV && (
       <details style={{ marginTop: '20px' }}>
         <summary>Error Details</summary>
         <pre style={{ textAlign: 'left', marginTop: '10px' }}>

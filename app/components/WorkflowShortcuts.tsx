@@ -13,7 +13,7 @@ export const useWorkflowShortcuts = ({
   onRefreshData,
 }: WorkflowShortcutsProps = {}) => {
   const navigate = useNavigate();
-  const workOrders = useSelector((state: RootState) => state.workOrder);
+  const workOrders = useSelector((state: RootState) => state.workOrders);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

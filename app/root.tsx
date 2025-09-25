@@ -273,7 +273,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
           margin: 0,
           padding: 0,
           overflow: "auto",
+          pointerEvents: "auto",
         }}
+        suppressHydrationWarning={true}
       >
         {children}
         <ScrollRestoration />
@@ -349,14 +351,18 @@ function AppContent() {
 }
 
 export default function App() {
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Check localStorage for saved theme preference (only on client side)
+  const [isDarkMode, setIsDarkMode] = useState(false); // Always start with false to match server
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Handle hydration and theme initialization
+  useEffect(() => {
+    setIsHydrated(true);
+    // Check localStorage for saved theme preference (only on client side after hydration)
     if (typeof window !== "undefined" && window.localStorage) {
       const savedTheme = localStorage.getItem("theme");
-      return savedTheme === "dark";
+      setIsDarkMode(savedTheme === "dark");
     }
-    return false; // Default to light mode on server
-  });
+  }, []);
 
   const toggleTheme = () => {
     const newMode = !isDarkMode;
@@ -371,14 +377,14 @@ export default function App() {
 
   // Apply theme to document (only on client side)
   useEffect(() => {
-    if (typeof window !== "undefined" && window.document) {
+    if (typeof window !== "undefined" && window.document && isHydrated) {
       document.documentElement.setAttribute(
         "data-theme",
         isDarkMode ? "dark" : "light",
       );
       document.body.style.backgroundColor = isDarkMode ? "#121212" : "#fafafa";
     }
-  }, [isDarkMode]);
+  }, [isDarkMode, isHydrated]);
 
   return (
     <ThemeContext.Provider value={{ toggleTheme, isDarkMode }}>

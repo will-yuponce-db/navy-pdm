@@ -1,7 +1,7 @@
 import type { WorkOrder, Part, Notification, User, ApiResponse, PaginatedResponse } from '../types';
 
 // API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 const API_TIMEOUT = 10000;
 
 // Custom error class for API errors
@@ -319,7 +319,7 @@ export class WebSocketService {
 
   connect(onMessage: (data: any) => void, onError?: (error: Event) => void): void {
     const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
-    const wsUrl = `${process.env.REACT_APP_WS_URL || 'ws://localhost:3001'}/ws?token=${token}`;
+    const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:3001'}/ws?token=${token}`;
     
     this.ws = new WebSocket(wsUrl);
 

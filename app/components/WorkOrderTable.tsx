@@ -248,7 +248,7 @@ function EnhancedTableToolbar(props: EnhancedTableToolbarProps) {
   );
 }
 export default function WorkOrderTable(props: WorkOrderTableProps) {
-  const workOrders = useSelector((state: RootState) => state.workOrder);
+  const workOrders = useSelector((state: RootState) => state.workOrders);
   const dispatch = useAppDispatch();
   const { showError } = useErrorHandler();
   const [order, setOrder] = useState<"asc" | "desc">("asc");

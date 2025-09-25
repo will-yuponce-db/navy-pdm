@@ -38,7 +38,7 @@ const initialState: PartsState = {
       leadTime: "45 days",
       supplier: "General Electric",
       cost: 75000,
-      lastUpdated: new Date(),
+      lastUpdated: new Date().toISOString(),
     },
     {
       id: "LM2500-BRG-002",
@@ -53,7 +53,7 @@ const initialState: PartsState = {
       leadTime: "60 days",
       supplier: "General Electric",
       cost: 45000,
-      lastUpdated: new Date(),
+      lastUpdated: new Date().toISOString(),
     },
     {
       id: "LM2500-FIL-003",
@@ -68,7 +68,7 @@ const initialState: PartsState = {
       leadTime: "14 days",
       supplier: "Parker Hannifin",
       cost: 250,
-      lastUpdated: new Date(),
+      lastUpdated: new Date().toISOString(),
     },
     {
       id: "LM2500-SEN-004",
@@ -83,7 +83,7 @@ const initialState: PartsState = {
       leadTime: "30 days",
       supplier: "Honeywell",
       cost: 1500,
-      lastUpdated: new Date(),
+      lastUpdated: new Date().toISOString(),
     },
     {
       id: "LM2500-PMP-005",
@@ -98,7 +98,7 @@ const initialState: PartsState = {
       leadTime: "30 days",
       supplier: "General Electric",
       cost: 25000,
-      lastUpdated: new Date(),
+      lastUpdated: new Date().toISOString(),
     },
     {
       id: "LM2500-FUEL-006",
@@ -113,7 +113,7 @@ const initialState: PartsState = {
       leadTime: "21 days",
       supplier: "General Electric",
       cost: 12000,
-      lastUpdated: new Date(),
+      lastUpdated: new Date().toISOString(),
     },
   ],
   loading: false,
@@ -140,7 +140,7 @@ export const addPartWithNotification = createAsyncThunk(
     const newPart: Part = {
       id: uuidv4().split("-")[0].toUpperCase(),
       ...partData,
-      lastUpdated: new Date(),
+      lastUpdated: new Date().toISOString(),
     };
 
     // Check for low stock alerts
@@ -188,7 +188,7 @@ export const updatePartWithNotification = createAsyncThunk(
       throw new Error(`Part ${id} not found`);
     }
 
-    const updatedPart = { ...part, ...updates, lastUpdated: new Date() };
+    const updatedPart = { ...part, ...updates, lastUpdated: new Date().toISOString() };
 
     // Check for stock level changes
     if (updates.stockLevel !== undefined) {

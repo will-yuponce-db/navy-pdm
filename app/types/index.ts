@@ -30,7 +30,7 @@ export interface Notification {
   type: "success" | "error" | "warning" | "info";
   title: string;
   message: string;
-  timestamp: Date;
+  timestamp: string;
   priority: "low" | "medium" | "high" | "critical";
   category: "maintenance" | "system" | "alert" | "update";
   read: boolean;
@@ -67,7 +67,7 @@ export interface Part {
   leadTime: string;
   supplier: string;
   cost: number;
-  lastUpdated?: Date;
+  lastUpdated?: string;
 }
 
 export type PartCategory =

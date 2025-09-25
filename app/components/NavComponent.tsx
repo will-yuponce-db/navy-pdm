@@ -34,6 +34,7 @@ const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })<{
   minHeight: "100vh",
   width: "100%",
   maxWidth: "100%",
+  pointerEvents: "auto",
   transition: theme.transitions.create("margin", {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
@@ -217,6 +218,7 @@ export default function NavComponent() {
             margin: 0,
             overflow: "auto",
             marginTop: 0,
+            pointerEvents: "auto",
           }}
         >
           <Outlet />

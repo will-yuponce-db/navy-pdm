@@ -250,7 +250,7 @@ export class SecurityLogger {
   }
 
   private async sendToSecurityService(event: SecurityEvent): Promise<void> {
-    if (process.env.REACT_APP_SECURITY_MONITORING_ENABLED === 'true') {
+    if (import.meta.env.VITE_SECURITY_MONITORING_ENABLED === 'true') {
       try {
         await fetch('/api/security-events', {
           method: 'POST',
@@ -339,7 +339,7 @@ export class AuditLogger {
   }
 
   private async sendToAuditService(log: AuditLog): Promise<void> {
-    if (process.env.REACT_APP_AUDIT_LOGGING_ENABLED === 'true') {
+    if (import.meta.env.VITE_AUDIT_LOGGING_ENABLED === 'true') {
       try {
         await fetch('/api/audit-logs', {
           method: 'POST',

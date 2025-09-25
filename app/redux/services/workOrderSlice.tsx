@@ -11,7 +11,7 @@ import type { RootState } from "../../types";
 
 const initialState: WorkOrderState = [
   {
-    wo: uuidv4().split("-")[0].toUpperCase(),
+    wo: "ED569313", // Fixed ID for SSR consistency
     ship: "USS Bainbridge (DDG-96)",
     homeport: "NB Norfolk",
     fm: "Vibration – Hot Section",
@@ -23,10 +23,10 @@ const initialState: WorkOrderState = [
     recommendedAction: "Inspect hot section components for wear",
     partsRequired: "Turbine blade set, gaskets",
     slaCategory: "Priority",
-    createdAt: new Date(),
+    createdAt: new Date("2024-01-15T10:00:00Z"),
   },
   {
-    wo: uuidv4().split("-")[0].toUpperCase(),
+    wo: "39A8CA7E", // Fixed ID for SSR consistency
     ship: "USS Arleigh Burke (DDG-51)",
     homeport: "NB Norfolk",
     fm: "Oil Pressure – Low",
@@ -38,10 +38,10 @@ const initialState: WorkOrderState = [
     recommendedAction: "Replace main oil pump and check filter",
     partsRequired: "Oil pump assembly, oil filter",
     slaCategory: "Urgent",
-    createdAt: new Date(Date.now() - 86400000), // 1 day ago
+    createdAt: new Date("2024-01-14T10:00:00Z"), // 1 day ago
   },
   {
-    wo: uuidv4().split("-")[0].toUpperCase(),
+    wo: "CASREP001", // Fixed ID for SSR consistency
     ship: "USS Cole (DDG-67)",
     homeport: "NB Norfolk",
     fm: "Temperature – High EGT",
@@ -53,7 +53,7 @@ const initialState: WorkOrderState = [
     recommendedAction: "Emergency shutdown and immediate inspection",
     partsRequired: "Temperature sensors, combustor parts",
     slaCategory: "Critical",
-    createdAt: new Date(Date.now() - 3600000), // 1 hour ago
+    createdAt: new Date("2024-01-15T13:00:00Z"), // 1 hour ago
   },
 ];
 
@@ -139,7 +139,7 @@ export const updateWorkOrderWithNotification = createAsyncThunk(
     { dispatch, getState },
   ) => {
     const state = getState() as RootState;
-    const workOrder = state.workOrder.find((w) => w.wo === wo);
+    const workOrder = state.workOrders.find((w) => w.wo === wo);
 
     if (!workOrder) {
       throw new Error(`Work order ${wo} not found`);
@@ -182,12 +182,12 @@ const workOrderSlice = createSlice({
       state,
       action: PayloadAction<Omit<WorkOrder, "wo" | "createdAt" | "updatedAt">>,
     ) => {
-      const newWorkOrder: WorkOrder = {
-        wo: uuidv4().split("-")[0].toUpperCase(),
-        ...action.payload,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+    const newWorkOrder: WorkOrder = {
+      wo: uuidv4().split("-")[0].toUpperCase(),
+      ...action.payload,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
       state.push(newWorkOrder);
     },
     deleteWorkOrder: (state, action: PayloadAction<string[]>) => {
@@ -222,11 +222,11 @@ const workOrderSlice = createSlice({
         const { wo, updates } = action.payload;
         const index = state.findIndex((elem) => elem.wo === wo);
         if (index !== -1) {
-          state[index] = {
-            ...state[index],
-            ...updates,
-            updatedAt: new Date(),
-          };
+        state[index] = {
+          ...state[index],
+          ...updates,
+          updatedAt: new Date(),
+        };
         }
       })
       .addCase(deleteWorkOrderWithNotification.fulfilled, (state, action) => {
