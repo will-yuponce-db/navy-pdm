@@ -1,5 +1,6 @@
 import * as React from "react";
-import { styled, useTheme } from "@mui/material/styles";
+import { useState, useEffect } from "react";
+import { styled } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -11,7 +12,6 @@ import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
 import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
@@ -20,53 +20,53 @@ import { Outlet } from "react-router";
 import Icon from "@mui/material/Icon";
 import { useNavigate } from "react-router";
 import { navItems } from "../constants/navItems";
+// Removed unused imports: Switch, FormControlLabel, useTheme
+// import { useAccessibility, useKeyboardShortcuts } from "./Accessibility";
 
 const drawerWidth = 240;
 
-const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })(
-  ({ theme }) => ({
-    flexGrow: 1,
-    padding: theme.spacing(3),
-    transition: theme.transitions.create("margin", {
-      easing: theme.transitions.easing.sharp,
-      duration: theme.transitions.duration.leavingScreen,
-    }),
-    marginLeft: `-${drawerWidth}px`,
-    variants: [
-      {
-        props: ({ open }) => open,
-        style: {
-          transition: theme.transitions.create("margin", {
-            easing: theme.transitions.easing.easeOut,
-            duration: theme.transitions.duration.enteringScreen,
-          }),
-          marginLeft: 0,
-        },
-      },
-    ],
+const Main = styled("main", { shouldForwardProp: (prop) => prop !== "open" })<{
+  open?: boolean;
+}>(({ theme, open }) => ({
+  flexGrow: 1,
+  padding: 0,
+  margin: 0,
+  minHeight: "100vh",
+  width: "100%",
+  maxWidth: "100%",
+  transition: theme.transitions.create("margin", {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.leavingScreen,
   }),
-);
+  marginLeft: `-${drawerWidth}px`,
+  ...(open && {
+    transition: theme.transitions.create("margin", {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+    marginLeft: 0,
+  }),
+}));
 
 const AppBar = styled(MuiAppBar, {
   shouldForwardProp: (prop) => prop !== "open",
-})(({ theme }) => ({
+})<{
+  open?: boolean;
+}>(({ theme, open }) => ({
+  backgroundColor: theme.palette.primary.main,
+  boxShadow: theme.shadows[2],
   transition: theme.transitions.create(["margin", "width"], {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
   }),
-  variants: [
-    {
-      props: ({ open }) => open,
-      style: {
-        width: `calc(100% - ${drawerWidth}px)`,
-        marginLeft: `${drawerWidth}px`,
-        transition: theme.transitions.create(["margin", "width"], {
-          easing: theme.transitions.easing.easeOut,
-          duration: theme.transitions.duration.enteringScreen,
-        }),
-      },
-    },
-  ],
+  ...(open && {
+    width: `calc(100% - ${drawerWidth}px)`,
+    marginLeft: `${drawerWidth}px`,
+    transition: theme.transitions.create(["margin", "width"], {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+  }),
 }));
 
 const DrawerHeader = styled("div")(({ theme }) => ({
@@ -79,10 +79,12 @@ const DrawerHeader = styled("div")(({ theme }) => ({
 }));
 
 export default function NavComponent() {
-  const theme = useTheme();
-  const [open, setOpen] = React.useState(false);
+  // Minimal test version
+  const [open, setOpen] = useState(false);
+  const [appHeader, setAppHeader] = useState("Navy PdM");
   const navigate = useNavigate();
-  const [appHeader, setAppHeader] = React.useState("Home");
+  // const theme = useMuiTheme(); // Removed unused variable
+
   const handleDrawerOpen = () => {
     setOpen(true);
   };
@@ -91,58 +93,87 @@ export default function NavComponent() {
     setOpen(false);
   };
 
-  const handleAppHeader = (header) => {
+  const handleAppHeader = (header: string) => {
     setAppHeader(header);
   };
 
+  // Handle drawer-specific keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Close drawer with Escape
+      if (event.key === "Escape" && open) {
+        handleDrawerClose();
+        return;
+      }
+    };
+
+    if (typeof window !== "undefined" && window.document) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [open]);
+
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box
+      sx={{
+        display: "flex",
+        width: "100vw",
+        height: "100vh",
+        margin: 0,
+        padding: 0,
+      }}
+    >
       <CssBaseline />
-      <AppBar position="fixed" open={open}>
+      <AppBar position="fixed" open={open} role="banner">
         <Toolbar>
           <IconButton
             color="inherit"
-            aria-label="open drawer"
+            aria-label="Open navigation menu"
+            aria-expanded={open}
+            aria-controls="navigation-drawer"
             onClick={handleDrawerOpen}
             edge="start"
-            sx={[
-              {
-                mr: 2,
-              },
-              open && { display: "none" },
-            ]}
+            sx={{
+              mr: 2,
+              ...(open && { display: "none" }),
+            }}
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div">
+          <Typography variant="h6" noWrap component="h1" sx={{ flexGrow: 1 }}>
             {appHeader}
           </Typography>
         </Toolbar>
       </AppBar>
       <Drawer
+        id="navigation-drawer"
         sx={{
           width: drawerWidth,
           flexShrink: 0,
           "& .MuiDrawer-paper": {
             width: drawerWidth,
             boxSizing: "border-box",
+            backgroundColor: "background.paper",
+            borderRight: "1px solid",
+            borderColor: "divider",
           },
         }}
         variant="persistent"
         anchor="left"
         open={open}
+        role="navigation"
+        aria-label="Main navigation"
       >
         <DrawerHeader>
-          <IconButton onClick={handleDrawerClose}>
-            {theme.direction === "ltr" ? (
-              <ChevronLeftIcon />
-            ) : (
-              <ChevronRightIcon />
-            )}
+          <IconButton
+            onClick={handleDrawerClose}
+            aria-label="Close navigation menu"
+          >
+            <ChevronLeftIcon />
           </IconButton>
         </DrawerHeader>
         <Divider />
-        <List>
+        <List role="menubar" aria-label="Navigation menu">
           {navItems.map((item) => {
             return (
               <ListItem key={item.title} disablePadding>
@@ -150,9 +181,21 @@ export default function NavComponent() {
                   onClick={() => {
                     handleAppHeader(item.title);
                     navigate(item.route);
+                    handleDrawerClose();
+                  }}
+                  role="menuitem"
+                  tabIndex={0}
+                  aria-label={`Navigate to ${item.title}`}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleAppHeader(item.title);
+                      navigate(item.route);
+                      handleDrawerClose();
+                    }
                   }}
                 >
-                  <ListItemIcon>
+                  <ListItemIcon aria-hidden="true">
                     <Icon>{item.icon}</Icon>
                   </ListItemIcon>
                   <ListItemText primary={item.title} />
@@ -162,11 +205,22 @@ export default function NavComponent() {
           })}
         </List>
       </Drawer>
-      <Main open={open}>
+      <Main open={open} role="main" id="main-content">
         <DrawerHeader />
-        <div>
+        <Box
+          sx={{
+            width: "100%",
+            maxWidth: "100%",
+            minHeight: "calc(100vh - 64px)",
+            backgroundColor: "background.default",
+            padding: 2,
+            margin: 0,
+            overflow: "auto",
+            marginTop: 0,
+          }}
+        >
           <Outlet />
-        </div>
+        </Box>
       </Main>
     </Box>
   );

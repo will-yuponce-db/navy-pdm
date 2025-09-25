@@ -1,7 +1,7 @@
 export const navItems: {
-    title: string;
-    icon: string;
-    route: string;
+  title: string;
+  icon: string;
+  route: string;
 }[] = [
   {
     title: "Home",
@@ -19,14 +19,14 @@ export const navItems: {
     route: "/readiness",
   },
   {
-    title: "Assets",
+    title: "Asset Management",
     icon: "inventory_2",
-    route: "/",
+    route: "/assets",
   },
   {
     title: "Parts",
     icon: "category",
-    route: "/",
+    route: "/parts",
   },
   {
     title: "About",

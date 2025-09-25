@@ -8,10 +8,45 @@
 
 html,
 body {
-  @apply bg-white dark:bg-gray-950;
-
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
-  }
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
   gap: 20px;
+}
+
+/* Theme-specific styles */
+[data-theme="light"] {
+  --bg-color: #fafafa;
+  --text-color: #212121;
+  --paper-color: #ffffff;
+}
+
+[data-theme="dark"] {
+  --bg-color: #121212;
+  --text-color: #ffffff;
+  --paper-color: #1e1e1e;
+}
+
+/* Apply theme colors to body and main content */
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+/* Ensure MUI components respect theme */
+.MuiPaper-root {
+  background-color: var(--paper-color) !important;
+}
+
+.MuiDrawer-paper {
+  background-color: var(--paper-color) !important;
+}
+
+/* Ensure AppBar gets the Databricks orange color */
+.MuiAppBar-root {
+  background-color: #ff3621 !important;
 }
