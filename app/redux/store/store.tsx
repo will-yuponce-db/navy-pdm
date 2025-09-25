@@ -4,6 +4,7 @@ import { setupListeners } from "@reduxjs/toolkit/query";
 import workOrderReducer from "../services/workOrderSlice";
 import notificationReducer from "../services/notificationSlice";
 import partsReducer from "../services/partsSlice";
+import authReducer from "../services/authSlice";
 import type { RootState } from "../../types";
 
 export const store = configureStore({
@@ -12,7 +13,16 @@ export const store = configureStore({
     workOrder: workOrderReducer,
     notifications: notificationReducer,
     parts: partsReducer,
+    auth: authReducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+        ignoredActionsPaths: ['meta.arg', 'payload.timestamp'],
+        ignoredPaths: ['items.dates'],
+      },
+    }),
 });
 
 // optional, but required for refetchOnFocus/refetchOnReconnect behaviors

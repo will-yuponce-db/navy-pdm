@@ -150,12 +150,40 @@ describe("WorkOrderTable", () => {
 
   it("allows selecting individual work orders", async () => {
     const user = userEvent.setup();
+    // Create test data with work orders
+    const testWorkOrders = [
+      {
+        id: "1",
+        wo: "WO-001",
+        ship: "USS Test",
+        homeport: "Norfolk",
+        gte: "LM2500",
+        fm: "Test Failure",
+        priority: "Routine" as const,
+        status: "Submitted" as const,
+        eta: 5,
+        symptoms: "Test symptoms",
+        recommendedAction: "Test action",
+        partsRequired: "Test parts",
+        slaCategory: "Test SLA",
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
     renderWithProvider(
       <WorkOrderTable openWorkOrderModal={mockOpenWorkOrderModal} />,
+      {
+        preloadedState: {
+          workOrders: testWorkOrders,
+        },
+      },
     );
 
     const checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes.length).toBeGreaterThan(1); // Should have select all + individual checkboxes
+    
     const firstWorkOrderCheckbox = checkboxes[1]; // Skip the "select all" checkbox
+    expect(firstWorkOrderCheckbox).toBeInTheDocument();
 
     await user.click(firstWorkOrderCheckbox);
     // Check that the checkbox is checked
@@ -177,15 +205,41 @@ describe("WorkOrderTable", () => {
 
   it("shows delete button when work orders are selected", async () => {
     const user = userEvent.setup();
+    // Create test data with work orders
+    const testWorkOrders = [
+      {
+        id: "1",
+        wo: "WO-001",
+        ship: "USS Test",
+        homeport: "Norfolk",
+        gte: "LM2500",
+        fm: "Test Failure",
+        priority: "Routine" as const,
+        status: "Submitted" as const,
+        eta: 5,
+        symptoms: "Test symptoms",
+        recommendedAction: "Test action",
+        partsRequired: "Test parts",
+        slaCategory: "Test SLA",
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
     renderWithProvider(
       <WorkOrderTable openWorkOrderModal={mockOpenWorkOrderModal} />,
+      {
+        preloadedState: {
+          workOrders: testWorkOrders,
+        },
+      },
     );
 
     const selectAllCheckbox = screen.getByLabelText("Select all work orders");
     await user.click(selectAllCheckbox);
 
-    // Look for delete button by icon
-    expect(screen.getByTestId("DeleteIcon")).toBeInTheDocument();
+    // Look for delete button by testId or role
+    const deleteButton = screen.getByTestId("DeleteIcon");
+    expect(deleteButton).toBeInTheDocument();
   });
 
   it("shows add button when no work orders are selected", () => {
@@ -278,15 +332,56 @@ describe("WorkOrderTable", () => {
   });
 
   it("displays priority and status chips with correct colors", () => {
+    // Create test data with work orders that have priority and status
+    const testWorkOrders = [
+      {
+        id: "1",
+        wo: "WO-001",
+        ship: "USS Test",
+        homeport: "Norfolk",
+        gte: "LM2500",
+        fm: "Test Failure",
+        priority: "Routine" as const,
+        status: "Submitted" as const,
+        eta: 5,
+        symptoms: "Test symptoms",
+        recommendedAction: "Test action",
+        partsRequired: "Test parts",
+        slaCategory: "Test SLA",
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: "2",
+        wo: "WO-002",
+        ship: "USS Test 2",
+        homeport: "San Diego",
+        gte: "LM2500",
+        fm: "Test Failure 2",
+        priority: "Priority" as const,
+        status: "In Progress" as const,
+        eta: 3,
+        symptoms: "Test symptoms 2",
+        recommendedAction: "Test action 2",
+        partsRequired: "Test parts 2",
+        slaCategory: "Test SLA 2",
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
     renderWithProvider(
       <WorkOrderTable openWorkOrderModal={mockOpenWorkOrderModal} />,
+      {
+        preloadedState: {
+          workOrders: testWorkOrders,
+        },
+      },
     );
 
     // Check that priority chips are rendered
     const priorityChips = screen.getAllByText(/Routine|Priority|CASREP/);
     expect(priorityChips.length).toBeGreaterThan(0);
 
-    // Check that status chips are rendered - use getAllByText to handle multiple instances
+    // Check that status chips are rendered
     const statusChips = screen.getAllByText(
       /Submitted|In Progress|Completed|On Hold|Cancelled/,
     );

@@ -257,14 +257,16 @@ describe("Integration Tests - User Workflows", () => {
       const addButton = screen.getByLabelText("Add new work order");
       await user.click(addButton);
 
+      // Wait for modal to be visible
+      await waitFor(() => {
+        expect(screen.getByLabelText("Ship")).toBeInTheDocument();
+      });
+
       // Trigger validation errors
       const submitButton = screen.getByLabelText("Submit work order form");
       await user.click(submitButton);
 
-      // Start typing in ship field - wait for modal to be visible
-      await waitFor(() => {
-        expect(screen.getByLabelText("Ship")).toBeInTheDocument();
-      });
+      // Start typing in ship field
       const shipInput = screen.getByLabelText("Ship");
       await user.type(shipInput, "USS Test");
 
@@ -280,10 +282,12 @@ describe("Integration Tests - User Workflows", () => {
       const addButton = screen.getByLabelText("Add new work order");
       await user.click(addButton);
 
-      // Enter invalid ETA - wait for modal to be visible
+      // Wait for modal to be visible
       await waitFor(() => {
         expect(screen.getByLabelText("Target ETA (days)")).toBeInTheDocument();
       });
+
+      // Enter invalid ETA
       const etaInput = screen.getByLabelText("Target ETA (days)");
       await user.type(etaInput, "invalid");
 

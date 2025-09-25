@@ -217,3 +217,172 @@ export interface ChartDataset {
 export interface ThemeMode {
   mode: "light" | "dark";
 }
+
+// User Management Types
+export interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  permissions: Permission[];
+  homeport?: string;
+  department?: string;
+  isActive: boolean;
+  lastLogin?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type UserRole = 
+  | "admin"
+  | "commander"
+  | "maintenance_manager"
+  | "maintainer"
+  | "pmo_officer"
+  | "viewer";
+
+export type Permission = 
+  | "work_orders:read"
+  | "work_orders:write"
+  | "work_orders:delete"
+  | "parts:read"
+  | "parts:write"
+  | "parts:delete"
+  | "analytics:read"
+  | "users:read"
+  | "users:write"
+  | "users:delete"
+  | "system:admin";
+
+// Authentication Types
+export interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  homeport?: string;
+  department?: string;
+}
+
+// API Types
+export interface ApiError {
+  message: string;
+  code?: string;
+  status: number;
+  timestamp: string;
+}
+
+export interface ApiResponse<T> {
+  data: T;
+  message: string;
+  success: boolean;
+  timestamp: string;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
+// WebSocket Types
+export interface WebSocketMessage {
+  type: 'work_order_update' | 'notification' | 'system_alert' | 'maintenance_alert';
+  data: any;
+  timestamp: string;
+}
+
+// Performance Monitoring Types
+export interface PerformanceMetrics {
+  pageLoadTime: number;
+  apiResponseTime: number;
+  memoryUsage: number;
+  errorRate: number;
+  userActions: number;
+}
+
+// Security Types
+export interface SecurityEvent {
+  id: string;
+  type: 'login' | 'logout' | 'permission_denied' | 'suspicious_activity';
+  userId: string;
+  ipAddress: string;
+  userAgent: string;
+  timestamp: Date;
+  details?: Record<string, any>;
+}
+
+// Audit Types
+export interface AuditLog {
+  id: string;
+  userId: string;
+  action: string;
+  resource: string;
+  resourceId: string;
+  changes?: Record<string, { old: any; new: any }>;
+  timestamp: Date;
+  ipAddress: string;
+}
+
+// Cache Types
+export interface CacheConfig {
+  ttl: number; // Time to live in seconds
+  maxSize: number; // Maximum number of items
+  strategy: 'lru' | 'fifo' | 'ttl';
+}
+
+export interface CacheItem<T> {
+  key: string;
+  value: T;
+  timestamp: number;
+  ttl: number;
+}
+
+// PWA Types
+export interface PWAConfig {
+  name: string;
+  shortName: string;
+  description: string;
+  themeColor: string;
+  backgroundColor: string;
+  display: 'fullscreen' | 'standalone' | 'minimal-ui' | 'browser';
+  orientation: 'portrait' | 'landscape' | 'any';
+  startUrl: string;
+  icons: Array<{
+    src: string;
+    sizes: string;
+    type: string;
+  }>;
+}
+
+// Offline Types
+export interface OfflineData {
+  workOrders: WorkOrder[];
+  parts: Part[];
+  notifications: Notification[];
+  lastSync: Date;
+  pendingChanges: Array<{
+    id: string;
+    type: 'create' | 'update' | 'delete';
+    data: any;
+    timestamp: Date;
+  }>;
+}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Box,
   TextField,
@@ -48,22 +48,47 @@ export const AdvancedFilters = ({
     sortOrder: "desc" as "asc" | "desc",
   });
 
-  // Get unique values for filter options
+  // Get unique values for filter options with null safety
   const uniqueValues = useMemo(
     () => ({
-      homeports: [...new Set(data.map((item) => item.homeport))],
-      gtes: [...new Set(data.map((item) => item.gte))],
-      ships: [...new Set(data.map((item) => item.ship))],
-      failureModes: [...new Set(data.map((item) => item.fm))],
+      homeports: [...new Set(data.map((item) => item.homeport).filter(Boolean))],
+      gtes: [...new Set(data.map((item) => item.gte).filter(Boolean))],
+      ships: [...new Set(data.map((item) => item.ship).filter(Boolean))],
+      failureModes: [...new Set(data.map((item) => item.fm).filter(Boolean))],
     }),
     [data],
   );
 
-  // Apply filters and sorting
+  // Apply filters and sorting with optimized performance
   const filteredData = useMemo(() => {
-    let filtered = [...data];
+    if (!data.length) return [];
 
-    // Text search
+    let filtered = data;
+
+    // Early return for empty filters
+    const hasActiveFilters = 
+      filters.search ||
+      filters.status !== "All" ||
+      filters.priority !== "All" ||
+      filters.homeport !== "All" ||
+      filters.gte !== "All" ||
+      filters.etaRange[0] !== 0 ||
+      filters.etaRange[1] !== 30 ||
+      filters.dateRange.start ||
+      filters.dateRange.end ||
+      filters.ships.length > 0 ||
+      filters.failureModes.length > 0;
+
+    if (!hasActiveFilters) {
+      // Only apply sorting if no filters
+      return [...data].sort((a, b) => {
+        const aValue = a[filters.sortBy as keyof WorkOrder];
+        const bValue = b[filters.sortBy as keyof WorkOrder];
+        return compareValues(aValue, bValue, filters.sortOrder);
+      });
+    }
+
+    // Apply filters with early returns
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       filtered = filtered.filter((item) =>
@@ -73,22 +98,18 @@ export const AdvancedFilters = ({
       );
     }
 
-    // Status filter
     if (filters.status !== "All") {
       filtered = filtered.filter((item) => item.status === filters.status);
     }
 
-    // Priority filter
     if (filters.priority !== "All") {
       filtered = filtered.filter((item) => item.priority === filters.priority);
     }
 
-    // Homeport filter
     if (filters.homeport !== "All") {
       filtered = filtered.filter((item) => item.homeport === filters.homeport);
     }
 
-    // GTE filter
     if (filters.gte !== "All") {
       filtered = filtered.filter((item) => item.gte === filters.gte);
     }
@@ -99,7 +120,7 @@ export const AdvancedFilters = ({
         item.eta >= filters.etaRange[0] && item.eta <= filters.etaRange[1],
     );
 
-    // Date range filter
+    // Date range filter with optimized date parsing
     if (filters.dateRange.start) {
       const startDate = new Date(filters.dateRange.start);
       filtered = filtered.filter(
@@ -125,37 +146,64 @@ export const AdvancedFilters = ({
       );
     }
 
-    // Sorting
-    filtered.sort((a, b) => {
-      let aValue: any = a[filters.sortBy as keyof WorkOrder];
-      let bValue: any = b[filters.sortBy as keyof WorkOrder];
-
-      if (aValue instanceof Date) aValue = aValue.getTime();
-      if (bValue instanceof Date) bValue = bValue.getTime();
-
-      if (typeof aValue === "string") aValue = aValue.toLowerCase();
-      if (typeof bValue === "string") bValue = bValue.toLowerCase();
-
-      if (filters.sortOrder === "asc") {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
+    // Apply sorting
+    return filtered.sort((a, b) => {
+      const aValue = a[filters.sortBy as keyof WorkOrder];
+      const bValue = b[filters.sortBy as keyof WorkOrder];
+      return compareValues(aValue, bValue, filters.sortOrder);
     });
-
-    return filtered;
   }, [data, filters]);
 
+  // Optimized comparison function
+  const compareValues = useCallback((aValue: any, bValue: any, sortOrder: "asc" | "desc") => {
+    // Handle null/undefined values
+    if (aValue == null && bValue == null) return 0;
+    if (aValue == null) return sortOrder === "asc" ? -1 : 1;
+    if (bValue == null) return sortOrder === "asc" ? 1 : -1;
+
+    // Handle Date objects
+    if (aValue instanceof Date && bValue instanceof Date) {
+      const aTime = aValue.getTime();
+      const bTime = bValue.getTime();
+      return sortOrder === "asc" ? aTime - bTime : bTime - aTime;
+    }
+
+    // Handle strings
+    if (typeof aValue === "string" && typeof bValue === "string") {
+      const aLower = aValue.toLowerCase();
+      const bLower = bValue.toLowerCase();
+      if (sortOrder === "asc") {
+        return aLower < bLower ? -1 : aLower > bLower ? 1 : 0;
+      } else {
+        return aLower > bLower ? -1 : aLower < bLower ? 1 : 0;
+      }
+    }
+
+    // Handle numbers
+    if (typeof aValue === "number" && typeof bValue === "number") {
+      return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
+    }
+
+    // Fallback to string comparison
+    const aStr = String(aValue).toLowerCase();
+    const bStr = String(bValue).toLowerCase();
+    if (sortOrder === "asc") {
+      return aStr < bStr ? -1 : aStr > bStr ? 1 : 0;
+    } else {
+      return aStr > bStr ? -1 : aStr < bStr ? 1 : 0;
+    }
+  }, []);
+
   // Update filtered data when filters change
-  useMemo(() => {
+  useEffect(() => {
     onFilteredData(filteredData);
   }, [filteredData, onFilteredData]);
 
-  const handleFilterChange = (key: string, value: any) => {
+  const handleFilterChange = useCallback((key: string, value: any) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
-  };
+  }, []);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilters({
       search: "",
       status: "All",
@@ -169,9 +217,9 @@ export const AdvancedFilters = ({
       sortBy: "createdAt",
       sortOrder: "desc",
     });
-  };
+  }, []);
 
-  const getActiveFiltersCount = () => {
+  const getActiveFiltersCount = useCallback(() => {
     let count = 0;
     if (filters.search) count++;
     if (filters.status !== "All") count++;
@@ -183,7 +231,7 @@ export const AdvancedFilters = ({
     if (filters.ships.length > 0) count++;
     if (filters.failureModes.length > 0) count++;
     return count;
-  };
+  }, [filters]);
 
   return (
     <Box sx={{ mb: 2 }}>

@@ -32,7 +32,7 @@ describe("navItems constants", () => {
       { title: "Home", icon: "home", route: "/" },
       { title: "Work Order", icon: "work", route: "/work-order" },
       { title: "Readiness Dashboard", icon: "check_box", route: "/readiness" },
-      { title: "Assets", icon: "inventory_2", route: "/assets" },
+      { title: "Asset Management", icon: "inventory_2", route: "/assets" },
       { title: "Parts", icon: "category", route: "/parts" },
       { title: "About", icon: "info", route: "/about" },
     ];

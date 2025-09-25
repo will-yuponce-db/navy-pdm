@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import {
   Box,
   Card,
@@ -245,9 +245,21 @@ const getTransportIcon = (type: SupplyRoute["transportType"]) => {
   }
 };
 
-// Create custom ship icons for different statuses
+// Memoized icon cache to prevent recreating icons unnecessarily
+const iconCache = new Map<string, any>();
+
+// Create custom ship icons for different statuses (memoized)
 const createShipIcon = (status: Ship["status"], healthScore: number) => {
   if (!L) return null;
+
+  // Create cache key based on status and health score range
+  const healthRange = healthScore > 80 ? 'high' : healthScore > 60 ? 'medium' : 'low';
+  const cacheKey = `${status}-${healthRange}`;
+  
+  // Return cached icon if available
+  if (iconCache.has(cacheKey)) {
+    return iconCache.get(cacheKey);
+  }
 
   const getIconColor = (status: Ship["status"]) => {
     switch (status) {
@@ -267,7 +279,7 @@ const createShipIcon = (status: Ship["status"], healthScore: number) => {
   const iconColor = getIconColor(status);
   const size = healthScore > 80 ? 25 : healthScore > 60 ? 20 : 15;
 
-  return L.divIcon({
+  const icon = L.divIcon({
     className: "custom-ship-icon",
     html: `
       <div style="
@@ -299,6 +311,10 @@ const createShipIcon = (status: Ship["status"], healthScore: number) => {
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -size / 2],
   });
+
+  // Cache the icon
+  iconCache.set(cacheKey, icon);
+  return icon;
 };
 
 // Component to handle map events
@@ -322,8 +338,8 @@ const MapEventHandler = ({
   return null;
 };
 
-// Client-only map component
-const ClientOnlyMap = ({
+// Client-only map component (memoized to prevent unnecessary re-renders)
+const ClientOnlyMap = memo(({
   mapCenter,
   mapZoom,
   filteredShips,
@@ -481,7 +497,7 @@ const ClientOnlyMap = ({
       />
     </MapContainer>
   );
-};
+});
 
 export default function FleetMap() {
   const [ships, setShips] = useState<Ship[]>(mockShips);
@@ -496,32 +512,50 @@ export default function FleetMap() {
   ]);
   const [mapZoom, setMapZoom] = useState(4);
 
-  // Simulate real-time updates
+  // Optimized real-time updates with reduced frequency and batched changes
   useEffect(() => {
     if (!autoRefresh) return;
 
     const interval = setInterval(() => {
-      setShips((prevShips) =>
-        prevShips.map((ship) => ({
-          ...ship,
-          healthScore: Math.max(
+      setShips((prevShips) => {
+        // Batch all updates in a single state change
+        const updatedShips = prevShips.map((ship) => {
+          const randomChange = (Math.random() - 0.5) * 1.5; // Reduced change magnitude
+          const newHealthScore = Math.max(
             0,
-            Math.min(100, ship.healthScore + (Math.random() - 0.5) * 2),
-          ),
-          lastUpdate: new Date(),
-          anomalies: Math.max(
-            0,
-            ship.anomalies + (Math.random() > 0.95 ? 1 : 0),
-          ),
-        })),
-      );
-    }, 5000);
+            Math.min(100, ship.healthScore + randomChange),
+          );
+          
+          // Only update anomalies occasionally to reduce unnecessary re-renders
+          const shouldUpdateAnomalies = Math.random() > 0.98; // Reduced from 0.95
+          
+          return {
+            ...ship,
+            healthScore: newHealthScore,
+            lastUpdate: new Date(),
+            anomalies: shouldUpdateAnomalies 
+              ? Math.max(0, ship.anomalies + (Math.random() > 0.5 ? 1 : -1))
+              : ship.anomalies,
+          };
+        });
+        
+        return updatedShips;
+      });
+    }, 10000); // Increased interval from 5s to 10s
 
     return () => clearInterval(interval);
   }, [autoRefresh]);
 
-  const filteredShips = ships.filter(
-    (ship) => filterStatus === "all" || ship.status === filterStatus,
+  const filteredShips = useMemo(() => 
+    ships.filter(
+      (ship) => filterStatus === "all" || ship.status === filterStatus,
+    ), [ships, filterStatus]
+  );
+
+  // Virtual rendering: only show markers when zoomed in enough
+  const shouldShowMarkers = mapZoom >= 3;
+  const visibleShips = useMemo(() => 
+    shouldShowMarkers ? filteredShips : [], [shouldShowMarkers, filteredShips]
   );
 
   // Add coordinates for supply routes (simplified for demo)
@@ -543,13 +577,47 @@ export default function FleetMap() {
     return routeCoords;
   }, []);
 
-  const handleShipSelect = (ship: Ship) => {
-    setSelectedShip(ship);
-    setMapCenter([ship.latitude, ship.longitude]);
-    setMapZoom(8);
-  };
+  // Debounced ship selection to prevent rapid state changes
+  const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  const handleShipSelect = useCallback((ship: Ship) => {
+    // Clear existing timeout
+    if (debounceTimeout) {
+      clearTimeout(debounceTimeout);
+    }
+    
+    // Set new timeout for debounced execution
+    const timeout = setTimeout(() => {
+      setSelectedShip(ship);
+      setMapCenter([ship.latitude, ship.longitude]);
+      setMapZoom(8);
+    }, 150); // 150ms debounce
+    
+    setDebounceTimeout(timeout);
+  }, [debounceTimeout]);
 
-  const fleetStats = {
+  const handleAutoRefreshToggle = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setAutoRefresh(event.target.checked);
+  }, []);
+
+  const handleFilterChange = useCallback((event: any) => {
+    setFilterStatus(event.target.value);
+  }, []);
+
+  const handleSupplyRoutesToggle = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setShowSupplyRoutes(event.target.checked);
+  }, []);
+
+  // Cleanup debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
+    };
+  }, [debounceTimeout]);
+
+  const fleetStats = useMemo(() => ({
     total: ships.length,
     operational: ships.filter((s) => s.status === "operational").length,
     maintenance: ships.filter((s) => s.status === "maintenance").length,
@@ -563,7 +631,7 @@ export default function FleetMap() {
       (sum, ship) => sum + ship.predictedFailures,
       0,
     ),
-  };
+  }), [ships]);
 
   return (
     <Box sx={{ width: "100%", height: "100vh", p: 2 }}>
@@ -920,16 +988,16 @@ export default function FleetMap() {
                   border: "2px solid rgba(255,255,255,0.1)",
                 }}
               >
-                <ClientOnlyMap
-                  mapCenter={mapCenter}
-                  mapZoom={mapZoom}
-                  filteredShips={filteredShips}
-                  showSupplyRoutes={showSupplyRoutes}
-                  supplyRoutes={supplyRoutes}
-                  supplyRouteCoordinates={supplyRouteCoordinates}
-                  selectedShip={selectedShip}
-                  handleShipSelect={handleShipSelect}
-                />
+        <ClientOnlyMap
+          mapCenter={mapCenter}
+          mapZoom={mapZoom}
+          filteredShips={visibleShips}
+          showSupplyRoutes={showSupplyRoutes}
+          supplyRoutes={supplyRoutes}
+          supplyRouteCoordinates={supplyRouteCoordinates}
+          selectedShip={selectedShip}
+          handleShipSelect={handleShipSelect}
+        />
 
                 {/* Map Controls */}
                 <Box
