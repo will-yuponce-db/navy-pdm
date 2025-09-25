@@ -9,7 +9,7 @@ import authReducer from "../services/authSlice";
 export const store = configureStore({
   reducer: {
     // Add the generated reducer as a specific top-level slice
-    workOrder: workOrderReducer,
+    workOrders: workOrderReducer,
     notifications: notificationReducer,
     parts: partsReducer,
     auth: authReducer,
