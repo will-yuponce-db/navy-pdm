@@ -285,7 +285,7 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
         setSelected([]);
         return;
       }
-      const newSelected = workOrders.map((n: { wo: string }) => n.wo);
+      const newSelected = workOrders?.map((n: { wo: string }) => n.wo) || [];
       setSelected(newSelected);
       return;
     }

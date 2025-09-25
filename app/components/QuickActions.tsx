@@ -27,15 +27,15 @@ export default function QuickActions() {
   const workOrders = useSelector((state: RootState) => state.workOrders);
 
   // Calculate critical metrics
-  const criticalWorkOrders = workOrders.filter(
+  const criticalWorkOrders = workOrders?.filter(
     (wo) => wo.priority === "CASREP",
-  ).length;
-  const urgentWorkOrders = workOrders.filter(
+  ).length || 0;
+  const urgentWorkOrders = workOrders?.filter(
     (wo) => wo.priority === "Urgent",
-  ).length;
-  const inProgressWorkOrders = workOrders.filter(
+  ).length || 0;
+  const inProgressWorkOrders = workOrders?.filter(
     (wo) => wo.status === "In Progress",
-  ).length;
+  ).length || 0;
 
   const quickActions = [
     {
