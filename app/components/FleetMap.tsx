@@ -331,7 +331,6 @@ const MapEventHandler = ({
 
   return null;
 };
-ClientOnlyMap.displayName = 'ClientOnlyMap';
 
 // Client-only map component (memoized to prevent unnecessary re-renders)
 const ClientOnlyMap = memo(({
@@ -493,6 +492,8 @@ const ClientOnlyMap = memo(({
     </MapContainer>
   );
 });
+
+ClientOnlyMap.displayName = 'ClientOnlyMap';
 
 export default function FleetMap() {
   const [ships, setShips] = useState<Ship[]>(mockShips);
