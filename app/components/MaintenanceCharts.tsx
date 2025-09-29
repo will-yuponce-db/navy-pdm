@@ -75,7 +75,7 @@ export default function MaintenanceCharts() {
                       outerRadius={100}
                       fill="#1B3139"
                       dataKey="value"
-                      label={(props: any) =>
+                      label={(props: { name: string; percent: number }) =>
                         `${props.name} ${(props.percent * 100).toFixed(0)}%`
                       }
                     >

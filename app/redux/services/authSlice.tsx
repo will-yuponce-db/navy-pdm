@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { authApi } from '../../services/api';
-import type { AuthState, User, LoginCredentials, RegisterData, ApiError } from '../../types';
+import type { AuthState, User, LoginCredentials, ApiError } from '../../types';
 
 // Helper functions for safe localStorage access during SSR
 const safeGetItem = (key: string): string | null => {
@@ -39,10 +39,11 @@ export const login = createAsyncThunk(
       const response = await authApi.login(credentials);
       safeSetItem('authToken', response.token);
       return response;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { message?: string; status?: number };
       return rejectWithValue({
-        message: error.message || 'Login failed',
-        status: error.status || 500,
+        message: err.message || 'Login failed',
+        status: err.status || 500,
       });
     }
   }
@@ -55,12 +56,13 @@ export const logout = createAsyncThunk(
       await authApi.logout();
       safeRemoveItem('authToken');
       return null;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Even if logout fails on server, clear local storage
       safeRemoveItem('authToken');
+      const err = error as { message?: string; status?: number };
       return rejectWithValue({
-        message: error.message || 'Logout failed',
-        status: error.status || 500,
+        message: err.message || 'Logout failed',
+        status: err.status || 500,
       });
     }
   }
@@ -72,10 +74,11 @@ export const getCurrentUser = createAsyncThunk(
     try {
       const user = await authApi.getCurrentUser();
       return user;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { message?: string; status?: number };
       return rejectWithValue({
-        message: error.message || 'Failed to get current user',
-        status: error.status || 500,
+        message: err.message || 'Failed to get current user',
+        status: err.status || 500,
       });
     }
   }
@@ -88,11 +91,12 @@ export const refreshToken = createAsyncThunk(
       const response = await authApi.refreshToken();
       safeSetItem('authToken', response.token);
       return response.token;
-    } catch (error: any) {
+    } catch (error: unknown) {
       safeRemoveItem('authToken');
+      const err = error as { message?: string; status?: number };
       return rejectWithValue({
-        message: error.message || 'Token refresh failed',
-        status: error.status || 401,
+        message: err.message || 'Token refresh failed',
+        status: err.status || 401,
       });
     }
   }
@@ -104,10 +108,11 @@ export const changePassword = createAsyncThunk(
     try {
       await authApi.changePassword(data);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { message?: string; status?: number };
       return rejectWithValue({
-        message: error.message || 'Password change failed',
-        status: error.status || 500,
+        message: err.message || 'Password change failed',
+        status: err.status || 500,
       });
     }
   }
@@ -233,7 +238,7 @@ export const selectAuthError = (state: { auth: AuthState }) => state.auth.error;
 // Permission helpers
 export const hasPermission = (user: User | null, permission: string): boolean => {
   if (!user) return false;
-  return user.permissions.includes(permission as any) || user.role === 'admin';
+  return user.permissions.includes(permission) || user.role === 'admin';
 };
 
 export const hasRole = (user: User | null, role: string): boolean => {

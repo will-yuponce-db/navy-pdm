@@ -1,4 +1,4 @@
-import type { WorkOrder, Part, Notification, User, ApiResponse, PaginatedResponse } from '../types';
+import type { WorkOrder, Part, Notification, User, PaginatedResponse } from '../types';
 
 // API Configuration
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -152,7 +152,7 @@ export const workOrdersApi = {
     });
   },
 
-  export: async (filters?: Record<string, any>): Promise<Blob> => {
+  export: async (filters?: Record<string, unknown>): Promise<Blob> => {
     const queryParams = new URLSearchParams();
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
@@ -317,7 +317,7 @@ export class WebSocketService {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
 
-  connect(onMessage: (data: any) => void, onError?: (error: Event) => void): void {
+  connect(onMessage: (data: unknown) => void, onError?: (error: Event) => void): void {
     const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
     const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:3001'}/ws?token=${token}`;
     
@@ -348,7 +348,7 @@ export class WebSocketService {
     };
   }
 
-  private attemptReconnect(onMessage: (data: any) => void, onError?: (error: Event) => void): void {
+  private attemptReconnect(onMessage: (data: unknown) => void, onError?: (error: Event) => void): void {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       setTimeout(() => {
@@ -365,7 +365,7 @@ export class WebSocketService {
     }
   }
 
-  send(data: any): void {
+  send(data: unknown): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
     }

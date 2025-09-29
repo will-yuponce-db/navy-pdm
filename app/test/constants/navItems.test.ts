@@ -12,7 +12,7 @@ describe("navItems constants", () => {
   });
 
   it("each navigation item has required properties", () => {
-    navItems.forEach((item, index) => {
+    navItems.forEach((item) => {
       expect(item).toHaveProperty("title");
       expect(item).toHaveProperty("icon");
       expect(item).toHaveProperty("route");

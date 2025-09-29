@@ -1,4 +1,4 @@
-import { PWAConfig, OfflineData } from '../types';
+import { PWAConfig } from '../types';
 
 // Service Worker registration and management
 export class ServiceWorkerManager {
@@ -118,7 +118,7 @@ export class OfflineDataManager {
     });
   }
 
-  async storeWorkOrders(workOrders: any[]): Promise<void> {
+  async storeWorkOrders(workOrders: unknown[]): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
     const transaction = this.db.transaction(['workOrders'], 'readwrite');
@@ -129,7 +129,7 @@ export class OfflineDataManager {
     }
   }
 
-  async getWorkOrders(): Promise<any[]> {
+  async getWorkOrders(): Promise<unknown[]> {
     if (!this.db) throw new Error('Database not initialized');
 
     const transaction = this.db.transaction(['workOrders'], 'readonly');
@@ -139,7 +139,7 @@ export class OfflineDataManager {
     return this.promisifyRequest(request);
   }
 
-  async storeParts(parts: any[]): Promise<void> {
+  async storeParts(parts: unknown[]): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
     const transaction = this.db.transaction(['parts'], 'readwrite');
@@ -150,7 +150,7 @@ export class OfflineDataManager {
     }
   }
 
-  async getParts(): Promise<any[]> {
+  async getParts(): Promise<unknown[]> {
     if (!this.db) throw new Error('Database not initialized');
 
     const transaction = this.db.transaction(['parts'], 'readonly');
@@ -160,7 +160,7 @@ export class OfflineDataManager {
     return this.promisifyRequest(request);
   }
 
-  async addPendingChange(change: any): Promise<void> {
+  async addPendingChange(change: unknown): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
     const transaction = this.db.transaction(['pendingChanges'], 'readwrite');
@@ -172,7 +172,7 @@ export class OfflineDataManager {
     }));
   }
 
-  async getPendingChanges(): Promise<any[]> {
+  async getPendingChanges(): Promise<unknown[]> {
     if (!this.db) throw new Error('Database not initialized');
 
     const transaction = this.db.transaction(['pendingChanges'], 'readonly');
@@ -285,7 +285,7 @@ export class BackgroundSyncManager {
     }
   }
 
-  private async syncChange(change: any): Promise<void> {
+  private async syncChange(): Promise<void> {
     // This would integrate with your API service
     // Example implementation:
     /*
@@ -303,7 +303,7 @@ export class BackgroundSyncManager {
     */
   }
 
-  private async removePendingChange(id: number): Promise<void> {
+  private async removePendingChange(): Promise<void> {
     // Implementation to remove pending change from IndexedDB
   }
 }
@@ -412,7 +412,7 @@ export class PushNotificationManager {
 
 // PWA installation manager
 export class PWAInstallManager {
-  private deferredPrompt: any = null;
+  private deferredPrompt: unknown = null;
   private isInstalled = false;
 
   constructor() {
@@ -435,7 +435,7 @@ export class PWAInstallManager {
   private checkInstallationStatus(): void {
     // Check if app is running in standalone mode
     this.isInstalled = window.matchMedia('(display-mode: standalone)').matches ||
-                      (window.navigator as any).standalone === true;
+                      (window.navigator as { standalone?: boolean }).standalone === true;
   }
 
   async showInstallPrompt(): Promise<boolean> {

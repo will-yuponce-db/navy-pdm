@@ -1,5 +1,4 @@
 import QuickActions from "~/components/QuickActions";
-import type { Route } from "./+types/home";
 import MaintenanceOverview from "~/components/MaintenanceOverview";
 import WorkOrderTable from "~/components/WorkOrderTable";
 import WorkOrderModal from "~/components/WorkOrderModal";
@@ -11,7 +10,7 @@ import { useState } from "react";
 import { Box, Tabs, Tab } from "@mui/material";
 import { useWorkflowShortcuts } from "~/components/WorkflowShortcuts";
 
-export function meta(_args: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Home" },
     { name: "description", content: "Welcome to React Router!" },

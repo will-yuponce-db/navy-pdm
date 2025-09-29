@@ -1,11 +1,10 @@
-import type { Route } from "./+types/home";
 import WorkOrderTable from "~/components/WorkOrderTable";
 import WorkOrderModal from "~/components/WorkOrderModal";
 import { useState } from "react";
 import { Box } from "@mui/material";
 import { useSearchParams } from "react-router";
 
-export function meta(_args: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Work Orders" },
     { name: "description", content: "Navy PDM Work Order Management System" },

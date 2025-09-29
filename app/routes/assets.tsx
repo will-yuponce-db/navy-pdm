@@ -23,19 +23,15 @@ import {
   Build,
   Warning,
   CheckCircle,
-  Schedule,
   Visibility,
   Edit,
   History,
-  TrendingUp,
   LocationOn,
   Speed,
   BatteryAlert,
 } from "@mui/icons-material";
-import type { Route } from "./+types/home";
-import { useState } from "react";
 
-export function meta(_args: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Asset Management" },
     { name: "description", content: "Navy PDM Asset Management System" },
@@ -131,7 +127,6 @@ const mockAssets = [
 ];
 
 export default function Assets() {
-  const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -173,9 +168,6 @@ export default function Assets() {
   ).length;
   const maintenanceAssets = mockAssets.filter(
     (a) => a.status === "Maintenance",
-  ).length;
-  const deployedAssets = mockAssets.filter(
-    (a) => a.status === "Deployed",
   ).length;
   const totalCriticalIssues = mockAssets.reduce(
     (sum, a) => sum + a.criticalIssues,
@@ -305,7 +297,7 @@ export default function Assets() {
                 <TableCell>
                   <Chip
                     label={asset.status}
-                    color={getStatusColor(asset.status) as any}
+                    color={getStatusColor(asset.status)}
                     size="small"
                   />
                 </TableCell>
@@ -321,7 +313,7 @@ export default function Assets() {
                       <LinearProgress
                         variant="determinate"
                         value={asset.readinessScore}
-                        color={getReadinessColor(asset.readinessScore) as any}
+                        color={getReadinessColor(asset.readinessScore)}
                         sx={{ height: 8, borderRadius: 4 }}
                       />
                     </Box>
@@ -398,7 +390,7 @@ export default function Assets() {
                   </Box>
                   <Chip
                     label={asset.status}
-                    color={getStatusColor(asset.status) as any}
+                    color={getStatusColor(asset.status)}
                     size="small"
                   />
                 </Box>
@@ -445,7 +437,7 @@ export default function Assets() {
                       <LinearProgress
                         variant="determinate"
                         value={asset.readinessScore}
-                        color={getReadinessColor(asset.readinessScore) as any}
+                        color={getReadinessColor(asset.readinessScore)}
                         sx={{ height: 8, borderRadius: 4 }}
                       />
                     </Box>
@@ -464,7 +456,7 @@ export default function Assets() {
                       <Chip
                         key={index}
                         label={system.name}
-                        color={getSystemStatusColor(system.status) as any}
+                        color={getSystemStatusColor(system.status)}
                         size="small"
                         variant="outlined"
                       />

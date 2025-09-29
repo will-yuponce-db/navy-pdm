@@ -1,7 +1,6 @@
-import type { Route } from "./+types/home";
 import InteractiveImageGallery from "../components/InteractiveImageGallery";
 
-export function meta(_args: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "About - Navy PdM System" },
     {

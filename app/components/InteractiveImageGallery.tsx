@@ -12,9 +12,7 @@ import {
   Chip,
   Fade,
   Zoom,
-  Tooltip,
   Grid,
-  Button,
   Stack,
 } from "@mui/material";
 import InteractiveFeatureShowcase from "./InteractiveFeatureShowcase";
@@ -23,8 +21,6 @@ import {
   ZoomIn as ZoomInIcon,
   NavigateBefore as NavigateBeforeIcon,
   NavigateNext as NavigateNextIcon,
-  Info as InfoIcon,
-  PlayArrow as PlayIcon,
 } from "@mui/icons-material";
 
 interface ImageData {

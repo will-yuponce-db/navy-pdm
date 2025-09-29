@@ -1,6 +1,5 @@
-import type { Route } from "./+types/home";
 
-export function meta(_args: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Readiness Dashboard" },
     { name: "description", content: "Welcome to React Router!" },

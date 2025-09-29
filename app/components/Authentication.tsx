@@ -35,9 +35,6 @@ import {
   Email,
   Lock,
   Security,
-  AdminPanelSettings,
-  Engineering,
-  Visibility as ViewIcon,
   Edit,
   Delete,
   Add,
@@ -47,13 +44,9 @@ import { useNavigate } from 'react-router';
 import {
   login,
   logout,
-  getCurrentUser,
-  changePassword,
   selectAuth,
   selectUser,
   selectIsAuthenticated,
-  selectAuthLoading,
-  selectAuthError,
   hasPermission,
   canManageUsers,
 } from '../redux/services/authSlice';
@@ -113,7 +106,7 @@ export const LoginForm: React.FC = () => {
     try {
       await dispatch(login(formData)).unwrap();
       errorMonitoringService.logUserAction('login_success');
-    } catch (error: any) {
+    } catch (error: unknown) {
       errorMonitoringService.logUserAction('login_failure');
       console.error('Login failed:', error);
     }
@@ -339,9 +332,9 @@ export const UserProfile: React.FC = () => {
 // User management component (admin only)
 export const UserManagement: React.FC = () => {
   const user = useSelector(selectUser);
-  const [users, setUsers] = useState<any[]>([]);
+  const [users] = useState<unknown[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<unknown>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -363,12 +356,12 @@ export const UserManagement: React.FC = () => {
     }
   };
 
-  const handleEditUser = (user: any) => {
+  const handleEditUser = (user: unknown) => {
     setSelectedUser(user);
     setIsEditDialogOpen(true);
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const handleDeleteUser = async () => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
         // Delete user logic
@@ -379,7 +372,7 @@ export const UserManagement: React.FC = () => {
     }
   };
 
-  const handleToggleUserStatus = async (userId: string, isActive: boolean) => {
+  const handleToggleUserStatus = async () => {
     try {
       // Toggle user status logic
       await loadUsers();
@@ -391,7 +384,7 @@ export const UserManagement: React.FC = () => {
   if (!canManageUsers(user)) {
     return (
       <Alert severity="error">
-        You don't have permission to manage users.
+        You don&apos;t have permission to manage users.
       </Alert>
     );
   }

@@ -15,10 +15,6 @@ import {
   Category,
   Warning,
   Speed,
-  TrendingUp,
-  Assignment,
-  Build,
-  Assessment,
 } from "@mui/icons-material";
 import type { RootState } from "../types";
 

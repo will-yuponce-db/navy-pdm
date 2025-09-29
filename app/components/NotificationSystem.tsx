@@ -302,7 +302,7 @@ export const NotificationCenter = ({
                       <Chip
                         label={notification.priority}
                         size="small"
-                        color={getPriorityColor(notification.priority) as any}
+                        color={getPriorityColor(notification.priority) as "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning"}
                         sx={{ fontSize: "0.75rem" }}
                       />
                       <Typography

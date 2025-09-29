@@ -1,6 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
-import { v4 as uuidv4 } from "uuid";
 import type { Notification, NotificationState } from "../../types";
 import { createWorkOrderNotifications } from "../../utils/notificationCreators";
 

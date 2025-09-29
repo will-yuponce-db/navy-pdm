@@ -131,7 +131,7 @@ const PartModal: React.FC<PartModalProps> = ({ open, onClose, part, mode }) => {
     onClose();
   };
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {

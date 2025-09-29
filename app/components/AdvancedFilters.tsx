@@ -8,7 +8,6 @@ import {
   MenuItem,
   Chip,
   Button,
-  Collapse,
   Typography,
   Slider,
   FormGroup,
@@ -155,7 +154,7 @@ export const AdvancedFilters = ({
   }, [data, filters]);
 
   // Optimized comparison function
-  const compareValues = useCallback((aValue: any, bValue: any, sortOrder: "asc" | "desc") => {
+  const compareValues = useCallback((aValue: unknown, bValue: unknown, sortOrder: "asc" | "desc") => {
     // Handle null/undefined values
     if (aValue == null && bValue == null) return 0;
     if (aValue == null) return sortOrder === "asc" ? -1 : 1;
@@ -199,7 +198,7 @@ export const AdvancedFilters = ({
     onFilteredData(filteredData);
   }, [filteredData, onFilteredData]);
 
-  const handleFilterChange = useCallback((key: string, value: any) => {
+  const handleFilterChange = useCallback((key: string, value: unknown) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }, []);
 

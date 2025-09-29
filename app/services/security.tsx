@@ -6,7 +6,7 @@ export interface ValidationRule {
   minLength?: number;
   maxLength?: number;
   pattern?: RegExp;
-  custom?: (value: any) => boolean | string;
+  custom?: (value: unknown) => boolean | string;
   message?: string;
 }
 
@@ -46,7 +46,7 @@ export class InputSanitizer {
     return isNaN(num) ? null : num;
   }
 
-  static sanitizeObject(obj: any): any {
+  static sanitizeObject(obj: unknown): unknown {
     if (typeof obj !== 'object' || obj === null) {
       return obj;
     }
@@ -55,7 +55,7 @@ export class InputSanitizer {
       return obj.map(item => this.sanitizeObject(item));
     }
 
-    const sanitized: any = {};
+    const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       const sanitizedKey = this.sanitizeString(key);
       sanitized[sanitizedKey] = this.sanitizeObject(value);
@@ -66,7 +66,7 @@ export class InputSanitizer {
 
 // Input validation utilities
 export class InputValidator {
-  static validate(schema: ValidationSchema, data: any): {
+  static validate(schema: ValidationSchema, data: unknown): {
     isValid: boolean;
     errors: Record<string, string>;
   } {
@@ -87,7 +87,7 @@ export class InputValidator {
     };
   }
 
-  private static validateField(value: any, rules: ValidationRule, fieldName: string): string | null {
+  private static validateField(value: unknown, rules: ValidationRule, fieldName: string): string | null {
     // Required validation
     if (rules.required && (value === undefined || value === null || value === '')) {
       return rules.message || `${fieldName} is required`;
@@ -302,7 +302,7 @@ export class AuditLogger {
   private logs: AuditLog[] = [];
   private maxLogs = 50000;
 
-  logAction(action: string, resource: string, resourceId: string, changes?: Record<string, { old: any; new: any }>): void {
+  logAction(action: string, resource: string, resourceId: string, changes?: Record<string, { old: unknown; new: unknown }>): void {
     const auditLog: AuditLog = {
       id: this.generateLogId(),
       userId: this.getCurrentUserId(),

@@ -22,12 +22,10 @@ import {
   Warning,
   Error,
   CheckCircle,
-  Inventory,
 } from "@mui/icons-material";
 import { useSelector } from "react-redux";
-import type { RootState } from "../types";
 import { selectAllParts, getStockStatus } from "../redux/services/partsSlice";
-import type { Part, StockStatus } from "../types";
+import type { StockStatus } from "../types";
 
 interface PartsRequiredProps {
   partsRequired?: string;
@@ -42,7 +40,6 @@ const PartsRequired: React.FC<PartsRequiredProps> = ({
 }) => {
   const parts = useSelector(selectAllParts);
   const [partsDialogOpen, setPartsDialogOpen] = useState(false);
-  const [selectedParts, setSelectedParts] = useState<string[]>([]);
 
   // Parse parts from string
   const currentParts = partsRequired
@@ -141,7 +138,7 @@ const PartsRequired: React.FC<PartsRequiredProps> = ({
                 label={partName}
                 color={
                   stockStatus
-                    ? (getStockStatusColor(stockStatus) as any)
+                    ? getStockStatusColor(stockStatus)
                     : "default"
                 }
                 icon={stockStatus ? getStockStatusIcon(stockStatus) : undefined}
@@ -201,7 +198,7 @@ const PartsRequired: React.FC<PartsRequiredProps> = ({
                         <Typography variant="body1">{part.name}</Typography>
                         <Chip
                           label={stockStatus}
-                          color={getStockStatusColor(stockStatus) as any}
+                          color={getStockStatusColor(stockStatus)}
                           size="small"
                           icon={getStockStatusIcon(stockStatus)}
                         />

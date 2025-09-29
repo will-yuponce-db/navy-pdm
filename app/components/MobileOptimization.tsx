@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Box, Fab, SwipeableDrawer, IconButton, Typography, useTheme } from '@mui/material';
-import { TouchApp, Gesture, PanTool } from '@mui/icons-material';
+import { Box, Fab, SwipeableDrawer, Typography, useTheme } from '@mui/material';
 
 // Touch gesture detection
 export class TouchGestureDetector {
@@ -9,6 +8,10 @@ export class TouchGestureDetector {
   private startTime = 0;
   private threshold = 50;
   private timeThreshold = 300;
+
+  getStartY(): number {
+    return this.startY;
+  }
 
   onTouchStart(event: TouchEvent): void {
     const touch = event.touches[0];
@@ -173,20 +176,20 @@ export const TouchFAB: React.FC<{
 
 // Mobile-optimized table with touch gestures
 export const MobileTable: React.FC<{
-  data: any[];
-  columns: Array<{ key: string; label: string; render?: (value: any, row: any) => React.ReactNode }>;
-  onRowClick?: (row: any) => void;
-  onSwipeLeft?: (row: any) => void;
-  onSwipeRight?: (row: any) => void;
+  data: Record<string, unknown>[];
+  columns: Array<{ key: string; label: string; render?: (value: unknown, row: Record<string, unknown>) => React.ReactNode }>;
+  onRowClick?: (row: Record<string, unknown>) => void;
+  onSwipeLeft?: (row: Record<string, unknown>) => void;
+  onSwipeRight?: (row: Record<string, unknown>) => void;
 }> = ({ data, columns, onRowClick, onSwipeLeft, onSwipeRight }) => {
   const gestureDetector = useRef(new TouchGestureDetector());
   const [swipedRow, setSwipedRow] = useState<string | null>(null);
 
-  const handleTouchStart = useCallback((event: React.TouchEvent, rowId: string) => {
+  const handleTouchStart = useCallback((event: React.TouchEvent) => {
     gestureDetector.current.onTouchStart(event.nativeEvent);
   }, []);
 
-  const handleTouchEnd = useCallback((event: React.TouchEvent, row: any) => {
+  const handleTouchEnd = useCallback((event: React.TouchEvent, row: Record<string, unknown>) => {
     gestureDetector.current.onTouchEnd(event.nativeEvent, {
       onTap: () => onRowClick?.(row),
       onSwipeLeft: () => {
@@ -334,7 +337,7 @@ export const MobileModal: React.FC<{
 
   const handleTouchMove = useCallback((event: React.TouchEvent) => {
     const touch = event.touches[0];
-    const deltaY = touch.clientY - gestureDetector.current.startY;
+    const deltaY = touch.clientY - gestureDetector.current.getStartY();
     
     if (deltaY > 0) {
       setDragOffset(deltaY);
@@ -343,7 +346,7 @@ export const MobileModal: React.FC<{
 
   const handleTouchEnd = useCallback((event: React.TouchEvent) => {
     const touch = event.changedTouches[0];
-    const deltaY = touch.clientY - gestureDetector.current.startY;
+    const deltaY = touch.clientY - gestureDetector.current.getStartY();
     
     if (deltaY > 100) {
       onClose();
@@ -429,7 +432,7 @@ export const MobileInfiniteScroll: React.FC<{
   hasMore: boolean;
   loadMore: () => void;
   threshold?: number;
-}> = ({ children, hasMore, loadMore, threshold = 200 }) => {
+}> = ({ children, hasMore, loadMore }) => {
   const [isLoading, setIsLoading] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);

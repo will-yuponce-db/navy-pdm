@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import {
@@ -278,7 +278,6 @@ describe("Accessibility", () => {
       const cleanup = focusManagement.trapFocus(container);
 
       const firstButton = container.querySelector("button") as HTMLElement;
-      const lastButton = container.querySelectorAll("button")[1] as HTMLElement;
 
       firstButton.focus();
 

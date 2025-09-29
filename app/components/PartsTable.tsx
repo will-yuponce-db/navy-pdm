@@ -35,7 +35,6 @@ import {
 } from "@mui/icons-material";
 import { useSelector } from "react-redux";
 import { useAppDispatch } from "../redux/hooks";
-import type { RootState } from "../types";
 import {
   selectFilteredParts,
   selectPartsSummary,
@@ -46,7 +45,7 @@ import {
   reorderPartWithNotification,
   getStockStatus,
 } from "../redux/services/partsSlice";
-import type { Part, PartCategory, PartCondition, StockStatus } from "../types";
+import type { Part, StockStatus } from "../types";
 
 interface PartsTableProps {
   onEditPart: (part: Part) => void;
@@ -300,7 +299,7 @@ const PartsTable: React.FC<PartsTableProps> = ({ onEditPart, onAddPart }) => {
                   <TableCell>
                     <Chip
                       label={stockStatus}
-                      color={getStockStatusColor(stockStatus) as any}
+                      color={getStockStatusColor(stockStatus)}
                       size="small"
                       icon={getStockStatusIcon(stockStatus)}
                     />

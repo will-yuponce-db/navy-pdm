@@ -1,6 +1,6 @@
 import React from "react";
 import { Alert, Snackbar, CircularProgress, Backdrop } from "@mui/material";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface ErrorState {
   message: string;

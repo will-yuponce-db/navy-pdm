@@ -4,7 +4,7 @@ import workOrderReducer, {
   deleteWorkOrder,
   updateWorkOrder,
 } from "../../redux/services/workOrderSlice";
-import type { WorkOrder, WorkOrderState } from "../../types";
+import type { WorkOrderState } from "../../types";
 
 describe("workOrderSlice", () => {
   const initialState: WorkOrderState = [

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
@@ -263,7 +263,6 @@ describe("WorkOrderTable", () => {
   });
 
   it("handles pagination correctly", async () => {
-    const user = userEvent.setup();
     renderWithProvider(
       <WorkOrderTable openWorkOrderModal={mockOpenWorkOrderModal} />,
     );

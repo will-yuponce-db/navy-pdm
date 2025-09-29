@@ -4,13 +4,10 @@ import {
   Card,
   CardContent,
   Typography,
-  Grid,
   LinearProgress,
   Chip,
   IconButton,
   Tooltip,
-  Alert,
-  Paper,
   List,
   ListItem,
   ListItemText,
@@ -18,17 +15,12 @@ import {
   Divider,
 } from "@mui/material";
 import {
-  TrendingUp,
   Warning,
-  CheckCircle,
-  Error as ErrorIcon,
   Timeline,
   Refresh,
   FilterList,
 } from "@mui/icons-material";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -38,9 +30,6 @@ import {
   Area,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 
 interface SensorData {
@@ -193,11 +182,10 @@ const getRiskColor = (risk: RULPrediction["riskLevel"]) => {
 export default function PredictiveAnalytics() {
   const [sensorData, setSensorData] =
     useState<SensorData[]>(generateSensorData());
-  const [anomalies, setAnomalies] = useState<Anomaly[]>(mockAnomalies);
-  const [rulPredictions, setRulPredictions] =
+  const [anomalies] = useState<Anomaly[]>(mockAnomalies);
+  const [rulPredictions] =
     useState<RULPrediction[]>(mockRULPredictions);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [selectedTimeframe, setSelectedTimeframe] = useState("24h");
 
   // Simulate real-time data updates
   useEffect(() => {

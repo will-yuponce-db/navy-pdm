@@ -29,20 +29,16 @@ import {
   LocalShipping,
   Refresh,
   FilterList,
-  Layers,
-  ZoomIn,
-  ZoomOut,
-  MyLocation,
 } from "@mui/icons-material";
 
 // Dynamic imports for Leaflet components to avoid SSR issues
-let MapContainer: any;
-let TileLayer: any;
-let Marker: any;
-let Popup: any;
-let Polyline: any;
-let useMap: any;
-let L: any;
+let MapContainer: React.ComponentType<unknown>;
+let TileLayer: React.ComponentType<unknown>;
+let Marker: React.ComponentType<unknown>;
+let Popup: React.ComponentType<unknown>;
+let Polyline: React.ComponentType<unknown>;
+let useMap: () => unknown;
+let L: unknown;
 
 // Load Leaflet components only on client side
 const loadLeafletComponents = async () => {
@@ -246,7 +242,7 @@ const getTransportIcon = (type: SupplyRoute["transportType"]) => {
 };
 
 // Memoized icon cache to prevent recreating icons unnecessarily
-const iconCache = new Map<string, any>();
+const iconCache = new Map<string, unknown>();
 
 // Create custom ship icons for different statuses (memoized)
 const createShipIcon = (status: Ship["status"], healthScore: number) => {
@@ -320,10 +316,8 @@ const createShipIcon = (status: Ship["status"], healthScore: number) => {
 // Component to handle map events
 const MapEventHandler = ({
   selectedShip,
-  onShipSelect,
 }: {
   selectedShip: Ship | null;
-  onShipSelect: (ship: Ship) => void;
 }) => {
   if (!useMap) return null;
 
@@ -337,6 +331,7 @@ const MapEventHandler = ({
 
   return null;
 };
+ClientOnlyMap.displayName = 'ClientOnlyMap';
 
 // Client-only map component (memoized to prevent unnecessary re-renders)
 const ClientOnlyMap = memo(({
@@ -432,7 +427,7 @@ const ClientOnlyMap = memo(({
                   <Chip
                     label={ship.status}
                     size="small"
-                    color={getStatusColor(ship.status) as any}
+                    color={getStatusColor(ship.status)}
                     variant="outlined"
                   />
                 </Box>
@@ -501,7 +496,7 @@ const ClientOnlyMap = memo(({
 
 export default function FleetMap() {
   const [ships, setShips] = useState<Ship[]>(mockShips);
-  const [supplyRoutes, setSupplyRoutes] =
+  const [supplyRoutes] =
     useState<SupplyRoute[]>(mockSupplyRoutes);
   const [selectedShip, setSelectedShip] = useState<Ship | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -596,17 +591,6 @@ export default function FleetMap() {
     setDebounceTimeout(timeout);
   }, [debounceTimeout]);
 
-  const handleAutoRefreshToggle = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    setAutoRefresh(event.target.checked);
-  }, []);
-
-  const handleFilterChange = useCallback((event: any) => {
-    setFilterStatus(event.target.value);
-  }, []);
-
-  const handleSupplyRoutesToggle = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    setShowSupplyRoutes(event.target.checked);
-  }, []);
 
   // Cleanup debounce timeout on unmount
   useEffect(() => {
@@ -920,7 +904,7 @@ export default function FleetMap() {
                         <Chip
                           label={ship.status}
                           size="small"
-                          color={getStatusColor(ship.status) as any}
+                          color={getStatusColor(ship.status)}
                           variant="outlined"
                         />
                       </Box>

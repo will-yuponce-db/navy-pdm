@@ -152,7 +152,6 @@ describe("NavComponent", () => {
   });
 
   it("toggles theme when switch is clicked", async () => {
-    const user = userEvent.setup();
     renderWithRouter(<NavComponent />);
 
     // Theme toggle is not implemented in NavComponent

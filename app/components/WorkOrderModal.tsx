@@ -109,7 +109,7 @@ export default function WorkOrderModal(props: WorkOrderModalProps) {
       props.handleModalClose();
 
       showError("Work order created successfully!", "success");
-    } catch (error) {
+    } catch {
       showError("Failed to create work order. Please try again.", "error");
     }
   };

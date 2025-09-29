@@ -9,8 +9,6 @@ import {
   Alert,
 } from "@mui/material";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -271,7 +269,7 @@ export default function AdvancedAnalytics() {
                       labelLine={false}
                       outerRadius={100}
                       dataKey="value"
-                      label={(props: any) =>
+                      label={(props: { name: string; percent: number }) =>
                         `${props.name} ${(props.percent * 100).toFixed(0)}%`
                       }
                     >

@@ -30,7 +30,7 @@ export interface ErrorContext {
   timestamp?: Date;
   component?: string;
   action?: string;
-  additionalData?: Record<string, any>;
+  additionalData?: Record<string, unknown>;
 }
 
 // Error log entry
@@ -53,7 +53,7 @@ export interface PerformanceEntry {
   duration: number;
   timestamp: Date;
   type: 'navigation' | 'measure' | 'mark';
-  additionalData?: Record<string, any>;
+  additionalData?: Record<string, unknown>;
 }
 
 class ErrorMonitoringService {
@@ -388,7 +388,7 @@ export class ErrorBoundary extends React.Component<
   { children: React.ReactNode; fallback?: React.ComponentType<{ error: Error }> },
   { hasError: boolean; error?: Error }
 > {
-  constructor(props: any) {
+  constructor(props: { children: React.ReactNode; fallback?: React.ComponentType<{ error: Error }> }) {
     super(props);
     this.state = { hasError: false };
   }
@@ -426,7 +426,7 @@ export class ErrorBoundary extends React.Component<
 const DefaultErrorFallback: React.FC<{ error: Error }> = ({ error }) => (
   <div style={{ padding: '20px', textAlign: 'center' }}>
     <h2>Something went wrong</h2>
-    <p>We're sorry, but something unexpected happened.</p>
+    <p>We&apos;re sorry, but something unexpected happened.</p>
     {import.meta.env.DEV && (
       <details style={{ marginTop: '20px' }}>
         <summary>Error Details</summary>

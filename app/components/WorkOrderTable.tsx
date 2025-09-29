@@ -51,8 +51,6 @@ import {
   Search,
 } from "@mui/icons-material";
 import { useErrorHandler } from "./ErrorHandling";
-import { ExportData } from "./DataExport";
-import { AdvancedFilters } from "./AdvancedFilters";
 
 const headCells = [
   {
@@ -178,9 +176,6 @@ function EnhancedTableToolbar(props: EnhancedTableToolbarProps) {
   const dispatch = useAppDispatch();
   const {
     numSelected = 0,
-    selected = [],
-    handleDeselect,
-    openWorkOrderModal,
   } = props;
   const safeNumSelected = numSelected || 0;
   return (
@@ -346,7 +341,7 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
           }),
         );
         showError(`Work order status updated to ${newStatus}`, "success");
-      } catch (error) {
+      } catch {
         showError("Failed to update work order status", "error");
       }
     }
@@ -620,7 +615,7 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
                     <TableCell align="right">
                       <Chip
                         label={row.priority}
-                        color={getPriorityColor(row.priority) as any}
+                        color={getPriorityColor(row.priority)}
                         variant="outlined"
                         size="small"
                       />
@@ -628,7 +623,7 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
                     <TableCell align="right">
                       <Chip
                         label={row.status}
-                        color={getStatusColor(row.status) as any}
+                        color={getStatusColor(row.status)}
                         onClick={(e) => handleStatusClick(e, row.wo)}
                         clickable
                         sx={{ cursor: "pointer" }}
@@ -638,7 +633,7 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
-                            handleStatusClick(e as any, row.wo);
+                            handleStatusClick(e as React.MouseEvent, row.wo);
                           }
                         }}
                       />

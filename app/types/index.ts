@@ -306,7 +306,7 @@ export interface PaginatedResponse<T> {
 // WebSocket Types
 export interface WebSocketMessage {
   type: 'work_order_update' | 'notification' | 'system_alert' | 'maintenance_alert';
-  data: any;
+  data: unknown;
   timestamp: string;
 }
 
@@ -327,7 +327,7 @@ export interface SecurityEvent {
   ipAddress: string;
   userAgent: string;
   timestamp: Date;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 // Audit Types
@@ -337,7 +337,7 @@ export interface AuditLog {
   action: string;
   resource: string;
   resourceId: string;
-  changes?: Record<string, { old: any; new: any }>;
+  changes?: Record<string, { old: unknown; new: unknown }>;
   timestamp: Date;
   ipAddress: string;
 }
@@ -382,7 +382,7 @@ export interface OfflineData {
   pendingChanges: Array<{
     id: string;
     type: 'create' | 'update' | 'delete';
-    data: any;
+    data: unknown;
     timestamp: Date;
   }>;
 }

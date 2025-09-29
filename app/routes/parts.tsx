@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Box, Typography } from "@mui/material";
-import type { Route } from "./+types/home";
 import PartsTable from "~/components/PartsTable";
 import PartModal from "~/components/PartModal";
 import type { Part } from "~/types";
 
-export function meta(_args: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Parts Management" },
     { name: "description", content: "Navy PDM Parts Management System" },

@@ -352,7 +352,7 @@ const partsSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(reorderPartWithNotification.fulfilled, (state, action) => {
+      .addCase(reorderPartWithNotification.fulfilled, (state) => {
         state.loading = false;
         // In a real application, this would trigger a reorder process
         // For now, we just log the reorder request

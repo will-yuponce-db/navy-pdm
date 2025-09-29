@@ -1,4 +1,4 @@
-import { CacheConfig, CacheItem } from '../types';
+import { CacheConfig } from '../types';
 
 // Cache strategies
 export enum CacheStrategy {
@@ -184,7 +184,7 @@ export class Cache<T> {
 
 // Memory cache manager
 class MemoryCacheManager {
-  private caches = new Map<string, Cache<any>>();
+  private caches = new Map<string, Cache<unknown>>();
 
   createCache<T>(name: string, config: CacheConfig): Cache<T> {
     const cache = new Cache<T>(config);
@@ -204,8 +204,8 @@ class MemoryCacheManager {
     this.caches.forEach(cache => cache.clear());
   }
 
-  getAllStats(): Record<string, any> {
-    const stats: Record<string, any> = {};
+  getAllStats(): Record<string, unknown> {
+    const stats: Record<string, unknown> = {};
     this.caches.forEach((cache, name) => {
       stats[name] = cache.getStats();
     });
@@ -277,7 +277,7 @@ export class PerformanceMonitor {
 }
 
 // Debounce utility
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number,
   immediate = false
@@ -300,7 +300,7 @@ export function debounce<T extends (...args: any[]) => any>(
 }
 
 // Throttle utility
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => unknown>(
   func: T,
   limit: number
 ): (...args: Parameters<T>) => void {
@@ -316,7 +316,7 @@ export function throttle<T extends (...args: any[]) => any>(
 }
 
 // Memoization utility
-export function memoize<T extends (...args: any[]) => any>(
+export function memoize<T extends (...args: unknown[]) => unknown>(
   func: T,
   keyGenerator?: (...args: Parameters<T>) => string
 ): T {
