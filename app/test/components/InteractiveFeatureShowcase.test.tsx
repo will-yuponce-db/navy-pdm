@@ -20,9 +20,8 @@ describe("InteractiveFeatureShowcase", () => {
 
     const analyticsElements = screen.getAllByText("Real-time Analytics");
     expect(analyticsElements.length).toBeGreaterThan(0);
-    expect(
-      screen.getByText("Live data processing and visualization"),
-    ).toBeInTheDocument();
+    const liveDataElements = screen.getAllByText("Live data processing and visualization");
+    expect(liveDataElements.length).toBeGreaterThan(0);
   });
 
   it("displays predictive modeling feature", () => {
@@ -39,7 +38,7 @@ describe("InteractiveFeatureShowcase", () => {
 
     expect(screen.getByText("Performance Optimization")).toBeInTheDocument();
     expect(
-      screen.getByText("Automated system tuning and efficiency improvements"),
+      screen.getByText("Automated efficiency improvements"),
     ).toBeInTheDocument();
   });
 
@@ -89,8 +88,10 @@ describe("InteractiveFeatureShowcase", () => {
     render(<InteractiveFeatureShowcase />);
 
     // Icons should be present (they are SVG elements) - look for specific icons
-    expect(screen.getByTestId("AnalyticsIcon")).toBeInTheDocument();
-    expect(screen.getByTestId("TrendingUpIcon")).toBeInTheDocument();
+    const analyticsIcons = screen.getAllByTestId("AnalyticsIcon");
+    expect(analyticsIcons.length).toBeGreaterThan(0);
+    const trendingIcons = screen.getAllByTestId("TrendingUpIcon");
+    expect(trendingIcons.length).toBeGreaterThan(0);
   });
 
   it("displays feature descriptions", () => {

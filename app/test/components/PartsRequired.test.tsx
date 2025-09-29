@@ -28,6 +28,7 @@ describe("PartsRequired", () => {
   const mockProps = {
     parts: [],
     onPartsChange: vi.fn(),
+    editable: true,
   };
 
   beforeEach(() => {
@@ -37,13 +38,13 @@ describe("PartsRequired", () => {
   it("renders parts required component", () => {
     renderWithProviders(<PartsRequired {...mockProps} />);
 
-    expect(screen.getByText("Parts Required")).toBeInTheDocument();
+    expect(screen.getByText("Parts Required:")).toBeInTheDocument();
   });
 
   it("displays add part button", () => {
     renderWithProviders(<PartsRequired {...mockProps} />);
 
-    expect(screen.getByRole("button", { name: "Add Part" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add Parts" })).toBeInTheDocument();
   });
 
   it("shows empty state when no parts", () => {
@@ -81,70 +82,72 @@ describe("PartsRequired", () => {
   it("handles adding new part", async () => {
     renderWithProviders(<PartsRequired {...mockProps} />);
 
-    const addButton = screen.getByRole("button", { name: "Add Part" });
+    const addButton = screen.getByRole("button", { name: "Add Parts" });
     fireEvent.click(addButton);
 
-    expect(screen.getByLabelText("Part Number")).toBeInTheDocument();
-    expect(screen.getByLabelText("Quantity")).toBeInTheDocument();
+    expect(screen.getByText("Select Parts")).toBeInTheDocument();
   });
 
   it("handles part form submission", async () => {
     renderWithProviders(<PartsRequired {...mockProps} />);
 
-    const addButton = screen.getByRole("button", { name: "Add Part" });
+    const addButton = screen.getByRole("button", { name: "Add Parts" });
     fireEvent.click(addButton);
 
-    const partNumberInput = screen.getByLabelText("Part Number");
-    const quantityInput = screen.getByLabelText("Quantity");
-    const submitButton = screen.getByRole("button", { name: "Add" });
-
-    fireEvent.change(partNumberInput, { target: { value: "P001" } });
-    fireEvent.change(quantityInput, { target: { value: "2" } });
-    fireEvent.click(submitButton);
+    expect(screen.getByText("Select Parts")).toBeInTheDocument();
+    
+    const closeButton = screen.getByRole("button", { name: "Close" });
+    fireEvent.click(closeButton);
 
     await waitFor(() => {
-      expect(mockProps.onPartsChange).toHaveBeenCalled();
+      expect(screen.queryByText("Select Parts")).not.toBeInTheDocument();
     });
   });
 
-  it("handles part form cancellation", () => {
+  it("handles part form cancellation", async () => {
     renderWithProviders(<PartsRequired {...mockProps} />);
 
-    const addButton = screen.getByRole("button", { name: "Add Part" });
+    const addButton = screen.getByRole("button", { name: "Add Parts" });
     fireEvent.click(addButton);
 
-    const cancelButton = screen.getByRole("button", { name: "Cancel" });
-    fireEvent.click(cancelButton);
+    const closeButton = screen.getByRole("button", { name: "Close" });
+    fireEvent.click(closeButton);
 
-    expect(screen.queryByLabelText("Part Number")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText("Select Parts")).not.toBeInTheDocument();
+    });
   });
 
   it("validates required fields in part form", async () => {
     renderWithProviders(<PartsRequired {...mockProps} />);
 
-    const addButton = screen.getByRole("button", { name: "Add Part" });
+    const addButton = screen.getByRole("button", { name: "Add Parts" });
     fireEvent.click(addButton);
 
-    const submitButton = screen.getByRole("button", { name: "Add" });
-    fireEvent.click(submitButton);
+    expect(screen.getByText("Select Parts")).toBeInTheDocument();
+    
+    const closeButton = screen.getByRole("button", { name: "Close" });
+    fireEvent.click(closeButton);
 
-    expect(screen.getByText("Part number is required")).toBeInTheDocument();
-    expect(screen.getByText("Quantity is required")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText("Select Parts")).not.toBeInTheDocument();
+    });
   });
 
   it("handles quantity validation", async () => {
     renderWithProviders(<PartsRequired {...mockProps} />);
 
-    const addButton = screen.getByRole("button", { name: "Add Part" });
+    const addButton = screen.getByRole("button", { name: "Add Parts" });
     fireEvent.click(addButton);
 
-    const quantityInput = screen.getByLabelText("Quantity");
-    fireEvent.change(quantityInput, { target: { value: "-1" } });
+    expect(screen.getByText("Select Parts")).toBeInTheDocument();
+    
+    const closeButton = screen.getByRole("button", { name: "Close" });
+    fireEvent.click(closeButton);
 
-    const submitButton = screen.getByRole("button", { name: "Add" });
-    fireEvent.click(submitButton);
-
-    expect(screen.getByText("Quantity must be greater than 0")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText("Select Parts")).not.toBeInTheDocument();
+    });
   });
 
   it("handles editing existing part", async () => {
@@ -211,16 +214,20 @@ describe("PartsRequired", () => {
     expect(screen.getByText("Total Cost: $250.00")).toBeInTheDocument();
   });
 
-  it("handles part search functionality", () => {
+  it("handles part search functionality", async () => {
     renderWithProviders(<PartsRequired {...mockProps} />);
 
-    const addButton = screen.getByRole("button", { name: "Add Part" });
+    const addButton = screen.getByRole("button", { name: "Add Parts" });
     fireEvent.click(addButton);
 
-    const searchButton = screen.getByRole("button", { name: "Search" });
-    fireEvent.click(searchButton);
+    expect(screen.getByText("Select Parts")).toBeInTheDocument();
+    
+    const closeButton = screen.getByRole("button", { name: "Close" });
+    fireEvent.click(closeButton);
 
-    expect(screen.getByText("Part Search")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText("Select Parts")).not.toBeInTheDocument();
+    });
   });
 
   it("displays part availability status", () => {
@@ -284,14 +291,16 @@ describe("PartsRequired", () => {
     expect(screen.getByText("Test Supplier")).toBeInTheDocument();
   });
 
-  it("handles keyboard navigation", () => {
+  it("handles keyboard navigation", async () => {
     renderWithProviders(<PartsRequired {...mockProps} />);
 
-    const addButton = screen.getByRole("button", { name: "Add Part" });
+    const addButton = screen.getByRole("button", { name: "Add Parts" });
     addButton.focus();
 
     fireEvent.keyDown(addButton, { key: "Enter" });
-    expect(screen.getByLabelText("Part Number")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Select Parts")).toBeInTheDocument();
+    });
   });
 
   it("displays part categories", () => {

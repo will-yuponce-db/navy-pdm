@@ -95,6 +95,11 @@ describe("Integration Tests - User Workflows", () => {
       const addButton = screen.getByLabelText("Add new work order");
       await user.click(addButton);
 
+      // Wait for modal to open and form to be available
+      await waitFor(() => {
+        expect(screen.getByLabelText("Ship")).toBeInTheDocument();
+      }, { timeout: 5000 });
+
       // Fill in the form
       const shipInput = screen.getByLabelText("Ship");
       await user.type(shipInput, "USS Integration Test");
@@ -144,7 +149,9 @@ describe("Integration Tests - User Workflows", () => {
       }
 
       // Verify search input has value
-      expect(searchInput).toHaveValue("USS Bainbridge");
+      await waitFor(() => {
+        expect(searchInput).toHaveValue("USS Bainbridge");
+      }, { timeout: 5000 });
     });
 
     it("allows user to select and delete work orders", async () => {
@@ -249,9 +256,12 @@ describe("Integration Tests - User Workflows", () => {
       expect(shipErrors.length).toBeGreaterThan(0);
       const homeportErrors = screen.getAllByText("Homeport is required");
       expect(homeportErrors.length).toBeGreaterThan(0);
-      expect(screen.getByText("GTE/System is required")).toBeInTheDocument();
-      expect(screen.getByText("Failure Mode is required")).toBeInTheDocument();
-      expect(screen.getByText("Target ETA is required")).toBeInTheDocument();
+      const gteErrors = screen.getAllByText("GTE/System is required");
+      expect(gteErrors.length).toBeGreaterThan(0);
+      const failureModeErrors = screen.getAllByText("Failure Mode is required");
+      expect(failureModeErrors.length).toBeGreaterThan(0);
+      const etaErrors = screen.getAllByText("Target ETA is required");
+      expect(etaErrors.length).toBeGreaterThan(0);
     });
 
     it("clears validation errors when user starts typing", async () => {
@@ -261,6 +271,11 @@ describe("Integration Tests - User Workflows", () => {
       // Open work order modal
       const addButton = screen.getByLabelText("Add new work order");
       await user.click(addButton);
+
+      // Wait for modal to open
+      await waitFor(() => {
+        expect(screen.getByLabelText("Ship")).toBeInTheDocument();
+      }, { timeout: 5000 });
 
       // Wait for modal to be visible
       await waitFor(() => {
@@ -287,6 +302,11 @@ describe("Integration Tests - User Workflows", () => {
       // Open work order modal
       const addButton = screen.getByLabelText("Add new work order");
       await user.click(addButton);
+
+      // Wait for modal to open
+      await waitFor(() => {
+        expect(screen.getByLabelText("Ship")).toBeInTheDocument();
+      }, { timeout: 5000 });
 
       // Wait for modal to be visible
       await waitFor(() => {
@@ -370,6 +390,11 @@ describe("Integration Tests - User Workflows", () => {
       // Create a work order
       const addButton = screen.getByLabelText("Add new work order");
       await user.click(addButton);
+
+      // Wait for modal to open
+      await waitFor(() => {
+        expect(screen.getByLabelText("Ship")).toBeInTheDocument();
+      }, { timeout: 5000 });
 
       // Wait for modal to be visible and fill form
       await waitFor(() => {

@@ -27,9 +27,9 @@ const renderWithProviders = (component: React.ReactElement, store = createTestSt
 
 describe("PartModal", () => {
   const mockProps = {
-    modalOpen: true,
-    handleModalClose: vi.fn(),
-    part: null,
+    open: true,
+    onClose: vi.fn(),
+    mode: "add" as const,
   };
 
   beforeEach(() => {
@@ -39,10 +39,9 @@ describe("PartModal", () => {
   it("renders part modal when open", () => {
     renderWithProviders(<PartModal {...mockProps} />);
 
-    expect(screen.getByText("Add New Part")).toBeInTheDocument();
-    expect(screen.getByLabelText("Part Number")).toBeInTheDocument();
-    expect(screen.getByLabelText("Part Name")).toBeInTheDocument();
-    expect(screen.getByLabelText("Description")).toBeInTheDocument();
+    expect(screen.getByText("Add Part")).toBeInTheDocument();
+    expect(screen.getByLabelText("Name")).toBeInTheDocument();
+    expect(screen.getByLabelText("System")).toBeInTheDocument();
   });
 
   it("renders edit part modal when part is provided", () => {
