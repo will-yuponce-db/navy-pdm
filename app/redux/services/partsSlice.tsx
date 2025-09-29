@@ -447,4 +447,5 @@ export const selectPartsSummary = (state: RootState) => {
   };
 };
 
+export { partsSlice };
 export default partsSlice.reducer;

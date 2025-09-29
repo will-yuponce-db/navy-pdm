@@ -185,7 +185,7 @@ export const MobileTable: React.FC<{
   const gestureDetector = useRef(new TouchGestureDetector());
   const [swipedRow, setSwipedRow] = useState<string | null>(null);
 
-  const handleTouchStart = useCallback((event: React.TouchEvent, rowId: string) => {
+  const handleTouchStart = useCallback((event: React.TouchEvent) => {
     gestureDetector.current.onTouchStart(event.nativeEvent);
   }, []);
 

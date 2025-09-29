@@ -51,6 +51,7 @@ import {
   Search,
 } from "@mui/icons-material";
 import { useErrorHandler } from "./ErrorHandling";
+import { tableStyles } from "../utils/tableStyles";
 
 const headCells = [
   {
@@ -140,7 +141,7 @@ function EnhancedTableHead(props: EnhancedTableHeadProps) {
         {headCells.map((headCell) => (
           <TableCell
             key={headCell.id}
-            align={headCell.numeric ? "right" : "left"}
+            align="left"
             padding={headCell.disablePadding ? "none" : "normal"}
             sortDirection={orderBy === headCell.id ? order : false}
             scope="col"
@@ -399,11 +400,7 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
     });
   }, [workOrders, searchTerm, statusFilter, priorityFilter]);
 
-  // Avoid a layout jump when reaching the last page with empty workOrders.
-  const emptyRows =
-    page > 0
-      ? Math.max(0, (1 + page) * rowsPerPage - filteredWorkOrders.length)
-      : 0;
+  // Removed emptyRows calculation to eliminate extra spacing
 
   const paginatedData = filteredWorkOrders.slice(
     page * rowsPerPage,
@@ -552,16 +549,9 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
             filter controls above to refine results.
           </Typography>
         </Box>
-        <TableContainer
-          sx={{
-            backgroundColor: "background.paper",
-            borderRadius: 2,
-            border: "1px solid",
-            borderColor: "divider",
-          }}
-        >
+        <TableContainer sx={tableStyles.container}>
           <Table
-            sx={{ minWidth: 750 }}
+            sx={tableStyles.patterns.responsiveTable}
             aria-labelledby="tableTitle"
             aria-describedby="table-description"
             size="medium"
@@ -608,11 +598,11 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
                     >
                       {row.wo}
                     </TableCell>
-                    <TableCell align="right">{row.ship}</TableCell>
-                    <TableCell align="right">{row.homeport}</TableCell>
-                    <TableCell align="right">{row.gte}</TableCell>
-                    <TableCell align="right">{row.fm}</TableCell>
-                    <TableCell align="right">
+                    <TableCell>{row.ship}</TableCell>
+                    <TableCell>{row.homeport}</TableCell>
+                    <TableCell>{row.gte}</TableCell>
+                    <TableCell>{row.fm}</TableCell>
+                    <TableCell>
                       <Chip
                         label={row.priority}
                         color={getPriorityColor(row.priority)}
@@ -620,7 +610,7 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
                         size="small"
                       />
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell>
                       <Chip
                         label={row.status}
                         color={getStatusColor(row.status)}
@@ -638,7 +628,7 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
                         }}
                       />
                     </TableCell>
-                    <TableCell align="right">{row.eta} days</TableCell>
+                    <TableCell>{row.eta} days</TableCell>
                     <TableCell>
                       {row.partsRequired ? (
                         <Typography
@@ -664,15 +654,6 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
                   </TableRow>
                 );
               })}
-              {emptyRows > 0 && (
-                <TableRow
-                  style={{
-                    height: 53 * emptyRows,
-                  }}
-                >
-                  <TableCell colSpan={6} />
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </TableContainer>
@@ -684,6 +665,7 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
           page={page}
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
+          sx={tableStyles.pagination}
         />
       </Paper>
 

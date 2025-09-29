@@ -46,6 +46,7 @@ import {
   getStockStatus,
 } from "../redux/services/partsSlice";
 import type { Part, StockStatus } from "../types";
+import { tableStyles } from "../utils/tableStyles";
 
 interface PartsTableProps {
   onEditPart: (part: Part) => void;
@@ -255,8 +256,8 @@ const PartsTable: React.FC<PartsTableProps> = ({ onEditPart, onAddPart }) => {
       </Paper>
 
       {/* Parts Table */}
-      <TableContainer component={Paper}>
-        <Table>
+      <TableContainer component={Paper} sx={tableStyles.container}>
+        <Table sx={tableStyles.patterns.wideTable}>
           <TableHead>
             <TableRow>
               <TableCell>Part ID</TableCell>

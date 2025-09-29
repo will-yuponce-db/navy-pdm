@@ -1,3 +1,4 @@
+import React from "react";
 import {
   Card,
   CardContent,
@@ -30,6 +31,7 @@ import {
   Speed,
   BatteryAlert,
 } from "@mui/icons-material";
+import { tableStyles } from "../utils/tableStyles";
 
 export function meta() {
   return [
@@ -259,8 +261,14 @@ export default function Assets() {
         Fleet Overview
       </Typography>
 
-      <TableContainer component={Paper} sx={{ mb: 4 }}>
-        <Table>
+      <TableContainer 
+        component={Paper} 
+        sx={{ 
+          mb: 4,
+          ...tableStyles.container,
+        }}
+      >
+        <Table sx={tableStyles.patterns.wideTable}>
           <TableHead>
             <TableRow>
               <TableCell>Asset</TableCell>

@@ -32,7 +32,9 @@ interface PartModalProps {
 const PartModal: React.FC<PartModalProps> = ({ open, onClose, part, mode }) => {
   const dispatch = useAppDispatch();
   const [formData, setFormData] = useState({
+    partNumber: "",
     name: "",
+    description: "",
     system: "",
     category: "" as PartCategory,
     stockLevel: 0,
@@ -49,7 +51,9 @@ const PartModal: React.FC<PartModalProps> = ({ open, onClose, part, mode }) => {
   useEffect(() => {
     if (mode === "edit" && part) {
       setFormData({
+        partNumber: part.id,
         name: part.name,
+        description: (part as { description?: string }).description || "",
         system: part.system,
         category: part.category,
         stockLevel: part.stockLevel,
@@ -63,7 +67,9 @@ const PartModal: React.FC<PartModalProps> = ({ open, onClose, part, mode }) => {
       });
     } else {
       setFormData({
+        partNumber: "",
         name: "",
+        description: "",
         system: "",
         category: "" as PartCategory,
         stockLevel: 0,
@@ -82,8 +88,14 @@ const PartModal: React.FC<PartModalProps> = ({ open, onClose, part, mode }) => {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
+    if (!formData.partNumber.trim()) {
+      newErrors.partNumber = "Part number is required";
+    }
     if (!formData.name.trim()) {
       newErrors.name = "Part name is required";
+    }
+    if (!formData.description.trim()) {
+      newErrors.description = "Description is required";
     }
     if (!formData.system.trim()) {
       newErrors.system = "System is required";
@@ -123,9 +135,9 @@ const PartModal: React.FC<PartModalProps> = ({ open, onClose, part, mode }) => {
     }
 
     if (mode === "add") {
-      dispatch(addPartWithNotification(formData));
+      dispatch(addPartWithNotification({ ...formData, id: formData.partNumber }));
     } else if (mode === "edit" && part) {
-      dispatch(updatePartWithNotification({ id: part.id, updates: formData }));
+      dispatch(updatePartWithNotification({ id: part.id, updates: { ...formData, id: formData.partNumber } }));
     }
 
     onClose();
@@ -156,12 +168,29 @@ const PartModal: React.FC<PartModalProps> = ({ open, onClose, part, mode }) => {
     "Condemned",
   ];
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "Escape") {
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth onKeyDown={handleKeyDown}>
       <DialogTitle>{mode === "add" ? "Add New Part" : "Edit Part"}</DialogTitle>
       <DialogContent>
         <Box sx={{ pt: 2 }}>
           <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Part Number"
+                value={formData.partNumber}
+                onChange={(e) => handleChange("partNumber", e.target.value)}
+                error={!!errors.partNumber}
+                helperText={errors.partNumber}
+                required
+              />
+            </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
@@ -170,6 +199,19 @@ const PartModal: React.FC<PartModalProps> = ({ open, onClose, part, mode }) => {
                 onChange={(e) => handleChange("name", e.target.value)}
                 error={!!errors.name}
                 helperText={errors.name}
+                required
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Description"
+                value={formData.description}
+                onChange={(e) => handleChange("description", e.target.value)}
+                error={!!errors.description}
+                helperText={errors.description}
+                multiline
+                rows={3}
                 required
               />
             </Grid>

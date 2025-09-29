@@ -271,7 +271,7 @@ export class BackgroundSyncManager {
     try {
       const registration = await navigator.serviceWorker.ready;
       if ('sync' in registration) {
-        await (registration as any).sync.register(tag);
+        await (registration as { sync: { register: (tag: string) => Promise<void> } }).sync.register(tag);
       }
     } catch (error) {
       console.error('Background Sync registration failed:', error);
@@ -283,35 +283,38 @@ export class BackgroundSyncManager {
     
     for (const change of pendingChanges) {
       try {
-        await this.syncChange(change as any);
+        await this.syncChange(change as { type: string; data: unknown; id: string });
         // Remove successfully synced change
-        await this.removePendingChange((change as any).id);
+        await this.removePendingChange((change as { id: string }).id);
       } catch (error) {
         console.error('Failed to sync change:', error);
       }
     }
   }
 
-  private async syncChange(change: any): Promise<void> {
+  private async syncChange(_change: { type: string; data: unknown; id: string }): Promise<void> {
     // This would integrate with your API service
     // Example implementation:
     /*
-    switch (change.type) {
+    switch (_change.type) {
       case 'create':
-        await workOrdersApi.create(change.data);
+        await workOrdersApi.create(_change.data);
         break;
       case 'update':
-        await workOrdersApi.update(change.resourceId, change.data);
+        await workOrdersApi.update(_change.id, _change.data);
         break;
       case 'delete':
-        await workOrdersApi.delete(change.resourceId);
+        await workOrdersApi.delete(_change.id);
         break;
     }
     */
+    console.log('Syncing change:', _change.type);
   }
 
-  private async removePendingChange(id: string): Promise<void> {
+  private async removePendingChange(_id: string): Promise<void> {
     // Implementation to remove pending change from IndexedDB
+    // TODO: Implement IndexedDB removal logic
+    console.log('Removing pending change:', _id);
   }
 }
 
@@ -451,8 +454,8 @@ export class PWAInstallManager {
     }
 
     try {
-      (this.deferredPrompt as any).prompt();
-      const { outcome } = await (this.deferredPrompt as any).userChoice;
+      (this.deferredPrompt as { prompt: () => void; userChoice: Promise<{ outcome: string }> }).prompt();
+      const { outcome } = await (this.deferredPrompt as { userChoice: Promise<{ outcome: string }> }).userChoice;
       this.deferredPrompt = null;
       return outcome === 'accepted';
     } catch (error) {
