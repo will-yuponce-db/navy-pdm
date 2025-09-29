@@ -40,7 +40,7 @@ describe("PartModal", () => {
     renderWithProviders(<PartModal {...mockProps} />);
 
     expect(screen.getByText("Add Part")).toBeInTheDocument();
-    expect(screen.getByLabelText("Name")).toBeInTheDocument();
+    expect(screen.getByLabelText("Part Name")).toBeInTheDocument();
     expect(screen.getByLabelText("System")).toBeInTheDocument();
   });
 
@@ -78,7 +78,7 @@ describe("PartModal", () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(mockProps.handleModalClose).toHaveBeenCalled();
+      expect(mockProps.onClose).toHaveBeenCalled();
     });
   });
 
@@ -100,7 +100,7 @@ describe("PartModal", () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(mockProps.handleModalClose).toHaveBeenCalled();
+      expect(mockProps.onClose).toHaveBeenCalled();
     });
   });
 
@@ -110,8 +110,8 @@ describe("PartModal", () => {
     const submitButton = screen.getByRole("button", { name: "Add Part" });
     fireEvent.click(submitButton);
 
-    expect(screen.getByText("Part number is required")).toBeInTheDocument();
     expect(screen.getByText("Part name is required")).toBeInTheDocument();
+    expect(screen.getByText("System is required")).toBeInTheDocument();
   });
 
   it("handles modal close", () => {
@@ -120,7 +120,7 @@ describe("PartModal", () => {
     const closeButton = screen.getByRole("button", { name: "Cancel" });
     fireEvent.click(closeButton);
 
-    expect(mockProps.handleModalClose).toHaveBeenCalled();
+    expect(mockProps.onClose).toHaveBeenCalled();
   });
 
   it("handles ESC key to close modal", () => {
@@ -128,16 +128,16 @@ describe("PartModal", () => {
 
     fireEvent.keyDown(document, { key: "Escape" });
 
-    expect(mockProps.handleModalClose).toHaveBeenCalled();
+    expect(mockProps.onClose).toHaveBeenCalled();
   });
 
   it("displays part details form fields", () => {
     renderWithProviders(<PartModal {...mockProps} />);
 
-    expect(screen.getByLabelText("Part Number")).toBeInTheDocument();
     expect(screen.getByLabelText("Part Name")).toBeInTheDocument();
-    expect(screen.getByLabelText("Description")).toBeInTheDocument();
-    expect(screen.getByLabelText("Quantity")).toBeInTheDocument();
+    expect(screen.getByLabelText("Part Name")).toBeInTheDocument();
+    expect(screen.getByLabelText("Location")).toBeInTheDocument();
+    expect(screen.getByLabelText("Stock Level")).toBeInTheDocument();
     expect(screen.getByLabelText("Unit Cost")).toBeInTheDocument();
     expect(screen.getByLabelText("Supplier")).toBeInTheDocument();
   });
@@ -145,7 +145,7 @@ describe("PartModal", () => {
   it("handles quantity input validation", () => {
     renderWithProviders(<PartModal {...mockProps} />);
 
-    const quantityInput = screen.getByLabelText("Quantity");
+    const quantityInput = screen.getByLabelText("Stock Level");
     fireEvent.change(quantityInput, { target: { value: "-5" } });
 
     const submitButton = screen.getByRole("button", { name: "Add Part" });
@@ -230,7 +230,7 @@ describe("PartModal", () => {
     const partNumberInput = screen.getByLabelText("Part Number");
     const partNameInput = screen.getByLabelText("Part Name");
     const descriptionInput = screen.getByLabelText("Description");
-    const quantityInput = screen.getByLabelText("Quantity");
+    const quantityInput = screen.getByLabelText("Stock Level");
     const unitCostInput = screen.getByLabelText("Unit Cost");
     const supplierInput = screen.getByLabelText("Supplier");
 
@@ -245,7 +245,7 @@ describe("PartModal", () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(mockProps.handleModalClose).toHaveBeenCalled();
+      expect(mockProps.onClose).toHaveBeenCalled();
     });
   });
 });

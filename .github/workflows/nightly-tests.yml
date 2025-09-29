@@ -1,0 +1,205 @@
+name: Nightly Comprehensive Tests
+
+on:
+  schedule:
+    # Run comprehensive tests every night at 3 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  comprehensive-selenium-tests:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        browser: [chrome, firefox]
+        viewport: [desktop, tablet, mobile]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Start application
+      run: |
+        npm start &
+        sleep 15
+        curl -f http://localhost:3000 || exit 1
+      env:
+        NODE_ENV: production
+        
+    - name: Run comprehensive Selenium tests
+      run: |
+        npm run test:selenium
+      env:
+        HEADLESS: true
+        BROWSER: ${{ matrix.browser }}
+        VIEWPORT: ${{ matrix.viewport }}
+        BASE_URL: http://localhost:3000
+        
+    - name: Upload comprehensive test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: comprehensive-results-${{ matrix.browser }}-${{ matrix.viewport }}
+        path: |
+          test-results/
+          screenshots/
+        retention-days: 30
+
+  accessibility-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Start application
+      run: |
+        npm start &
+        sleep 15
+        curl -f http://localhost:3000 || exit 1
+      env:
+        NODE_ENV: production
+        
+    - name: Run accessibility tests
+      run: |
+        npm run test:selenium:home
+      env:
+        HEADLESS: true
+        BROWSER: chrome
+        BASE_URL: http://localhost:3000
+        ACCESSIBILITY_TEST: true
+        
+    - name: Upload accessibility results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: accessibility-results
+        path: |
+          test-results/
+          screenshots/
+        retention-days: 30
+
+  load-testing:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Start application
+      run: |
+        npm start &
+        sleep 15
+        curl -f http://localhost:3000 || exit 1
+      env:
+        NODE_ENV: production
+        
+    - name: Run load tests
+      run: |
+        # Simulate multiple concurrent users
+        for i in {1..5}; do
+          npm run test:selenium:home &
+        done
+        wait
+      env:
+        HEADLESS: true
+        BROWSER: chrome
+        BASE_URL: http://localhost:3000
+        LOAD_TEST: true
+        
+    - name: Upload load test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: load-test-results
+        path: |
+          test-results/
+          screenshots/
+        retention-days: 30
+
+  cross-browser-compatibility:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        browser: [chrome, firefox]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Start application
+      run: |
+        npm start &
+        sleep 15
+        curl -f http://localhost:3000 || exit 1
+      env:
+        NODE_ENV: production
+        
+    - name: Run cross-browser tests
+      run: |
+        npm run test:selenium
+      env:
+        HEADLESS: true
+        BROWSER: ${{ matrix.browser }}
+        BASE_URL: http://localhost:3000
+        
+    - name: Upload cross-browser results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: cross-browser-results-${{ matrix.browser }}-${{ matrix.os }}
+        path: |
+          test-results/
+          screenshots/
+        retention-days: 30

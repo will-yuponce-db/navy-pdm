@@ -3,18 +3,20 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
 import PartsRequired from "../../components/PartsRequired";
+import { partsSlice } from "../../redux/services/partsSlice";
 
 // Mock store
 const createTestStore = () => {
   return configureStore({
     reducer: {
-      parts: (state = { parts: [], loading: false, error: null }) => state,
+      parts: partsSlice.reducer,
     },
     preloadedState: {
       parts: {
         parts: [],
         loading: false,
         error: null,
+        filters: {},
       },
     },
   });
@@ -299,7 +301,7 @@ describe("PartsRequired", () => {
 
     fireEvent.keyDown(addButton, { key: "Enter" });
     await waitFor(() => {
-      expect(screen.getByText("Select Parts")).toBeInTheDocument();
+      expect(screen.getByText("Add Parts")).toBeInTheDocument();
     });
   });
 

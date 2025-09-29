@@ -1,4 +1,4 @@
-import { PWAConfig } from '../types';
+import type { PWAConfig } from '../types';
 
 // Service Worker registration and management
 export class ServiceWorkerManager {
@@ -167,7 +167,7 @@ export class OfflineDataManager {
     const store = transaction.objectStore('pendingChanges');
 
     await this.promisifyRequest(store.add({
-      ...change,
+      ...(change as Record<string, unknown>),
       timestamp: new Date(),
     }));
   }
@@ -237,11 +237,16 @@ export class NetworkManager {
 
   async checkConnectivity(): Promise<boolean> {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
       const response = await fetch('/api/health', { 
         method: 'HEAD',
         cache: 'no-cache',
-        timeout: 5000,
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
       return response.ok;
     } catch {
       return false;
@@ -265,7 +270,9 @@ export class BackgroundSyncManager {
 
     try {
       const registration = await navigator.serviceWorker.ready;
-      await registration.sync.register(tag);
+      if ('sync' in registration) {
+        await (registration as any).sync.register(tag);
+      }
     } catch (error) {
       console.error('Background Sync registration failed:', error);
     }
@@ -276,16 +283,16 @@ export class BackgroundSyncManager {
     
     for (const change of pendingChanges) {
       try {
-        await this.syncChange(change);
+        await this.syncChange(change as any);
         // Remove successfully synced change
-        await this.removePendingChange(change.id);
+        await this.removePendingChange((change as any).id);
       } catch (error) {
         console.error('Failed to sync change:', error);
       }
     }
   }
 
-  private async syncChange(): Promise<void> {
+  private async syncChange(change: any): Promise<void> {
     // This would integrate with your API service
     // Example implementation:
     /*
@@ -303,7 +310,7 @@ export class BackgroundSyncManager {
     */
   }
 
-  private async removePendingChange(): Promise<void> {
+  private async removePendingChange(id: string): Promise<void> {
     // Implementation to remove pending change from IndexedDB
   }
 }
@@ -336,7 +343,7 @@ export class PushNotificationManager {
         userVisibleOnly: true,
         applicationServerKey: this.urlBase64ToUint8Array(
           import.meta.env.VITE_VAPID_PUBLIC_KEY || ''
-        ),
+        ) as unknown as ArrayBuffer,
       });
 
       // Send subscription to server
@@ -444,8 +451,8 @@ export class PWAInstallManager {
     }
 
     try {
-      this.deferredPrompt.prompt();
-      const { outcome } = await this.deferredPrompt.userChoice;
+      (this.deferredPrompt as any).prompt();
+      const { outcome } = await (this.deferredPrompt as any).userChoice;
       this.deferredPrompt = null;
       return outcome === 'accepted';
     } catch (error) {

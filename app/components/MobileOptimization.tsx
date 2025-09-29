@@ -185,7 +185,7 @@ export const MobileTable: React.FC<{
   const gestureDetector = useRef(new TouchGestureDetector());
   const [swipedRow, setSwipedRow] = useState<string | null>(null);
 
-  const handleTouchStart = useCallback((event: React.TouchEvent) => {
+  const handleTouchStart = useCallback((event: React.TouchEvent, rowId: string) => {
     gestureDetector.current.onTouchStart(event.nativeEvent);
   }, []);
 
@@ -193,11 +193,11 @@ export const MobileTable: React.FC<{
     gestureDetector.current.onTouchEnd(event.nativeEvent, {
       onTap: () => onRowClick?.(row),
       onSwipeLeft: () => {
-        setSwipedRow(row.id);
+        setSwipedRow(row.id as string);
         onSwipeLeft?.(row);
       },
       onSwipeRight: () => {
-        setSwipedRow(row.id);
+        setSwipedRow(row.id as string);
         onSwipeRight?.(row);
       },
     });
@@ -207,9 +207,9 @@ export const MobileTable: React.FC<{
     <Box sx={{ width: '100%' }}>
       {data.map((row, index) => (
         <Box
-          key={row.id || index}
-          onTouchStart={(e) => handleTouchStart(e, row.id)}
-          onTouchEnd={(e) => handleTouchEnd(e, row)}
+          key={String(row.id || index)}
+          onTouchStart={(e: React.TouchEvent) => handleTouchStart(e, row.id as string)}
+          onTouchEnd={(e: React.TouchEvent) => handleTouchEnd(e, row)}
           sx={{
             p: 2,
             mb: 1,
@@ -220,7 +220,7 @@ export const MobileTable: React.FC<{
             cursor: 'pointer',
             touchAction: 'pan-y',
             WebkitTapHighlightColor: 'transparent',
-            transform: swipedRow === row.id ? 'translateX(-50px)' : 'translateX(0)',
+            transform: swipedRow === (row.id as string) ? 'translateX(-50px)' : 'translateX(0)',
             transition: 'transform 0.2s ease-in-out',
             '&:active': {
               backgroundColor: 'action.hover',
@@ -233,7 +233,7 @@ export const MobileTable: React.FC<{
                 {column.label}
               </Typography>
               <Typography variant="body2">
-                {column.render ? column.render(row[column.key], row) : row[column.key]}
+                {column.render ? column.render(row[column.key], row) : String(row[column.key] || '')}
               </Typography>
             </Box>
           ))}
