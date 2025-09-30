@@ -18,30 +18,71 @@ The backend uses these environment variables (automatically provided by Databric
 ## Deployment Examples
 
 ### Databricks Apps (Recommended)
-The application is configured to work automatically with Databricks Apps. The following environment variables are automatically provided:
+
+#### Quick Start
+```bash
+# One universal command for all production deployments
+npm start
+```
+
+The application automatically detects the deployment environment and configures itself accordingly.
+
+#### Required Environment Variables
+Set these in your Databricks Apps configuration:
 
 ```bash
 # Automatically provided by Databricks Apps
 DATABRICKS_APP_NAME=navy-pdm
-DATABRICKS_APP_PORT=8000
 DATABRICKS_APP_URL=https://navy-pdm-1444828305810485.aws.databricksapps.com
+
+# You should set these (with recommended defaults):
+PORT=8000                # Frontend port (Databricks default)
+FLASK_RUN_PORT=8001      # Backend port
 FLASK_RUN_HOST=0.0.0.0
-FLASK_RUN_PORT=8000
-PORT=8000
+NODE_ENV=production
+GUNICORN_WORKERS=2       # Adjust based on available resources
+GUNICORN_TIMEOUT=120     # Seconds to wait for requests
 ```
 
-### Other Platforms
-For other deployment platforms, you may need to set these environment variables manually:
-
+#### Startup Command
+In your Databricks Apps configuration, set the start command to:
 ```bash
-# Frontend
-VITE_API_URL=https://your-backend-domain.com/api
+npm start
+```
 
-# Backend
+That's it! The startup script automatically:
+- Detects it's running on Databricks Apps
+- Installs Python dependencies
+- Starts backend and waits for health check
+- Starts frontend with proper configuration
+- Handles graceful shutdown
+
+### Other Platforms
+
+The same `npm start` command works everywhere! Just set environment variables for your platform:
+
+#### Heroku / Render / Railway
+```bash
+PORT=8000
+FLASK_RUN_PORT=8001
 FLASK_RUN_HOST=0.0.0.0
-FLASK_RUN_PORT=8000
-DATABRICKS_APP_URL=https://your-app-domain.com
-DATABASE_URL=postgresql://user:password@host:port/database
+NODE_ENV=production
+DATABASE_URL=postgresql://user:password@host:port/database  # Optional
+```
+
+#### Traditional VPS / EC2
+```bash
+# Same as above, runs with: npm start
+PORT=8000
+FLASK_RUN_PORT=8001
+NODE_ENV=production
+```
+
+#### Local Production Testing
+```bash
+# No environment variables needed, just run:
+npm start
+# Defaults to ports 8000 (frontend) and 8001 (backend)
 ```
 
 ### Docker
@@ -68,19 +109,50 @@ CMD ["python", "start_production.py"]
 
 ## Common Issues
 
+For detailed troubleshooting, see [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
+
+### 504 Gateway Timeout
+**Symptoms:** API requests fail with 504 timeout error
+
+**Quick Fix:**
+1. Ensure backend is running on port 8001
+2. Use `npm start` - the startup script ensures proper coordination
+3. Increase `GUNICORN_TIMEOUT` to 120 or higher (already default)
+
+See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md#504-gateway-timeout-error) for detailed steps.
+
 ### CORS Errors
 If you see CORS errors, the backend automatically configures CORS based on the `DATABRICKS_APP_URL` environment variable. For Databricks Apps, this is automatically provided.
 
 ### API Connection Refused
 If you see `ERR_CONNECTION_REFUSED`, check that:
-1. Your backend is running and accessible on the correct port (8000 for Databricks Apps)
-2. The frontend is using the correct API URL (automatically detected in production)
+1. Your backend is running and accessible on the correct port (8001 for backend)
+2. The frontend proxy is configured to point to the correct backend URL
 3. Your backend CORS configuration allows your frontend domain
 
+**Verify backend is running:**
+```bash
+curl http://localhost:8001/api/health
+```
+
 ### Environment Variables Not Loading
-For Databricks Apps, all required environment variables are automatically provided. For other platforms, make sure your deployment platform is configured to inject environment variables at build time for the frontend, and at runtime for the backend.
+For Databricks Apps, some environment variables are automatically provided, but you need to set:
+- `FLASK_RUN_PORT=8001`
+- `GUNICORN_TIMEOUT=120`
+- `GUNICORN_WORKERS=2`
 
 ### Port Configuration
-- **Databricks Apps**: Uses port 8000 (automatically configured)
-- **Development**: Uses port 5000 (default Flask port)
-- **Other platforms**: May need to set `FLASK_RUN_PORT` environment variable
+- **Databricks Apps**: 
+  - Frontend: port 8000 (automatically configured)
+  - Backend: port 8001 (set via `FLASK_RUN_PORT`)
+- **Development**: 
+  - Frontend: port 3000
+  - Backend: port 5000 (default Flask port)
+- **Other platforms**: May need to set `FLASK_RUN_PORT` and `PORT` environment variables
+
+### Backend Not Starting
+If the backend fails to start:
+1. Check that all Python dependencies are installed
+2. Verify database can be initialized
+3. Check logs for error messages
+4. Try starting backend manually: `cd backend && python3 start_production.py`

@@ -8,13 +8,27 @@ const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const BACKEND_PORT = process.env.BACKEND_PORT || process.env.FLASK_RUN_PORT || '8001';
+const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${BACKEND_PORT}`;
+
+console.log(`Backend URL configured: ${BACKEND_URL}`);
 
 // Proxy API requests to backend
 app.use('/api', createProxyMiddleware({
-  target: 'http://localhost:8001',
+  target: BACKEND_URL,
   changeOrigin: true,
   secure: false,
   logLevel: 'debug',
+  timeout: 120000, // 2 minute timeout
+  proxyTimeout: 120000,
+  onError: (err, req, res) => {
+    console.error('Proxy Error:', err);
+    res.status(504).json({ 
+      error: 'Backend service unavailable',
+      message: `Failed to connect to backend at ${BACKEND_URL}`,
+      details: err.message 
+    });
+  }
 }));
 
 // Serve static files from build/client directory
@@ -48,6 +62,7 @@ app.all('*', reactRouterServer);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`API proxy configured for /api -> http://localhost:8001`);
+  console.log(`API proxy configured for /api -> ${BACKEND_URL}`);
   console.log(`React Router SSR server loaded`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });

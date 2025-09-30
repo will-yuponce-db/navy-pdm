@@ -24,12 +24,14 @@ if __name__ == '__main__':
     
     # Gunicorn configuration
     bind = f"{host}:{port}"
-    workers = 4
+    workers = int(os.environ.get('GUNICORN_WORKERS', 4))
     worker_class = "sync"
-    timeout = 30
+    timeout = int(os.environ.get('GUNICORN_TIMEOUT', 120))  # Increased to 120 seconds
     max_requests = 1000
     max_requests_jitter = 100
     preload_app = True
+    accesslog = '-'  # Log to stdout
+    errorlog = '-'   # Log to stderr
     
     # Start with Gunicorn or fallback to Flask dev server
     try:
@@ -42,9 +44,13 @@ if __name__ == '__main__':
             '--timeout', str(timeout),
             '--max-requests', str(max_requests),
             '--max-requests-jitter', str(max_requests_jitter),
+            '--access-logfile', '-',
+            '--error-logfile', '-',
+            '--log-level', 'info',
             '--preload',
             'app:app'
         ]
+        print(f"Starting Gunicorn with {workers} workers, {timeout}s timeout")
         wsgi.run()
     except ImportError:
         print("Gunicorn not available, falling back to Flask development server")
