@@ -28,7 +28,12 @@ if databricks_app_url:
     allowed_origins = [databricks_app_url, 'http://localhost:3000', 'http://localhost:5173']
 else:
     allowed_origins = ['http://localhost:3000', 'http://localhost:5173']
-CORS(app, origins=allowed_origins)
+
+CORS(app, 
+     origins=allowed_origins,
+     methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
+     supports_credentials=True)
 
 # Database Models
 

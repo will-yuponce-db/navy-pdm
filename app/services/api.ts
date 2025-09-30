@@ -2,7 +2,7 @@ import type { WorkOrder, Part, User, PaginatedResponse } from '../types';
 
 // API Configuration
 const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.PROD ? 'http://localhost:8000/api' : 'http://localhost:8000/api');
+  (import.meta.env.PROD ? `${window.location.origin}/api` : 'http://localhost:8000/api');
 const API_TIMEOUT = 10000;
 
 // Custom error class for API errors
@@ -61,7 +61,7 @@ const apiRequest = async <T>(
       throw error;
     }
     
-    if (error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       throw new ApiError('Request timeout', 408);
     }
     
