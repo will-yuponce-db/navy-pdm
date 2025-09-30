@@ -1,7 +1,7 @@
-import type { WorkOrder, Part, Notification, User, PaginatedResponse } from '../types';
+import type { WorkOrder, Part, User, PaginatedResponse } from '../types';
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const API_TIMEOUT = 10000;
 
 // Custom error class for API errors
@@ -16,12 +16,10 @@ export class ApiError extends Error {
   }
 }
 
-// Request interceptor for authentication
-const getAuthHeaders = (): HeadersInit => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+// Request headers
+const getHeaders = (): HeadersInit => {
   return {
     'Content-Type': 'application/json',
-    'Authorization': token ? `Bearer ${token}` : '',
   };
 };
 
@@ -37,7 +35,7 @@ const apiRequest = async <T>(
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers: {
-        ...getAuthHeaders(),
+        ...getHeaders(),
         ...options.headers,
       },
       signal: controller.signal,
@@ -164,7 +162,7 @@ export const workOrdersApi = {
     
     const queryString = queryParams.toString();
     const response = await fetch(`${API_BASE_URL}/work-orders/export${queryString ? `?${queryString}` : ''}`, {
-      headers: getAuthHeaders(),
+      headers: getHeaders(),
     });
     
     if (!response.ok) {
@@ -228,148 +226,3 @@ export const partsApi = {
   },
 };
 
-// Notifications API
-export const notificationsApi = {
-  getAll: async (params?: {
-    page?: number;
-    limit?: number;
-    category?: string;
-    priority?: string;
-    read?: boolean;
-  }): Promise<PaginatedResponse<Notification>> => {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          queryParams.append(key, String(value));
-        }
-      });
-    }
-    
-    const queryString = queryParams.toString();
-    return apiRequest(`/notifications${queryString ? `?${queryString}` : ''}`);
-  },
-
-  markAsRead: async (id: string): Promise<Notification> => {
-    return apiRequest(`/notifications/${id}/read`, { method: 'PATCH' });
-  },
-
-  markAllAsRead: async (): Promise<void> => {
-    return apiRequest('/notifications/read-all', { method: 'PATCH' });
-  },
-
-  delete: async (id: string): Promise<void> => {
-    return apiRequest(`/notifications/${id}`, { method: 'DELETE' });
-  },
-};
-
-// Analytics API
-export const analyticsApi = {
-  getMaintenanceKPIs: async (): Promise<{
-    gtesNeedingMaintenance: number;
-    gtesOperational: number;
-    casrepGtes: number;
-    trends: Record<string, 'up' | 'down' | 'stable'>;
-  }> => {
-    return apiRequest('/analytics/maintenance-kpis');
-  },
-
-  getPerformanceMetrics: async (timeRange?: '7d' | '30d' | '90d'): Promise<{
-    efficiency: number;
-    downtime: number;
-    readiness: number;
-    maintenance: number;
-  }> => {
-    const queryString = timeRange ? `?timeRange=${timeRange}` : '';
-    return apiRequest(`/analytics/performance${queryString}`);
-  },
-
-  getFleetReadiness: async (): Promise<{
-    overallReadiness: number;
-    byHomeport: Record<string, number>;
-    byShipClass: Record<string, number>;
-  }> => {
-    return apiRequest('/analytics/fleet-readiness');
-  },
-
-  getPredictiveInsights: async (): Promise<{
-    predictedFailures: Array<{
-      ship: string;
-      gte: string;
-      probability: number;
-      estimatedDays: number;
-    }>;
-    maintenanceRecommendations: Array<{
-      ship: string;
-      gte: string;
-      recommendation: string;
-      priority: 'low' | 'medium' | 'high';
-    }>;
-  }> => {
-    return apiRequest('/analytics/predictive-insights');
-  },
-};
-
-// Real-time WebSocket connection
-export class WebSocketService {
-  private ws: WebSocket | null = null;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
-
-  connect(onMessage: (data: unknown) => void, onError?: (error: Event) => void): void {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
-    const wsUrl = `${import.meta.env.VITE_WS_URL || 'ws://localhost:3001'}/ws?token=${token}`;
-    
-    this.ws = new WebSocket(wsUrl);
-
-    this.ws.onopen = () => {
-      console.log('WebSocket connected');
-      this.reconnectAttempts = 0;
-    };
-
-    this.ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        onMessage(data);
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
-      }
-    };
-
-    this.ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      this.attemptReconnect(onMessage, onError);
-    };
-
-    this.ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      onError?.(error);
-    };
-  }
-
-  private attemptReconnect(onMessage: (data: unknown) => void, onError?: (error: Event) => void): void {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      setTimeout(() => {
-        console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-        this.connect(onMessage, onError);
-      }, this.reconnectDelay * this.reconnectAttempts);
-    }
-  }
-
-  disconnect(): void {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
-  }
-
-  send(data: unknown): void {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(data));
-    }
-  }
-}
-
-export const wsService = new WebSocketService();

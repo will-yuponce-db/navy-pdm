@@ -1,6 +1,6 @@
 // Core Work Order Types
 export interface WorkOrder {
-  wo: string;
+  readonly wo: string;
   ship: string;
   homeport: string;
   fm: string; // Failure Mode
@@ -12,8 +12,8 @@ export interface WorkOrder {
   recommendedAction?: string;
   partsRequired?: string;
   slaCategory?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
+  readonly createdAt?: Date;
+  readonly updatedAt?: Date;
 }
 
 export type Priority = "Routine" | "Urgent" | "CASREP";
@@ -26,16 +26,20 @@ export type WorkOrderStatus =
 
 // Notification Types
 export interface Notification {
-  id: string;
-  type: "success" | "error" | "warning" | "info";
+  readonly id: string;
+  type: NotificationType;
   title: string;
   message: string;
   timestamp: string;
-  priority: "low" | "medium" | "high" | "critical";
-  category: "maintenance" | "system" | "alert" | "update";
+  priority: NotificationPriority;
+  category: NotificationCategory;
   read: boolean;
   workOrderId?: string;
 }
+
+export type NotificationType = "success" | "error" | "warning" | "info";
+export type NotificationPriority = "low" | "medium" | "high" | "critical";
+export type NotificationCategory = "maintenance" | "system" | "alert" | "update";
 
 // Navigation Types
 export interface NavItem {
@@ -55,7 +59,7 @@ export interface MaintenanceKPI {
 
 // Parts Management Types
 export interface Part {
-  id: string;
+  readonly id: string;
   name: string;
   system: string;
   category: PartCategory;
@@ -86,7 +90,11 @@ export type PartCondition =
 export type StockStatus = "Critical" | "Low" | "Adequate" | "Overstocked";
 
 // Redux State Types
-export type WorkOrderState = WorkOrder[];
+export interface WorkOrderState {
+  workOrders: WorkOrder[];
+  loading: boolean;
+  error: string | null;
+}
 
 export interface NotificationState {
   notifications: Notification[];
@@ -154,14 +162,14 @@ export interface CreateWorkOrderForm {
 
 // API Response Types (for future backend integration)
 export interface ApiResponse<T> {
-  data: T;
+  readonly data: T;
   message: string;
   success: boolean;
   timestamp: string;
 }
 
 export interface PaginatedResponse<T> {
-  items: T[];
+  readonly items: readonly T[];
   total: number;
   page: number;
   pageSize: number;
@@ -171,19 +179,19 @@ export interface PaginatedResponse<T> {
 
 // Fleet and Ship Types
 export interface Ship {
-  id: string;
+  readonly id: string;
   name: string;
   designation: string;
   class: string;
   homeport: string;
   status: ShipStatus;
-  gteSystems: GTESystem[];
+  gteSystems: readonly GTESystem[];
 }
 
 export type ShipStatus = "Active" | "In Port" | "Maintenance" | "Deployed";
 
 export interface GTESystem {
-  id: string;
+  readonly id: string;
   model: string;
   serialNumber: string;
   installDate: Date;
@@ -220,18 +228,18 @@ export interface ThemeMode {
 
 // User Management Types
 export interface User {
-  id: string;
+  readonly id: string;
   email: string;
   firstName: string;
   lastName: string;
   role: UserRole;
-  permissions: Permission[];
+  permissions: readonly Permission[];
   homeport?: string;
   department?: string;
   isActive: boolean;
   lastLogin?: Date;
-  createdAt: Date;
-  updatedAt: Date;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
 }
 
 export type UserRole = 
@@ -303,12 +311,6 @@ export interface PaginatedResponse<T> {
   hasPrevious: boolean;
 }
 
-// WebSocket Types
-export interface WebSocketMessage {
-  type: 'work_order_update' | 'notification' | 'system_alert' | 'maintenance_alert';
-  data: unknown;
-  timestamp: string;
-}
 
 // Performance Monitoring Types
 export interface PerformanceMetrics {

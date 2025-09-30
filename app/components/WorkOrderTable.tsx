@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, memo, useEffect } from "react";
 import { alpha } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Table from "@mui/material/Table";
@@ -25,12 +25,14 @@ import Chip from "@mui/material/Chip";
 import {
   deleteWorkOrderWithNotification,
   updateWorkOrderWithNotification,
+  fetchWorkOrders,
+  selectAllWorkOrders,
+  selectWorkOrdersLoading,
 } from "../redux/services/workOrderSlice";
 import type {
   WorkOrderTableProps,
   EnhancedTableToolbarProps,
   EnhancedTableHeadProps,
-  RootState,
   WorkOrderStatus,
 } from "../types";
 import {
@@ -52,6 +54,7 @@ import {
 } from "@mui/icons-material";
 import { useErrorHandler } from "./ErrorHandling";
 import { tableStyles } from "../utils/tableStyles";
+import LoadingSpinner from "./LoadingSpinner";
 
 const headCells = [
   {
@@ -243,8 +246,9 @@ function EnhancedTableToolbar(props: EnhancedTableToolbarProps) {
     </Toolbar>
   );
 }
-export default function WorkOrderTable(props: WorkOrderTableProps) {
-  const workOrders = useSelector((state: RootState) => state.workOrders);
+const WorkOrderTable = memo((props: WorkOrderTableProps) => {
+  const workOrders = useSelector(selectAllWorkOrders);
+  const loading = useSelector(selectWorkOrdersLoading);
   const dispatch = useAppDispatch();
   const { showError } = useErrorHandler();
   const [order, setOrder] = useState<"asc" | "desc">("asc");
@@ -264,18 +268,24 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
     props.initialFilter || "All",
   );
 
-  const handleRequestSort = (
+  // Fetch work orders on component mount
+  useEffect(() => {
+    dispatch(fetchWorkOrders());
+  }, [dispatch]);
+
+  const handleRequestSort = useCallback((
     event: React.MouseEvent<unknown>,
     property: React.SetStateAction<string>,
   ) => {
     const isAsc = orderBy === property && order === "asc";
     setOrder(isAsc ? "desc" : "asc");
     setOrderBy(property);
-  };
-  function handleDeselect() {
+  }, [orderBy, order]);
+  
+  const handleDeselect = useCallback(() => {
     setSelected([]);
-  }
-  const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
+  }, []);
+  const handleSelectAllClick = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
       if (!workOrders || !Array.isArray(workOrders)) {
         setSelected([]);
@@ -286,7 +296,7 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
       return;
     }
     setSelected([]);
-  };
+  }, [workOrders]);
 
   const handleClick = (event: React.MouseEvent<unknown>, id: string) => {
     const selectedIndex = selected.indexOf(id);
@@ -549,7 +559,13 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
             filter controls above to refine results.
           </Typography>
         </Box>
-        <TableContainer sx={tableStyles.container}>
+        <TableContainer sx={tableStyles.containerWithLoading}>
+          <LoadingSpinner
+            loading={loading}
+            message="Loading work orders..."
+            overlay={true}
+            size={50}
+          />
           <Table
             sx={tableStyles.patterns.responsiveTable}
             aria-labelledby="tableTitle"
@@ -623,7 +639,40 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
-                            handleStatusClick(e as React.MouseEvent, row.wo);
+                            // Create a synthetic mouse event for keyboard navigation
+                            const syntheticEvent = {
+                              ...e,
+                              button: 0,
+                              buttons: 1,
+                              clientX: 0,
+                              clientY: 0,
+                              screenX: 0,
+                              screenY: 0,
+                              pageX: 0,
+                              pageY: 0,
+                              relatedTarget: null,
+                              movementX: 0,
+                              movementY: 0,
+                              altKey: e.altKey,
+                              ctrlKey: e.ctrlKey,
+                              metaKey: e.metaKey,
+                              shiftKey: e.shiftKey,
+                              getModifierState: e.getModifierState,
+                              nativeEvent: e.nativeEvent,
+                              currentTarget: e.currentTarget,
+                              target: e.target,
+                              bubbles: true,
+                              cancelable: true,
+                              defaultPrevented: false,
+                              eventPhase: 2,
+                              isTrusted: false,
+                              preventDefault: () => {},
+                              stopPropagation: () => {},
+                              stopImmediatePropagation: () => {},
+                              timeStamp: Date.now(),
+                              type: 'click'
+                            } as unknown as React.MouseEvent<HTMLElement>;
+                            handleStatusClick(syntheticEvent, row.wo);
                           }
                         }}
                       />
@@ -704,4 +753,8 @@ export default function WorkOrderTable(props: WorkOrderTableProps) {
       </Menu>
     </Box>
   );
-}
+});
+
+WorkOrderTable.displayName = 'WorkOrderTable';
+
+export default WorkOrderTable;

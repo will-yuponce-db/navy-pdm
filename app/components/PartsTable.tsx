@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -39,14 +39,17 @@ import {
   selectFilteredParts,
   selectPartsSummary,
   selectPartsFilters,
+  selectPartsLoading,
   setFilters,
   clearFilters,
   deletePartWithNotification,
   reorderPartWithNotification,
   getStockStatus,
+  fetchParts,
 } from "../redux/services/partsSlice";
 import type { Part, StockStatus } from "../types";
 import { tableStyles } from "../utils/tableStyles";
+import LoadingSpinner from "./LoadingSpinner";
 
 interface PartsTableProps {
   onEditPart: (part: Part) => void;
@@ -58,9 +61,15 @@ const PartsTable: React.FC<PartsTableProps> = ({ onEditPart, onAddPart }) => {
   const parts = useSelector(selectFilteredParts);
   const summary = useSelector(selectPartsSummary);
   const filters = useSelector(selectPartsFilters);
+  const loading = useSelector(selectPartsLoading);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [partToDelete, setPartToDelete] = useState<Part | null>(null);
   const [searchTerm, setSearchTerm] = useState(filters.searchTerm || "");
+
+  // Fetch parts on component mount
+  useEffect(() => {
+    dispatch(fetchParts());
+  }, [dispatch]);
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
@@ -256,7 +265,13 @@ const PartsTable: React.FC<PartsTableProps> = ({ onEditPart, onAddPart }) => {
       </Paper>
 
       {/* Parts Table */}
-      <TableContainer component={Paper} sx={tableStyles.container}>
+      <TableContainer component={Paper} sx={tableStyles.containerWithLoading}>
+        <LoadingSpinner
+          loading={loading}
+          message="Loading parts..."
+          overlay={true}
+          size={50}
+        />
         <Table sx={tableStyles.patterns.wideTable}>
           <TableHead>
             <TableRow>

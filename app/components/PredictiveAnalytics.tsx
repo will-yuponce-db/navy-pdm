@@ -14,6 +14,7 @@ import {
   ListItemIcon,
   Divider,
 } from "@mui/material";
+import LoadingSpinner from "./LoadingSpinner";
 import {
   Warning,
   Timeline,
@@ -186,10 +187,20 @@ export default function PredictiveAnalytics() {
   const [rulPredictions] =
     useState<RULPrediction[]>(mockRULPredictions);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  // Initial loading effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setInitialLoading(false);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // Simulate real-time data updates
   useEffect(() => {
-    if (!autoRefresh) return;
+    if (!autoRefresh || initialLoading) return;
 
     const interval = setInterval(() => {
       setSensorData((prevData) => {
@@ -217,7 +228,7 @@ export default function PredictiveAnalytics() {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [autoRefresh]);
+  }, [autoRefresh, initialLoading]);
 
   const criticalAnomalies = anomalies.filter(
     (a) => a.severity === "critical",
@@ -228,6 +239,16 @@ export default function PredictiveAnalytics() {
   const avgConfidence =
     rulPredictions.reduce((sum, r) => sum + r.confidence, 0) /
     rulPredictions.length;
+
+  if (initialLoading) {
+    return (
+      <LoadingSpinner
+        loading={true}
+        message="Loading predictive analytics..."
+        minHeight={500}
+      />
+    );
+  }
 
   return (
     <Box sx={{ width: "100%", p: 2 }}>

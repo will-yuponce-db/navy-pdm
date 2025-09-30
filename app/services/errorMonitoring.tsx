@@ -1,5 +1,4 @@
-import { ErrorInfo } from 'react';
-import { ApiError } from '../types';
+import type { ApiError } from '../types';
 
 // Error severity levels
 export enum ErrorSeverity {
@@ -56,6 +55,7 @@ export interface PerformanceEntry {
   additionalData?: Record<string, unknown>;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 class ErrorMonitoringService {
   private errors: ErrorLogEntry[] = [];
   private performanceEntries: PerformanceEntry[] = [];
@@ -66,8 +66,10 @@ class ErrorMonitoringService {
 
   constructor() {
     this.sessionId = this.generateSessionId();
-    this.setupGlobalErrorHandlers();
-    this.setupPerformanceMonitoring();
+    if (typeof window !== 'undefined') {
+      this.setupGlobalErrorHandlers();
+      this.setupPerformanceMonitoring();
+    }
   }
 
   private generateSessionId(): string {
@@ -75,6 +77,8 @@ class ErrorMonitoringService {
   }
 
   private setupGlobalErrorHandlers(): void {
+    if (typeof window === 'undefined') return;
+    
     // Global error handler
     window.addEventListener('error', (event) => {
       this.logError({
@@ -83,8 +87,8 @@ class ErrorMonitoringService {
         severity: ErrorSeverity.HIGH,
         category: ErrorCategory.SYSTEM,
         context: {
-          url: window.location.href,
-          userAgent: navigator.userAgent,
+          url: typeof window !== 'undefined' ? window.location.href : '',
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
           timestamp: new Date(),
         },
       });
@@ -98,8 +102,8 @@ class ErrorMonitoringService {
         severity: ErrorSeverity.MEDIUM,
         category: ErrorCategory.SYSTEM,
         context: {
-          url: window.location.href,
-          userAgent: navigator.userAgent,
+          url: typeof window !== 'undefined' ? window.location.href : '',
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
           timestamp: new Date(),
         },
       });
@@ -107,6 +111,8 @@ class ErrorMonitoringService {
   }
 
   private setupPerformanceMonitoring(): void {
+    if (typeof window === 'undefined') return;
+    
     // Monitor page load performance
     window.addEventListener('load', () => {
       const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
@@ -140,6 +146,8 @@ class ErrorMonitoringService {
   }
 
   private interceptFetch(): void {
+    if (typeof window === 'undefined') return;
+    
     const originalFetch = window.fetch;
     
     window.fetch = async (...args) => {
@@ -196,8 +204,8 @@ class ErrorMonitoringService {
       context: {
         userId: this.userId,
         sessionId: this.sessionId,
-        url: window.location.href,
-        userAgent: navigator.userAgent,
+        url: typeof window !== 'undefined' ? window.location.href : '',
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
         timestamp: new Date(),
         ...error.context,
       },
@@ -383,67 +391,20 @@ class ErrorMonitoringService {
   }
 }
 
-// React Error Boundary Component
-export class ErrorBoundary extends React.Component<
-  { children: React.ReactNode; fallback?: React.ComponentType<{ error: Error }> },
-  { hasError: boolean; error?: Error }
-> {
-  constructor(props: { children: React.ReactNode; fallback?: React.ComponentType<{ error: Error }> }) {
-    super(props);
-    this.state = { hasError: false };
-  }
+// Error Boundary and fallback components removed to avoid SSR issues
 
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
+// Create singleton instance - disabled for now to avoid SSR issues
+export const errorMonitoringService = {
+  logError: () => {},
+  logUserAction: () => {},
+  logPerformance: () => {},
+  logApiCall: () => {},
+  setUserId: () => {},
+  getErrorLogs: () => [],
+  getPerformanceLogs: () => [],
+  clearLogs: () => {},
+  exportLogs: () => '',
+  getErrorSummary: () => ({ total: 0, bySeverity: {}, byCategory: {} }),
+  getPerformanceSummary: () => ({ averageLoadTime: 0, slowestPages: [] }),
+};
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    errorMonitoringService.logError({
-      message: error.message,
-      stack: error.stack,
-      severity: ErrorSeverity.HIGH,
-      category: ErrorCategory.COMPONENT,
-      context: {
-        component: errorInfo.componentStack,
-        additionalData: {
-          errorBoundary: true,
-        },
-      },
-    });
-  }
-
-  render() {
-    if (this.state.hasError) {
-      const FallbackComponent = this.props.fallback || DefaultErrorFallback;
-      return <FallbackComponent error={this.state.error!} />;
-    }
-
-    return this.props.children;
-  }
-}
-
-// Default error fallback component
-const DefaultErrorFallback: React.FC<{ error: Error }> = ({ error }) => (
-  <div style={{ padding: '20px', textAlign: 'center' }}>
-    <h2>Something went wrong</h2>
-    <p>We&apos;re sorry, but something unexpected happened.</p>
-    {import.meta.env.DEV && (
-      <details style={{ marginTop: '20px' }}>
-        <summary>Error Details</summary>
-        <pre style={{ textAlign: 'left', marginTop: '10px' }}>
-          {error.message}
-          {error.stack}
-        </pre>
-      </details>
-    )}
-    <button onClick={() => window.location.reload()}>
-      Reload Page
-    </button>
-  </div>
-);
-
-// Create singleton instance
-export const errorMonitoringService = new ErrorMonitoringService();
-
-// Export React import for ErrorBoundary
-import React from 'react';

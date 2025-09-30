@@ -12,7 +12,7 @@ import NavComponent from "./components/NavComponent";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { store } from "../app/redux/store/store";
 import { Provider } from "react-redux";
-import { useState, createContext, useContext, useEffect } from "react";
+import React, { useState, createContext, useContext, useEffect } from "react";
 import { ErrorSnackbar, useErrorHandler } from "./components/ErrorHandling";
 import { NotificationCenter } from "./components/NotificationSystem";
 import { useSelector } from "react-redux";
@@ -342,7 +342,10 @@ function AppContent() {
     <>
       <ErrorSnackbar error={error} onClose={clearError} />
       <NotificationCenter
-        notifications={notifications}
+        notifications={notifications.map(n => ({
+          ...n,
+          timestamp: typeof n.timestamp === 'string' ? n.timestamp : (n.timestamp as Date).toISOString()
+        }))}
         onDismiss={handleDismissNotification}
         onMarkAsRead={handleMarkAsRead}
       />

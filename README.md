@@ -1,254 +1,183 @@
-# 🚢 Navy Predictive Maintenance (PDM) System
+# Navy Predictive Maintenance (PdM) System
 
-A comprehensive, enterprise-grade predictive maintenance application designed for Navy fleet management. Built with React, TypeScript, Material-UI, and Redux Toolkit.
+A comprehensive predictive maintenance system for Navy gas turbine engines, built with React/TypeScript frontend and Flask/SQLite backend.
 
-## ✨ Features
+## Features
 
-### 🎯 **Core Functionality**
+- **Work Order Management**: Create, update, and track maintenance work orders
+- **Parts Inventory**: Manage parts inventory with stock level monitoring
+- **Real-time Notifications**: Get alerts for critical issues and low stock
+- **Analytics Dashboard**: View maintenance KPIs and fleet readiness
+- **User Authentication**: Role-based access control
+- **Responsive Design**: Works on desktop and mobile devices
 
-- **Work Order Management**: Complete lifecycle management with status tracking, priority handling, and real-time updates
-- **Fleet Maintenance Overview**: Real-time KPI dashboard with critical alerts and trend analysis
-- **Parts Inventory Management**: Comprehensive parts tracking with stock alerts and supplier information
-- **Advanced Analytics**: Multi-dimensional charts and real-time performance metrics
+## Architecture
 
-### 🎨 **User Experience**
+### Frontend (React/TypeScript)
+- **Framework**: React with TypeScript
+- **State Management**: Redux Toolkit
+- **UI Components**: Custom components with Material-UI styling
+- **Routing**: React Router
+- **Build Tool**: Vite
 
-- **Dark/Light Mode**: Seamless theme switching with persistent preferences
-- **Responsive Design**: Optimized for desktop, tablet, and mobile devices
-- **Real-time Notifications**: Smart notification system with priority-based alerts
-- **Advanced Search & Filtering**: Powerful search capabilities across all data views
+### Backend (Flask/SQLite)
+- **Framework**: Flask with Python
+- **Database**: SQLite
+- **Authentication**: JWT tokens
+- **API**: RESTful endpoints
+- **CORS**: Enabled for frontend integration
 
-### 📊 **Analytics & Visualization**
-
-- **Interactive Charts**: Pie charts, bar charts, line charts, and area charts using Recharts
-- **Real-time Data**: Live updates every 5 seconds for critical metrics
-- **Performance Tracking**: Fleet efficiency monitoring and maintenance trend analysis
-- **Predictive Analytics**: Maintenance prediction vs actual performance comparison
-
-### 🔧 **Technical Features**
-
-- **TypeScript**: Full type safety throughout the application
-- **Redux Toolkit**: Centralized state management with proper typing
-- **Error Handling**: Comprehensive error boundaries and user feedback
-- **Form Validation**: Client-side validation with user-friendly error messages
-- **Loading States**: Professional loading indicators and backdrop overlays
-
-## 🚀 **Getting Started**
+## Quick Start
 
 ### Prerequisites
+- Node.js 18+ and npm
+- Python 3.8+
+- pip3
 
-- Node.js 18+
-- npm or yarn
+### Backend Setup
 
-### Installation
+1. Navigate to the backend directory:
+```bash
+cd backend
+```
 
-1. **Clone the repository**
+2. Install Python dependencies:
+```bash
+pip3 install -r requirements.txt
+```
 
-   ```bash
-   git clone <repository-url>
-   cd navy-pdm
-   ```
+3. Seed the database with initial data:
+```bash
+python3 seed_data.py
+```
 
-2. **Install dependencies**
+4. Start the Flask server:
+```bash
+python3 run.py
+```
 
-   ```bash
-   npm install
-   ```
+The backend will be available at `http://localhost:5000`
 
-3. **Start the development server**
+### Frontend Setup
 
-   ```bash
-   npm run dev
-   ```
+1. Navigate to the project root:
+```bash
+cd navy-pdm
+```
 
-4. **Open your browser**
-   Navigate to `http://localhost:5173`
+2. Install dependencies:
+```bash
+npm install
+```
 
-### Build for Production
+3. Start the development server:
+```bash
+npm run dev
+```
 
+The frontend will be available at `http://localhost:5173`
+
+## Default Users
+
+The system comes with two default users:
+
+1. **Admin User**
+   - Email: `admin@navy.mil`
+   - Password: `admin123`
+   - Role: `admin`
+   - Full system access
+
+2. **Maintenance Manager**
+   - Email: `maint.manager@navy.mil`
+   - Password: `maint123`
+   - Role: `maintenance_manager`
+   - Limited access to work orders, parts, and analytics
+
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/login` - Login with email/password
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/me` - Get current user
+- `POST /api/auth/refresh` - Refresh JWT token
+- `POST /api/auth/change-password` - Change password
+
+### Work Orders
+- `GET /api/work-orders` - Get all work orders (with pagination and filters)
+- `GET /api/work-orders/<id>` - Get specific work order
+- `POST /api/work-orders` - Create new work order
+- `PATCH /api/work-orders/<id>` - Update work order
+- `DELETE /api/work-orders/<id>` - Delete work order
+- `PATCH /api/work-orders/bulk` - Bulk update work orders
+
+### Parts
+- `GET /api/parts` - Get all parts (with pagination and filters)
+- `GET /api/parts/<id>` - Get specific part
+- `POST /api/parts` - Create new part
+- `PATCH /api/parts/<id>` - Update part
+- `DELETE /api/parts/<id>` - Delete part
+- `PATCH /api/parts/<id>/stock` - Update stock level
+
+### Analytics
+- `GET /api/analytics/maintenance-kpis` - Get maintenance KPIs
+- `GET /api/analytics/performance` - Get performance metrics
+- `GET /api/analytics/fleet-readiness` - Get fleet readiness data
+- `GET /api/analytics/predictive-insights` - Get predictive insights
+
+### Health Check
+- `GET /api/health` - Server health check
+
+## Database Schema
+
+The SQLite database contains the following tables:
+
+- **user**: User accounts and authentication
+- **work_order**: Work order records
+- **part**: Parts inventory
+- **notification**: System notifications
+
+## Development
+
+### Backend Development
+- The Flask server runs in debug mode by default
+- Database changes require running the seed script again
+- API endpoints are documented in the Flask app
+
+### Frontend Development
+- Uses Vite for fast development and hot reloading
+- Redux DevTools available in development
+- TypeScript for type safety
+- ESLint for code quality
+
+## Production Deployment
+
+### Backend
+1. Set environment variables:
+   - `SECRET_KEY`: Flask secret key
+   - `DATABASE_URL`: Database connection string
+2. Use a production WSGI server like Gunicorn
+3. Set up reverse proxy with Nginx
+
+### Frontend
+1. Build the production bundle:
 ```bash
 npm run build
-npm start
 ```
+2. Serve the built files with a web server
+3. Configure environment variables for API endpoints
 
-### Testing
-
-```bash
-npm run test          # Run tests in watch mode
-npm run test:run      # Run tests once
-npm run test:ui       # Run tests with UI
-npm run test:coverage # Run tests with coverage report
-```
-
-### Type Checking
-
-```bash
-npm run typecheck     # Run TypeScript type checking
-```
-
-## 📁 **Project Structure**
-
-```
-app/
-├── components/           # Reusable UI components
-│   ├── MaintenanceOverview.tsx    # Fleet KPI dashboard
-│   ├── WorkOrderTable.tsx         # Work order management
-│   ├── WorkOrderModal.tsx         # Work order creation/edit
-│   ├── MaintenanceCharts.tsx     # Analytics charts
-│   ├── AdvancedAnalytics.tsx     # Real-time analytics
-│   ├── NotificationSystem.tsx     # Notification center
-│   ├── ErrorHandling.tsx         # Error management
-│   └── NavComponent.tsx          # Navigation & theme toggle
-├── routes/              # Page components
-│   ├── home.tsx        # Main dashboard
-│   ├── workorder.tsx   # Work order page
-│   ├── parts.tsx       # Parts management
-│   └── assets.tsx       # Asset management
-├── redux/              # State management
-│   ├── store/          # Redux store configuration
-│   └── services/       # Redux slices
-├── types/              # TypeScript type definitions
-└── constants/          # Application constants
-```
-
-## 🎯 **Key Components**
-
-### **MaintenanceOverview**
-
-- Real-time fleet status monitoring
-- Critical alert system with visual indicators
-- KPI cards with trend analysis
-- Progress indicators for urgent items
-
-### **WorkOrderTable**
-
-- Advanced search and filtering
-- Status management with context menus
-- Priority-based color coding
-- Bulk operations support
-
-### **AdvancedAnalytics**
-
-- Real-time data updates (5-second intervals)
-- Multiple chart types for different insights
-- Fleet efficiency monitoring
-- Performance trend analysis
-
-### **NotificationSystem**
-
-- Priority-based notification center
-- Category-based organization
-- Dismissible alerts
-- Real-time updates
-
-## 🎨 **Design System**
-
-### **Color Palette**
-
-- **Primary**: Databricks Orange (#FF3621)
-- **Secondary**: Databricks Teal (#1B3139)
-- **Accent**: Myrtle Green (#2C646E)
-- **Success**: Green (#4CAF50)
-- **Warning**: Orange (#FF9800)
-- **Error**: Red (#F44336)
-
-### **Typography**
-
-- **Font Family**: Inter (Google Fonts)
-- **Hierarchy**: h1-h6, body1-body2, caption
-- **Responsive**: Scales appropriately across devices
-
-### **Components**
-
-- **Material-UI**: Consistent component library
-- **Custom Styling**: Tailwind CSS integration
-- **Responsive Grid**: MUI Grid system
-- **Theme Support**: Light/Dark mode switching
-
-## 🔧 **Technical Stack**
-
-- **Frontend**: React 19, TypeScript 5.8
-- **UI Library**: Material-UI 7.3
-- **Charts**: Recharts
-- **State Management**: Redux Toolkit
-- **Routing**: React Router 7
-- **Styling**: Tailwind CSS 4.1
-- **Build Tool**: Vite 6.3
-
-## 📊 **Data Management**
-
-### **Redux Store Structure**
-
-```typescript
-interface RootState {
-  workOrders: WorkOrderState;
-  // Future: notifications, user, settings
-}
-```
-
-### **Work Order Lifecycle**
-
-1. **Submitted** → **In Progress** → **Completed**
-2. **On Hold** (can be applied at any stage)
-3. **Cancelled** (can be applied at any stage)
-
-### **Priority Levels**
-
-- **Routine**: Standard maintenance
-- **Priority**: Elevated importance
-- **CASREP**: Critical, immediate attention required
-
-## 🚀 **Performance Optimizations**
-
-- **Code Splitting**: Route-based lazy loading
-- **Memoization**: React.memo for expensive components
-- **Virtual Scrolling**: For large data sets
-- **Debounced Search**: Optimized search performance
-- **Real-time Updates**: Efficient data refresh strategies
-
-## 🔒 **Security Considerations**
-
-- **Type Safety**: Full TypeScript coverage
-- **Input Validation**: Client-side form validation
-- **Error Boundaries**: Graceful error handling
-- **XSS Protection**: Sanitized user inputs
-
-## 🧪 **Testing Strategy**
-
-- **Unit Tests**: Component-level testing
-- **Integration Tests**: Redux store testing
-- **E2E Tests**: User workflow testing
-- **Performance Tests**: Load and stress testing
-
-## 📈 **Future Enhancements**
-
-- **Real-time WebSocket**: Live data streaming
-- **Machine Learning**: Predictive maintenance algorithms
-- **Mobile App**: React Native companion
-- **API Integration**: Backend service connectivity
-- **Advanced Reporting**: PDF export and scheduling
-- **User Management**: Role-based access control
-
-## 🤝 **Contributing**
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
-## 📄 **License**
+## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
-## 🆘 **Support**
+## Support
 
-For support and questions:
-
-- Create an issue in the repository
-- Contact the development team
-- Check the documentation wiki
-
----
-
-**Built with ❤️ for the U.S. Navy Fleet Management**
+For support and questions, please contact the development team.

@@ -14,6 +14,11 @@ export default defineConfig([
   tseslint.configs.recommended,
   pluginReact.configs.flat.recommended,
   {
+    settings: {
+      react: {
+        version: "detect",
+      },
+    },
     rules: {
       "react/react-in-jsx-scope": "off", // Not needed in React 17+
       "react/prop-types": "off", // Using TypeScript for prop validation

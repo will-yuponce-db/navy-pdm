@@ -15,7 +15,6 @@ import {
   Grid,
   Stack,
 } from "@mui/material";
-import InteractiveFeatureShowcase from "./InteractiveFeatureShowcase";
 import {
   Close as CloseIcon,
   ZoomIn as ZoomInIcon,
@@ -359,8 +358,6 @@ export default function InteractiveImageGallery() {
         )}
       </Dialog>
 
-      {/* Interactive Feature Showcase */}
-      <InteractiveFeatureShowcase />
     </Box>
   );
 }

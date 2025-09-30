@@ -20,7 +20,7 @@ import type { RootState } from "../types";
 
 export default function QuickActions() {
   const navigate = useNavigate();
-  const workOrders = useSelector((state: RootState) => state.workOrders);
+  const workOrders = useSelector((state: RootState) => state.workOrders.workOrders);
 
   // Calculate critical metrics
   const criticalWorkOrders = workOrders?.filter(

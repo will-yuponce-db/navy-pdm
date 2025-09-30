@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { styled } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
@@ -20,8 +20,6 @@ import { Outlet } from "react-router";
 import Icon from "@mui/material/Icon";
 import { useNavigate } from "react-router";
 import { navItems } from "../constants/navItems";
-// Removed unused imports: Switch, FormControlLabel, useTheme
-// import { useAccessibility, useKeyboardShortcuts } from "./Accessibility";
 
 const drawerWidth = 240;
 
@@ -79,24 +77,23 @@ const DrawerHeader = styled("div")(({ theme }) => ({
   justifyContent: "flex-end",
 }));
 
-export default function NavComponent() {
+const NavComponent = memo(() => {
   // Minimal test version
   const [open, setOpen] = useState(false);
   const [appHeader, setAppHeader] = useState("Navy PdM");
   const navigate = useNavigate();
-  // const theme = useMuiTheme(); // Removed unused variable
 
-  const handleDrawerOpen = () => {
+  const handleDrawerOpen = useCallback(() => {
     setOpen(true);
-  };
+  }, []);
 
-  const handleDrawerClose = () => {
+  const handleDrawerClose = useCallback(() => {
     setOpen(false);
-  };
+  }, []);
 
-  const handleAppHeader = (header: string) => {
+  const handleAppHeader = useCallback((header: string) => {
     setAppHeader(header);
-  };
+  }, []);
 
   // Handle drawer-specific keyboard navigation
   useEffect(() => {
@@ -176,25 +173,27 @@ export default function NavComponent() {
         <Divider />
         <List role="menubar" aria-label="Navigation menu">
           {navItems.map((item) => {
+            const handleNavigation = useCallback(() => {
+              handleAppHeader(item.title);
+              navigate(item.route);
+              handleDrawerClose();
+            }, [item.title, item.route, handleAppHeader, navigate, handleDrawerClose]);
+
+            const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleNavigation();
+              }
+            }, [handleNavigation]);
+
             return (
               <ListItem key={item.title} disablePadding>
                 <ListItemButton
-                  onClick={() => {
-                    handleAppHeader(item.title);
-                    navigate(item.route);
-                    handleDrawerClose();
-                  }}
+                  onClick={handleNavigation}
                   role="menuitem"
                   tabIndex={0}
                   aria-label={`Navigate to ${item.title}`}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      handleAppHeader(item.title);
-                      navigate(item.route);
-                      handleDrawerClose();
-                    }
-                  }}
+                  onKeyDown={handleKeyDown}
                 >
                   <ListItemIcon aria-hidden="true">
                     <Icon>{item.icon}</Icon>
@@ -226,4 +225,8 @@ export default function NavComponent() {
       </Main>
     </Box>
   );
-}
+});
+
+NavComponent.displayName = 'NavComponent';
+
+export default NavComponent;

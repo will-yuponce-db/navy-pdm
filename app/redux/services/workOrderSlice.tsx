@@ -7,162 +7,24 @@ import {
   createWorkOrderNotifications,
 } from "./notificationSlice";
 import { selectAllParts, getStockStatus } from "./partsSlice";
+import { workOrdersApi } from "../../services/api";
 import type { RootState } from "../../types";
 
-const initialState: WorkOrderState = [
-  {
-    wo: "ED569313", // Fixed ID for SSR consistency
-    ship: "USS Bainbridge (DDG-96)",
-    homeport: "NB Norfolk",
-    fm: "Vibration – Hot Section",
-    gte: "LM2500",
-    priority: "Routine",
-    status: "Submitted",
-    eta: 8,
-    symptoms: "Excessive vibration detected during operation",
-    recommendedAction: "Inspect hot section components for wear",
-    partsRequired: "Turbine blade set, gaskets",
-    slaCategory: "Priority",
-    createdAt: new Date("2024-01-15T10:00:00Z"),
-  },
-  {
-    wo: "39A8CA7E", // Fixed ID for SSR consistency
-    ship: "USS Arleigh Burke (DDG-51)",
-    homeport: "NB Norfolk",
-    fm: "Oil Pressure – Low",
-    gte: "LM2500",
-    priority: "Urgent",
-    status: "In Progress",
-    eta: 5,
-    symptoms: "Oil pressure dropping below normal operating range",
-    recommendedAction: "Replace main oil pump and check filter",
-    partsRequired: "Oil pump assembly, oil filter",
-    slaCategory: "Urgent",
-    createdAt: new Date("2024-01-14T10:00:00Z"), // 1 day ago
-  },
-  {
-    wo: "CASREP001", // Fixed ID for SSR consistency
-    ship: "USS Cole (DDG-67)",
-    homeport: "NB Norfolk",
-    fm: "Temperature – High EGT",
-    gte: "LM2500",
-    priority: "CASREP",
-    status: "Submitted",
-    eta: 2,
-    symptoms: "Exhaust gas temperature exceeding limits",
-    recommendedAction: "Emergency shutdown and immediate inspection",
-    partsRequired: "Temperature sensors, combustor parts",
-    slaCategory: "Critical",
-    createdAt: new Date("2024-01-15T13:00:00Z"), // 1 hour ago
-  },
-  {
-    wo: "WO2024001",
-    ship: "USS Winston S. Churchill (DDG-81)",
-    homeport: "NB Norfolk",
-    fm: "Fuel System – Leak",
-    gte: "LM2500",
-    priority: "Routine",
-    status: "Completed",
-    eta: 3,
-    symptoms: "Minor fuel leak detected at connection point",
-    recommendedAction: "Replace fuel line connection and test",
-    partsRequired: "Fuel line assembly, connection fittings",
-    slaCategory: "Standard",
-    createdAt: new Date("2024-01-10T08:00:00Z"),
-  },
-  {
-    wo: "WO2024002",
-    ship: "USS Mitscher (DDG-57)",
-    homeport: "NB Norfolk",
-    fm: "Electrical – Generator",
-    gte: "LM2500",
-    priority: "Urgent",
-    status: "In Progress",
-    eta: 4,
-    symptoms: "Generator output voltage fluctuating",
-    recommendedAction: "Check voltage regulator and connections",
-    partsRequired: "Voltage regulator, electrical connectors",
-    slaCategory: "Urgent",
-    createdAt: new Date("2024-01-12T14:30:00Z"),
-  },
-  {
-    wo: "WO2024003",
-    ship: "USS Laboon (DDG-58)",
-    homeport: "NB Norfolk",
-    fm: "Cooling System – Pump",
-    gte: "LM2500",
-    priority: "Routine",
-    status: "Submitted",
-    eta: 6,
-    symptoms: "Cooling pump making unusual noise",
-    recommendedAction: "Inspect pump bearings and replace if needed",
-    partsRequired: "Pump bearings, seals",
-    slaCategory: "Standard",
-    createdAt: new Date("2024-01-13T09:15:00Z"),
-  },
-  {
-    wo: "WO2024004",
-    ship: "USS Russell (DDG-59)",
-    homeport: "NB Norfolk",
-    fm: "Control System – Actuator",
-    gte: "LM2500",
-    priority: "Routine",
-    status: "Submitted",
-    eta: 7,
-    symptoms: "Actuator response time degraded",
-    recommendedAction: "Calibrate actuator and check hydraulic pressure",
-    partsRequired: "Actuator seals, hydraulic fluid",
-    slaCategory: "Standard",
-    createdAt: new Date("2024-01-14T16:45:00Z"),
-  },
-  {
-    wo: "WO2024005",
-    ship: "USS Paul Hamilton (DDG-60)",
-    homeport: "NB Norfolk",
-    fm: "Exhaust System – Duct",
-    gte: "LM2500",
-    priority: "Urgent",
-    status: "In Progress",
-    eta: 3,
-    symptoms: "Exhaust duct showing signs of corrosion",
-    recommendedAction: "Replace corroded sections and inspect remaining",
-    partsRequired: "Exhaust duct sections, mounting hardware",
-    slaCategory: "Urgent",
-    createdAt: new Date("2024-01-15T11:20:00Z"),
-  },
-  {
-    wo: "WO2024006",
-    ship: "USS Ramage (DDG-61)",
-    homeport: "NB Norfolk",
-    fm: "Lubrication – Filter",
-    gte: "LM2500",
-    priority: "Routine",
-    status: "Completed",
-    eta: 2,
-    symptoms: "Oil filter bypass indicator activated",
-    recommendedAction: "Replace oil filter and check oil quality",
-    partsRequired: "Oil filter, oil analysis kit",
-    slaCategory: "Standard",
-    createdAt: new Date("2024-01-11T13:10:00Z"),
-  },
-  {
-    wo: "WO2024007",
-    ship: "USS Fitzgerald (DDG-62)",
-    homeport: "NB Norfolk",
-    fm: "Starting System – Motor",
-    gte: "LM2500",
-    priority: "Routine",
-    status: "Submitted",
-    eta: 5,
-    symptoms: "Starting motor slow to engage",
-    recommendedAction: "Test motor windings and replace if necessary",
-    partsRequired: "Starting motor, electrical connections",
-    slaCategory: "Standard",
-    createdAt: new Date("2024-01-16T07:30:00Z"),
-  },
-];
+const initialState: WorkOrderState = {
+  workOrders: [],
+  loading: false,
+  error: null,
+};
 
 // Thunk actions for work order operations with notifications
+export const fetchWorkOrders = createAsyncThunk(
+  "workOrders/fetchWorkOrders",
+  async (params?: { page?: number; limit?: number; status?: string; priority?: string; search?: string }) => {
+    const response = await workOrdersApi.getAll(params);
+    return response.items;
+  }
+);
+
 export const addWorkOrderWithNotification = createAsyncThunk(
   "workOrders/addWithNotification",
   async (
@@ -172,12 +34,10 @@ export const addWorkOrderWithNotification = createAsyncThunk(
     const state = getState() as RootState;
     const parts = selectAllParts(state);
 
-    const newWorkOrder: WorkOrder = {
-      wo: uuidv4().split("-")[0].toUpperCase(),
+    const newWorkOrder = await workOrdersApi.create({
       ...workOrderData,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+      wo: uuidv4().split("-")[0].toUpperCase(),
+    } as WorkOrder);
 
     // Dispatch notification
     dispatch(
@@ -244,11 +104,13 @@ export const updateWorkOrderWithNotification = createAsyncThunk(
     { dispatch, getState },
   ) => {
     const state = getState() as RootState;
-    const workOrder = state.workOrders.find((w) => w.wo === wo);
+    const workOrder = state.workOrders.workOrders.find((w) => w.wo === wo);
 
     if (!workOrder) {
       throw new Error(`Work order ${wo} not found`);
     }
+
+    const updatedWorkOrder = await workOrdersApi.update(wo, updates);
 
     // Dispatch notification for status changes
     if (updates.status && updates.status !== workOrder.status) {
@@ -261,13 +123,16 @@ export const updateWorkOrderWithNotification = createAsyncThunk(
       );
     }
 
-    return { wo, updates };
+    return { wo, updates: updatedWorkOrder };
   },
 );
 
 export const deleteWorkOrderWithNotification = createAsyncThunk(
   "workOrders/deleteWithNotification",
   async (workOrderIds: string[], { dispatch }) => {
+    // Delete work orders from API
+    await Promise.all(workOrderIds.map(id => workOrdersApi.delete(id)));
+
     // Dispatch notification
     dispatch(
       addNotification(
@@ -293,13 +158,13 @@ const workOrderSlice = createSlice({
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-      state.push(newWorkOrder);
+      state.workOrders.push(newWorkOrder);
     },
     deleteWorkOrder: (state, action: PayloadAction<string[]>) => {
       action.payload.forEach((wo) => {
-        const index = state.findIndex((elem) => elem.wo === wo);
+        const index = state.workOrders.findIndex((elem) => elem.wo === wo);
         if (index !== -1) {
-          state.splice(index, 1);
+          state.workOrders.splice(index, 1);
         }
       });
     },
@@ -308,43 +173,98 @@ const workOrderSlice = createSlice({
       action: PayloadAction<{ wo: string; updates: Partial<WorkOrder> }>,
     ) => {
       const { wo, updates } = action.payload;
-      const index = state.findIndex((elem) => elem.wo === wo);
+      const index = state.workOrders.findIndex((elem) => elem.wo === wo);
       if (index !== -1) {
-        state[index] = {
-          ...state[index],
+        state.workOrders[index] = {
+          ...state.workOrders[index],
           ...updates,
           updatedAt: new Date(),
         };
       }
     },
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.loading = action.payload;
+    },
+    setError: (state, action: PayloadAction<string | null>) => {
+      state.error = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
+      // Fetch work orders
+      .addCase(fetchWorkOrders.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchWorkOrders.fulfilled, (state, action) => {
+        state.loading = false;
+        state.workOrders = [...action.payload];
+      })
+      .addCase(fetchWorkOrders.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || "Failed to fetch work orders";
+      })
+      // Add work order
+      .addCase(addWorkOrderWithNotification.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(addWorkOrderWithNotification.fulfilled, (state, action) => {
-        state.push(action.payload);
+        state.loading = false;
+        state.workOrders.push(action.payload);
+      })
+      .addCase(addWorkOrderWithNotification.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || "Failed to add work order";
+      })
+      // Update work order
+      .addCase(updateWorkOrderWithNotification.pending, (state) => {
+        state.loading = true;
+        state.error = null;
       })
       .addCase(updateWorkOrderWithNotification.fulfilled, (state, action) => {
+        state.loading = false;
         const { wo, updates } = action.payload;
-        const index = state.findIndex((elem) => elem.wo === wo);
+        const index = state.workOrders.findIndex((elem) => elem.wo === wo);
         if (index !== -1) {
-        state[index] = {
-          ...state[index],
-          ...updates,
-          updatedAt: new Date(),
-        };
+          state.workOrders[index] = updates;
         }
       })
+      .addCase(updateWorkOrderWithNotification.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || "Failed to update work order";
+      })
+      // Delete work order
+      .addCase(deleteWorkOrderWithNotification.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(deleteWorkOrderWithNotification.fulfilled, (state, action) => {
+        state.loading = false;
         action.payload.forEach((wo) => {
-          const index = state.findIndex((elem) => elem.wo === wo);
+          const index = state.workOrders.findIndex((elem) => elem.wo === wo);
           if (index !== -1) {
-            state.splice(index, 1);
+            state.workOrders.splice(index, 1);
           }
         });
+      })
+      .addCase(deleteWorkOrderWithNotification.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || "Failed to delete work order";
       });
   },
 });
 
-export const { addWorkOrder, deleteWorkOrder, updateWorkOrder } =
+export const { addWorkOrder, deleteWorkOrder, updateWorkOrder, setLoading, setError } =
   workOrderSlice.actions;
+
+// Selectors
+export const selectAllWorkOrders = (state: RootState) => {
+  return state.workOrders?.workOrders || [];
+};
+export const selectWorkOrdersLoading = (state: RootState) =>
+  state.workOrders?.loading || false;
+export const selectWorkOrdersError = (state: RootState) =>
+  state.workOrders?.error || null;
+
 export default workOrderSlice.reducer;

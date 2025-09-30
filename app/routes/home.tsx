@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import QuickActions from "~/components/QuickActions";
 import MaintenanceOverview from "~/components/MaintenanceOverview";
 import WorkOrderTable from "~/components/WorkOrderTable";
@@ -6,7 +7,6 @@ import MaintenanceCharts from "~/components/MaintenanceCharts";
 import AdvancedAnalytics from "~/components/AdvancedAnalytics";
 import FleetMap from "~/components/FleetMap";
 import PredictiveAnalytics from "~/components/PredictiveAnalytics";
-import { useState } from "react";
 import { Box, Tabs, Tab } from "@mui/material";
 import { useWorkflowShortcuts } from "~/components/WorkflowShortcuts";
 

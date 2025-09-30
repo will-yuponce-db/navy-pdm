@@ -217,12 +217,22 @@ export const tableLoadingStyles: SxProps<Theme> = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 1,
+    zIndex: 1000,
+    backdropFilter: "blur(2px)",
   },
+};
+
+/**
+ * Table container with loading overlay support
+ */
+export const tableContainerWithLoadingStyles: SxProps<Theme> = {
+  ...standardTableContainerStyles,
+  position: "relative",
+  overflow: "hidden",
 };
 
 /**
@@ -254,6 +264,7 @@ export const mobileTableStyles: SxProps<Theme> = {
 export const tableStyles = {
   standard: standardTableStyles,
   container: standardTableContainerStyles,
+  containerWithLoading: tableContainerWithLoadingStyles,
   alignments: tableCellAlignments,
   sizes: tableSizes,
   patterns: tablePatterns,

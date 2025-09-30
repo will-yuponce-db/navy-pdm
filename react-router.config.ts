@@ -1,7 +1,18 @@
 import type { Config } from "@react-router/dev/config";
 
 export default {
-  // Config options...
   // Server-side render by default, to enable SPA mode set this to `false`
   ssr: true,
+  // Optimize for production builds
+  future: {
+    v3_fetcherPersist: true,
+    v3_relativeSplatPath: true,
+    v3_throwAbortReason: true,
+  },
+  // Bundle optimization
+  buildDirectory: "build",
+  publicPath: "/",
+  // Performance optimizations
+  serverBuildTarget: "node-cjs",
+  serverModuleFormat: "cjs",
 } satisfies Config;

@@ -1,10 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Card,
   CardContent,
   Typography,
   Box,
-  Grid,
   Chip,
   Button,
   Table,
@@ -129,6 +128,7 @@ const mockAssets = [
 ];
 
 export default function Assets() {
+  const [, setSelectedAsset] = useState<string | null>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -201,8 +201,8 @@ export default function Assets() {
       </Box>
 
       {/* Summary Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, mb: 4 }}>
+        <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
           <Card>
             <CardContent>
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -214,8 +214,8 @@ export default function Assets() {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        </Box>
+        <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
           <Card>
             <CardContent>
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -227,8 +227,8 @@ export default function Assets() {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        </Box>
+        <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
           <Card>
             <CardContent>
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -240,8 +240,8 @@ export default function Assets() {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        </Box>
+        <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
           <Card>
             <CardContent>
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -253,8 +253,8 @@ export default function Assets() {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
 
       {/* Asset Overview Table */}
       <Typography variant="h5" sx={{ mb: 2 }}>
@@ -375,9 +375,9 @@ export default function Assets() {
         Asset Details
       </Typography>
 
-      <Grid container spacing={3}>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
         {mockAssets.map((asset) => (
-          <Grid item xs={12} md={6} lg={4} key={asset.id}>
+          <Box key={asset.id} sx={{ flex: "1 1 350px", minWidth: "350px" }}>
             <Card sx={{ height: "100%" }}>
               <CardContent>
                 <Box
@@ -482,9 +482,9 @@ export default function Assets() {
                 </Box>
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
         ))}
-      </Grid>
+      </Box>
     </Box>
   );
 }

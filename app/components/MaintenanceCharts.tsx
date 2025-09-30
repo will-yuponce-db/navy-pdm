@@ -1,4 +1,6 @@
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, Typography, Box } from "@mui/material";
+import LoadingSpinner from "./LoadingSpinner";
 import {
   BarChart,
   Bar,
@@ -45,6 +47,27 @@ const shipReadiness = [
 ];
 
 export default function MaintenanceCharts() {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate loading time for charts
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (loading) {
+    return (
+      <LoadingSpinner
+        loading={true}
+        message="Loading maintenance analytics..."
+        minHeight={400}
+      />
+    );
+  }
+
   return (
     <Box sx={{ flexGrow: 1, mt: 3 }}>
       <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>

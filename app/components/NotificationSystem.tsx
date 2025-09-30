@@ -1,5 +1,5 @@
+import React, { useState } from "react";
 import { Chip, Box, Typography, IconButton, Collapse } from "@mui/material";
-import { useState } from "react";
 import {
   Close,
   Warning,
@@ -17,7 +17,7 @@ interface Notification {
   type: "success" | "error" | "warning" | "info";
   title: string;
   message: string;
-  timestamp: Date;
+  timestamp: string;
   priority: "low" | "medium" | "high" | "critical";
   category: "maintenance" | "system" | "alert" | "update";
   read: boolean;

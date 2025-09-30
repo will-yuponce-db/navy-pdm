@@ -1,5 +1,4 @@
 import { configureStore } from "@reduxjs/toolkit";
-// Or from '@reduxjs/toolkit/query/react'
 import { setupListeners } from "@reduxjs/toolkit/query";
 import workOrderReducer from "../services/workOrderSlice";
 import notificationReducer from "../services/notificationSlice";
@@ -8,7 +7,6 @@ import authReducer from "../services/authSlice";
 
 export const store = configureStore({
   reducer: {
-    // Add the generated reducer as a specific top-level slice
     workOrders: workOrderReducer,
     notifications: notificationReducer,
     parts: partsReducer,
@@ -30,11 +28,14 @@ export const store = configureStore({
           'parts.parts.5.lastUpdated',
         ],
       },
+      immutableCheck: {
+        ignoredPaths: ['parts.parts.lastUpdated'],
+      },
     }),
+  devTools: process.env.NODE_ENV !== 'production',
 });
 
-// optional, but required for refetchOnFocus/refetchOnReconnect behaviors
-// see `setupListeners` docs - takes an optional callback as the 2nd arg for customization
+// Setup listeners for refetchOnFocus/refetchOnReconnect behaviors
 setupListeners(store.dispatch);
 
 // Infer the `RootState` and `AppDispatch` types from the store itself

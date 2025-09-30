@@ -8,6 +8,7 @@ import type {
   StockStatus,
 } from "../../types";
 import { addNotification } from "./notificationSlice";
+import { partsApi } from "../../services/api";
 import type { RootState } from "../../types";
 
 export interface PartsState {
@@ -24,98 +25,7 @@ export interface PartsState {
 }
 
 const initialState: PartsState = {
-  parts: [
-    {
-      id: "LM2500-TRB-001",
-      name: "Turbine Blade Set",
-      system: "LM2500",
-      category: "Hot Section",
-      stockLevel: 12,
-      minStock: 5,
-      maxStock: 25,
-      location: "Norfolk Supply Depot",
-      condition: "New",
-      leadTime: "45 days",
-      supplier: "General Electric",
-      cost: 75000,
-      lastUpdated: new Date().toISOString(),
-    },
-    {
-      id: "LM2500-BRG-002",
-      name: "Main Bearing Assembly",
-      system: "LM2500",
-      category: "Rotating Parts",
-      stockLevel: 3,
-      minStock: 2,
-      maxStock: 8,
-      location: "San Diego Supply",
-      condition: "New",
-      leadTime: "60 days",
-      supplier: "General Electric",
-      cost: 45000,
-      lastUpdated: new Date().toISOString(),
-    },
-    {
-      id: "LM2500-FIL-003",
-      name: "Oil Filter Cartridge",
-      system: "LM2500",
-      category: "Consumables",
-      stockLevel: 85,
-      minStock: 50,
-      maxStock: 200,
-      location: "Norfolk Supply Depot",
-      condition: "New",
-      leadTime: "14 days",
-      supplier: "Parker Hannifin",
-      cost: 250,
-      lastUpdated: new Date().toISOString(),
-    },
-    {
-      id: "LM2500-SEN-004",
-      name: "Temperature Sensor",
-      system: "LM2500",
-      category: "Electronics",
-      stockLevel: 1,
-      minStock: 5,
-      maxStock: 15,
-      location: "Pearl Harbor Supply",
-      condition: "New",
-      leadTime: "30 days",
-      supplier: "Honeywell",
-      cost: 1500,
-      lastUpdated: new Date().toISOString(),
-    },
-    {
-      id: "LM2500-PMP-005",
-      name: "Main Oil Pump",
-      system: "LM2500",
-      category: "Hydraulics",
-      stockLevel: 2,
-      minStock: 3,
-      maxStock: 10,
-      location: "Norfolk Supply Depot",
-      condition: "Refurbished",
-      leadTime: "30 days",
-      supplier: "General Electric",
-      cost: 25000,
-      lastUpdated: new Date().toISOString(),
-    },
-    {
-      id: "LM2500-FUEL-006",
-      name: "Fuel Injector Assembly",
-      system: "LM2500",
-      category: "Fuel System",
-      stockLevel: 8,
-      minStock: 4,
-      maxStock: 20,
-      location: "San Diego Supply",
-      condition: "New",
-      leadTime: "21 days",
-      supplier: "General Electric",
-      cost: 12000,
-      lastUpdated: new Date().toISOString(),
-    },
-  ],
+  parts: [],
   loading: false,
   error: null,
   filters: {},
@@ -134,14 +44,21 @@ export const getStockStatus = (
 };
 
 // Thunk actions for parts operations with notifications
+export const fetchParts = createAsyncThunk(
+  "parts/fetchParts",
+  async (params?: { page?: number; limit?: number; category?: string; condition?: string; search?: string }) => {
+    const response = await partsApi.getAll(params);
+    return response.items;
+  }
+);
+
 export const addPartWithNotification = createAsyncThunk(
   "parts/addWithNotification",
   async (partData: Omit<Part, "id" | "lastUpdated">, { dispatch }) => {
-    const newPart: Part = {
-      id: uuidv4().split("-")[0].toUpperCase(),
+    const newPart = await partsApi.create({
       ...partData,
-      lastUpdated: new Date().toISOString(),
-    };
+      id: uuidv4().split("-")[0].toUpperCase(),
+    });
 
     // Check for low stock alerts
     const stockStatus = getStockStatus(
@@ -188,7 +105,7 @@ export const updatePartWithNotification = createAsyncThunk(
       throw new Error(`Part ${id} not found`);
     }
 
-    const updatedPart = { ...part, ...updates, lastUpdated: new Date().toISOString() };
+    const updatedPart = await partsApi.update(id, updates);
 
     // Check for stock level changes
     if (updates.stockLevel !== undefined) {
@@ -241,6 +158,8 @@ export const deletePartWithNotification = createAsyncThunk(
     if (!part) {
       throw new Error(`Part ${id} not found`);
     }
+
+    await partsApi.delete(id);
 
     dispatch(
       addNotification({
@@ -305,6 +224,19 @@ const partsSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Fetch parts
+      .addCase(fetchParts.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchParts.fulfilled, (state, action) => {
+        state.loading = false;
+        state.parts = action.payload;
+      })
+      .addCase(fetchParts.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || "Failed to fetch parts";
+      })
       // Add part
       .addCase(addPartWithNotification.pending, (state) => {
         state.loading = true;
@@ -381,6 +313,12 @@ export const selectPartsFilters = (state: RootState) =>
 export const selectFilteredParts = (state: RootState) => {
   const parts = state.parts?.parts || [];
   const filters = state.parts?.filters || {};
+
+  // Early return if no filters applied
+  if (!filters.category && !filters.condition && !filters.stockStatus && 
+      !filters.system && !filters.searchTerm) {
+    return parts;
+  }
 
   return parts.filter((part) => {
     // Category filter
