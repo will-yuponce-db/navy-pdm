@@ -44,12 +44,51 @@ echo ""
 # Install backend dependencies
 echo "Installing Python dependencies..."
 cd backend
-if python3 -m pip install -r requirements.txt --quiet --break-system-packages 2>/dev/null; then
-  echo "✓ Python dependencies installed (with --break-system-packages)"
+
+# Check if pip is available
+if ! python3 -m pip --version > /dev/null 2>&1; then
+  echo "⚠ pip not found, attempting to bootstrap..."
+  
+  # Try to bootstrap pip
+  if python3 -m ensurepip --default-pip 2>/dev/null; then
+    echo "✓ pip bootstrapped successfully"
+    # Try to install dependencies after bootstrapping
+    if python3 -m pip install -r requirements.txt --quiet --break-system-packages 2>/dev/null; then
+      echo "✓ Python dependencies installed"
+    elif python3 -m pip install -r requirements.txt --quiet 2>/dev/null; then
+      echo "✓ Python dependencies installed"
+    fi
+  else
+    echo "⚠ Could not bootstrap pip. Checking if packages are already available..."
+    
+    # Check if Flask is already installed
+    if python3 -c "import flask" 2>/dev/null; then
+      echo "✓ Python dependencies appear to be pre-installed"
+    else
+      echo "✗ Python dependencies missing and pip unavailable"
+      echo "Please ensure the Databricks environment has Python packages pre-installed or pip available"
+      cd ..
+      exit 1
+    fi
+  fi
 else
-  python3 -m pip install -r requirements.txt --quiet
-  echo "✓ Python dependencies installed"
+  # pip is available, install dependencies
+  if python3 -m pip install -r requirements.txt --quiet --break-system-packages 2>/dev/null; then
+    echo "✓ Python dependencies installed (with --break-system-packages)"
+  elif python3 -m pip install -r requirements.txt --quiet 2>/dev/null; then
+    echo "✓ Python dependencies installed"
+  else
+    echo "⚠ pip install failed, checking if packages are available..."
+    if python3 -c "import flask" 2>/dev/null; then
+      echo "✓ Python dependencies appear to be pre-installed"
+    else
+      echo "✗ Failed to install Python dependencies"
+      cd ..
+      exit 1
+    fi
+  fi
 fi
+
 cd ..
 
 # Start backend in background
