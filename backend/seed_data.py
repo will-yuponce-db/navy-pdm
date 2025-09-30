@@ -30,7 +30,7 @@ def seed_database():
                 'eta': 8,
                 'symptoms': 'Excessive vibration detected during operation',
                 'recommended_action': 'Inspect hot section components for wear',
-                'parts_required': 'Turbine blade set, gaskets',
+                'parts_required': 'Turbine Blade Set',
                 'sla_category': 'Priority',
                 'created_at': datetime(2024, 1, 15, 10, 0, 0),
                 'updated_at': datetime(2024, 1, 15, 10, 0, 0)
@@ -46,7 +46,7 @@ def seed_database():
                 'eta': 5,
                 'symptoms': 'Oil pressure dropping below normal operating range',
                 'recommended_action': 'Replace main oil pump and check filter',
-                'parts_required': 'Oil pump assembly, oil filter',
+                'parts_required': 'Main Oil Pump, Oil Filter Cartridge',
                 'sla_category': 'Urgent',
                 'created_at': datetime(2024, 1, 14, 10, 0, 0),
                 'updated_at': datetime(2024, 1, 14, 10, 0, 0)
@@ -62,7 +62,7 @@ def seed_database():
                 'eta': 2,
                 'symptoms': 'Exhaust gas temperature exceeding limits',
                 'recommended_action': 'Emergency shutdown and immediate inspection',
-                'parts_required': 'Temperature sensors, combustor parts',
+                'parts_required': 'Temperature Sensor',
                 'sla_category': 'Critical',
                 'created_at': datetime(2024, 1, 15, 13, 0, 0),
                 'updated_at': datetime(2024, 1, 15, 13, 0, 0)
@@ -78,7 +78,7 @@ def seed_database():
                 'eta': 3,
                 'symptoms': 'Minor fuel leak detected at connection point',
                 'recommended_action': 'Replace fuel line connection and test',
-                'parts_required': 'Fuel line assembly, connection fittings',
+                'parts_required': 'Fuel Injector Assembly',
                 'sla_category': 'Standard',
                 'created_at': datetime(2024, 1, 10, 8, 0, 0),
                 'updated_at': datetime(2024, 1, 10, 8, 0, 0)
@@ -94,7 +94,7 @@ def seed_database():
                 'eta': 4,
                 'symptoms': 'Generator output voltage fluctuating',
                 'recommended_action': 'Check voltage regulator and connections',
-                'parts_required': 'Voltage regulator, electrical connectors',
+                'parts_required': 'Voltage Regulator',
                 'sla_category': 'Urgent',
                 'created_at': datetime(2024, 1, 12, 14, 30, 0),
                 'updated_at': datetime(2024, 1, 12, 14, 30, 0)
@@ -110,7 +110,7 @@ def seed_database():
                 'eta': 6,
                 'symptoms': 'Cooling pump making unusual noise',
                 'recommended_action': 'Inspect pump bearings and replace if needed',
-                'parts_required': 'Pump bearings, seals',
+                'parts_required': 'Main Bearing Assembly',
                 'sla_category': 'Standard',
                 'created_at': datetime(2024, 1, 13, 9, 15, 0),
                 'updated_at': datetime(2024, 1, 13, 9, 15, 0)
@@ -126,7 +126,7 @@ def seed_database():
                 'eta': 7,
                 'symptoms': 'Actuator response time degraded',
                 'recommended_action': 'Calibrate actuator and check hydraulic pressure',
-                'parts_required': 'Actuator seals, hydraulic fluid',
+                'parts_required': 'Hydraulic Fluid',
                 'sla_category': 'Standard',
                 'created_at': datetime(2024, 1, 14, 16, 45, 0),
                 'updated_at': datetime(2024, 1, 14, 16, 45, 0)
@@ -142,7 +142,7 @@ def seed_database():
                 'eta': 3,
                 'symptoms': 'Exhaust duct showing signs of corrosion',
                 'recommended_action': 'Replace corroded sections and inspect remaining',
-                'parts_required': 'Exhaust duct sections, mounting hardware',
+                'parts_required': 'Exhaust Duct Section',
                 'sla_category': 'Urgent',
                 'created_at': datetime(2024, 1, 15, 11, 20, 0),
                 'updated_at': datetime(2024, 1, 15, 11, 20, 0)
@@ -158,7 +158,7 @@ def seed_database():
                 'eta': 2,
                 'symptoms': 'Oil filter bypass indicator activated',
                 'recommended_action': 'Replace oil filter and check oil quality',
-                'parts_required': 'Oil filter, oil analysis kit',
+                'parts_required': 'Oil Filter Cartridge',
                 'sla_category': 'Standard',
                 'created_at': datetime(2024, 1, 11, 13, 10, 0),
                 'updated_at': datetime(2024, 1, 11, 13, 10, 0)
@@ -174,7 +174,7 @@ def seed_database():
                 'eta': 5,
                 'symptoms': 'Starting motor slow to engage',
                 'recommended_action': 'Test motor windings and replace if necessary',
-                'parts_required': 'Starting motor, electrical connections',
+                'parts_required': 'Starting Motor',
                 'sla_category': 'Standard',
                 'created_at': datetime(2024, 1, 16, 7, 30, 0),
                 'updated_at': datetime(2024, 1, 16, 7, 30, 0)
@@ -275,6 +275,66 @@ def seed_database():
                 'lead_time': '21 days',
                 'supplier': 'General Electric',
                 'cost': 12000,
+                'last_updated': datetime.utcnow()
+            },
+            {
+                'id': 'LM2500-ELEC-007',
+                'name': 'Voltage Regulator',
+                'system': 'LM2500',
+                'category': 'Electronics',
+                'stock_level': 5,
+                'min_stock': 3,
+                'max_stock': 12,
+                'location': 'Norfolk Supply Depot',
+                'condition': 'New',
+                'lead_time': '25 days',
+                'supplier': 'Honeywell',
+                'cost': 3500,
+                'last_updated': datetime.utcnow()
+            },
+            {
+                'id': 'LM2500-HYD-008',
+                'name': 'Hydraulic Fluid',
+                'system': 'LM2500',
+                'category': 'Consumables',
+                'stock_level': 50,
+                'min_stock': 20,
+                'max_stock': 100,
+                'location': 'Norfolk Supply Depot',
+                'condition': 'New',
+                'lead_time': '7 days',
+                'supplier': 'Shell Oil',
+                'cost': 150,
+                'last_updated': datetime.utcnow()
+            },
+            {
+                'id': 'LM2500-EXH-009',
+                'name': 'Exhaust Duct Section',
+                'system': 'LM2500',
+                'category': 'Hot Section',
+                'stock_level': 4,
+                'min_stock': 2,
+                'max_stock': 8,
+                'location': 'San Diego Supply',
+                'condition': 'New',
+                'lead_time': '35 days',
+                'supplier': 'General Electric',
+                'cost': 18000,
+                'last_updated': datetime.utcnow()
+            },
+            {
+                'id': 'LM2500-START-010',
+                'name': 'Starting Motor',
+                'system': 'LM2500',
+                'category': 'Electronics',
+                'stock_level': 3,
+                'min_stock': 2,
+                'max_stock': 6,
+                'location': 'Pearl Harbor Supply',
+                'condition': 'Refurbished',
+                'lead_time': '40 days',
+                'supplier': 'General Electric',
+                'cost': 22000,
                 'last_updated': datetime.utcnow()
             }
         ]
