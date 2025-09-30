@@ -6,7 +6,7 @@
     "build": "react-router build",
     "build:analyze": "react-router build --analyze",
     "dev": "react-router dev",
-    "start": "npm run build && node scripts/start-production.js",
+    "start": "npm run build && cd backend && pip3 install -r requirements.txt && cd .. && node scripts/start-production.js",
     "dev:stack": "concurrently \"npm run dev\" \"cd backend && python3 run.py\"",
     "typecheck": "react-router typegen && tsc --noEmit",
     "test": "vitest",
