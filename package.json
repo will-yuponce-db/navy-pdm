@@ -3,22 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "react-router build",
-    "build:analyze": "react-router build --analyze",
     "dev": "react-router dev",
-    "start": "npm run build && cd backend && pip3 install -r requirements.txt && cd .. && node scripts/start-production.js",
     "dev:stack": "concurrently \"npm run dev\" \"cd backend && python3 run.py\"",
-    "typecheck": "react-router typegen && tsc --noEmit",
+    "build": "react-router build",
+    "start": "npm run build && cd backend && pip3 install -r requirements.txt && cd .. && node scripts/start-production.js",
     "test": "vitest",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "lint": "eslint app --ext .ts,.tsx,.js,.jsx",
-    "lint:fix": "eslint app --ext .ts,.tsx,.js,.jsx --fix",
-    "format": "prettier --write \"app/**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "format:check": "prettier --check \"app/**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "clean": "rm -rf build dist node_modules/.cache",
-    "prebuild": "npm run clean",
-    "postbuild": "echo 'Typecheck skipped for deployment'"
+    "lint": "eslint app --ext .ts,.tsx,.js,.jsx --fix",
+    "format": "prettier --write \"app/**/*.{ts,tsx,js,jsx,json,css,md}\""
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
