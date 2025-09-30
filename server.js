@@ -27,12 +27,16 @@ try {
   const serverBuild = await import('./build/server/index.js');
   
   // Create request handler using React Router v7 API
+  // Pass the entire module object which contains routes, entry, etc.
   reactRouterServer = createRequestListener(serverBuild);
+  
+  console.log('React Router server initialized with routes:', Object.keys(serverBuild.routes || {}));
 } catch (error) {
   console.error('Failed to import React Router server:', error);
+  console.error('Error stack:', error.stack);
   // Fallback for development or if server build fails
   reactRouterServer = (req, res) => {
-    res.status(500).send('React Router server not available');
+    res.status(500).send(`React Router server not available: ${error.message}`);
   };
 }
 
