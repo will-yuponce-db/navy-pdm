@@ -77,24 +77,23 @@ export default function WorkOrderModal(props: WorkOrderModalProps) {
       return;
     }
 
-    try {
-      dispatch(
-        addWorkOrderWithNotification({
-          ship: ship,
-          homeport: homeport,
-          fm: fm,
-          gte: gte,
-          priority: priority,
-          status: "Submitted",
-          eta: parseInt(eta) || 0,
-          symptoms: symptoms,
-          recommendedAction: recommendedAction,
-          partsRequired: partsRequired,
-          slaCategory: slaCategory,
-        }),
-      );
-
-      // Reset form
+    // Dispatch the action and handle the promise
+    dispatch(
+      addWorkOrderWithNotification({
+        ship: ship,
+        homeport: homeport,
+        fm: fm,
+        gte: gte,
+        priority: priority,
+        status: "Submitted",
+        eta: parseInt(eta) || 0,
+        symptoms: symptoms,
+        recommendedAction: recommendedAction,
+        partsRequired: partsRequired,
+        slaCategory: slaCategory,
+      }),
+    ).then(() => {
+      // Reset form only on success
       setShip("");
       setHomeport("");
       setGte("");
@@ -107,11 +106,10 @@ export default function WorkOrderModal(props: WorkOrderModalProps) {
       setSlaCategory("");
       setErrors({});
       props.handleModalClose();
-
       showError("Work order created successfully!", "success");
-    } catch {
+    }).catch(() => {
       showError("Failed to create work order. Please try again.", "error");
-    }
+    });
   };
 
   // Focus management for modal

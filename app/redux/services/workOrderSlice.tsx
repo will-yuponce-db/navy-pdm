@@ -60,7 +60,7 @@ export const addWorkOrderWithNotification = createAsyncThunk(
     }
 
     // Check parts availability if parts are required
-    if (newWorkOrder.partsRequired) {
+    if (newWorkOrder.partsRequired && newWorkOrder.partsRequired.trim()) {
       const requiredParts = newWorkOrder.partsRequired.toLowerCase();
       const unavailableParts = parts.filter((part) => {
         const partName = part.name.toLowerCase();

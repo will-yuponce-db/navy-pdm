@@ -292,10 +292,16 @@ function AppContent() {
   );
   const dispatch = useAppDispatch();
   const { error, clearError } = useErrorHandler();
+  const [isClient, setIsClient] = useState(false);
 
-  // Initialize sample notifications on client side
+  // Track client-side hydration
   useEffect(() => {
-    if (notifications.length === 0) {
+    setIsClient(true);
+  }, []);
+
+  // Initialize sample notifications on client side only after hydration
+  useEffect(() => {
+    if (isClient && notifications.length === 0) {
       dispatch(
         addNotification({
           type: "warning",
@@ -328,7 +334,7 @@ function AppContent() {
         }),
       );
     }
-  }, [dispatch, notifications.length]);
+  }, [dispatch, isClient]); // Only run after client hydration
 
   const handleDismissNotification = (id: string) => {
     dispatch(dismissNotification(id));
@@ -341,14 +347,16 @@ function AppContent() {
   return (
     <>
       <ErrorSnackbar error={error} onClose={clearError} />
-      <NotificationCenter
-        notifications={notifications.map(n => ({
-          ...n,
-          timestamp: typeof n.timestamp === 'string' ? n.timestamp : (n.timestamp as Date).toISOString()
-        }))}
-        onDismiss={handleDismissNotification}
-        onMarkAsRead={handleMarkAsRead}
-      />
+      {isClient && (
+        <NotificationCenter
+          notifications={notifications.map(n => ({
+            ...n,
+            timestamp: typeof n.timestamp === 'string' ? n.timestamp : (n.timestamp as Date).toISOString()
+          }))}
+          onDismiss={handleDismissNotification}
+          onMarkAsRead={handleMarkAsRead}
+        />
+      )}
     </>
   );
 }
