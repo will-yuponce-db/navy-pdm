@@ -45,47 +45,57 @@ echo ""
 echo "Installing Python dependencies..."
 cd backend
 
-# Check if pip is available
-if ! python3 -m pip --version > /dev/null 2>&1; then
+# Try multiple pip methods
+PIP_INSTALLED=false
+
+# Method 1: Try pip3 directly
+if command -v pip3 > /dev/null 2>&1; then
+  echo "Found pip3, attempting install..."
+  if pip3 install -r requirements.txt --quiet --break-system-packages 2>/dev/null; then
+    echo "✓ Python dependencies installed via pip3 (with --break-system-packages)"
+    PIP_INSTALLED=true
+  elif pip3 install -r requirements.txt --quiet 2>/dev/null; then
+    echo "✓ Python dependencies installed via pip3"
+    PIP_INSTALLED=true
+  fi
+fi
+
+# Method 2: Try python3 -m pip
+if [ "$PIP_INSTALLED" = false ] && python3 -m pip --version > /dev/null 2>&1; then
+  echo "Found python3 -m pip, attempting install..."
+  if python3 -m pip install -r requirements.txt --quiet --break-system-packages 2>/dev/null; then
+    echo "✓ Python dependencies installed via python3 -m pip (with --break-system-packages)"
+    PIP_INSTALLED=true
+  elif python3 -m pip install -r requirements.txt --quiet 2>/dev/null; then
+    echo "✓ Python dependencies installed via python3 -m pip"
+    PIP_INSTALLED=true
+  fi
+fi
+
+# Method 3: Try to bootstrap pip
+if [ "$PIP_INSTALLED" = false ]; then
   echo "⚠ pip not found, attempting to bootstrap..."
-  
-  # Try to bootstrap pip
   if python3 -m ensurepip --default-pip 2>/dev/null; then
     echo "✓ pip bootstrapped successfully"
-    # Try to install dependencies after bootstrapping
-    if python3 -m pip install -r requirements.txt --quiet --break-system-packages 2>/dev/null; then
+    if python3 -m pip install -r requirements.txt --quiet 2>/dev/null; then
       echo "✓ Python dependencies installed"
-    elif python3 -m pip install -r requirements.txt --quiet 2>/dev/null; then
-      echo "✓ Python dependencies installed"
-    fi
-  else
-    echo "⚠ Could not bootstrap pip. Checking if packages are already available..."
-    
-    # Check if Flask is already installed
-    if python3 -c "import flask" 2>/dev/null; then
-      echo "✓ Python dependencies appear to be pre-installed"
-    else
-      echo "✗ Python dependencies missing and pip unavailable"
-      echo "Please ensure the Databricks environment has Python packages pre-installed or pip available"
-      cd ..
-      exit 1
+      PIP_INSTALLED=true
     fi
   fi
-else
-  # pip is available, install dependencies
-  if python3 -m pip install -r requirements.txt --quiet --break-system-packages 2>/dev/null; then
-    echo "✓ Python dependencies installed (with --break-system-packages)"
-  elif python3 -m pip install -r requirements.txt --quiet 2>/dev/null; then
-    echo "✓ Python dependencies installed"
+fi
+
+# Method 4: Check if packages are pre-installed
+if [ "$PIP_INSTALLED" = false ]; then
+  echo "⚠ Could not install via pip. Checking if packages are already available..."
+  if python3 -c "import flask, flask_cors, flask_sqlalchemy, flask_migrate" 2>/dev/null; then
+    echo "✓ Python dependencies appear to be pre-installed"
+    PIP_INSTALLED=true
   else
-    echo "⚠ pip install failed, checking if packages are available..."
-    if python3 -c "import flask" 2>/dev/null; then
-      echo "✓ Python dependencies appear to be pre-installed"
-    else
-      echo "✗ Failed to install Python dependencies"
-      cd ..
-      exit 1
-    fi
+    echo "✗ Python dependencies missing and pip unavailable"
+    echo "Tried: pip3, python3 -m pip, ensurepip"
+    echo "Please ensure the Databricks environment has Python packages or pip available"
+    cd ..
+    exit 1
   fi
 fi
 
