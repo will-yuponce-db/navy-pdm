@@ -85,12 +85,12 @@ function runCommand(command, args, options = {}) {
   });
 }
 
-// Install Python dependencies - now handled by npm start command
+// Install Python dependencies - now handled by Databricks automatically
 // This function just verifies packages are available
 async function installPythonDependencies() {
   console.log('Verifying Python dependencies...');
   
-  // Check if Flask is available (pip install should have run before this)
+  // Check if Flask is available (Databricks should have installed them)
   try {
     await runCommand('python3', [
       '-c',
@@ -100,8 +100,8 @@ async function installPythonDependencies() {
     return true;
   } catch (err) {
     console.error('✗ Python dependencies not available');
-    console.error('Note: pip3 install should have run before this script');
-    console.error('If you see this error, the pip install in npm start failed');
+    console.error('Note: Databricks should automatically install from requirements.txt');
+    console.error('If you see this error, check that requirements.txt is at the project root');
     return false;
   }
 }
