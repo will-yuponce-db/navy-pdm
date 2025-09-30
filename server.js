@@ -27,8 +27,11 @@ try {
   const serverBuild = await import('./build/server/index.js');
   
   // Create request handler using React Router v7 API
-  // Pass the entire module object which contains routes, entry, etc.
-  reactRouterServer = createRequestListener(serverBuild);
+  // createRequestListener expects an options object with build property
+  reactRouterServer = createRequestListener({
+    build: serverBuild,
+    mode: process.env.NODE_ENV === 'production' ? 'production' : 'development'
+  });
   
   console.log('React Router server initialized with routes:', Object.keys(serverBuild.routes || {}));
 } catch (error) {
