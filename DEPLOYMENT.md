@@ -3,32 +3,44 @@
 ## Environment Variables
 
 ### Frontend (React Router)
-Set these environment variables in your deployment platform:
-
-- `VITE_API_URL`: The full URL to your backend API (e.g., `https://your-backend-domain.com/api`)
+The frontend automatically detects the correct API URL based on the environment:
+- **Development**: Uses `http://localhost:5000/api`
+- **Production**: Uses `${window.location.origin}/api` (relative to current domain)
 
 ### Backend (Flask)
-Set these environment variables in your deployment platform:
+The backend uses these environment variables (automatically provided by Databricks Apps):
 
-- `HOST`: The host to bind to (default: `0.0.0.0`)
-- `PORT`: The port to bind to (default: `5000`)
-- `CORS_ORIGINS`: Comma-separated list of allowed origins (e.g., `https://your-frontend-domain.com,https://www.your-frontend-domain.com`)
+- `FLASK_RUN_HOST`: The host to bind to (default: `0.0.0.0`)
+- `FLASK_RUN_PORT`: The port to bind to (default: `8000` for Databricks Apps)
+- `DATABRICKS_APP_URL`: The full URL of your Databricks App (e.g., `https://navy-pdm-1444828305810485.aws.databricksapps.com`)
 - `DATABASE_URL`: Database connection string (default: SQLite)
 
 ## Deployment Examples
 
-### Vercel (Frontend)
+### Databricks Apps (Recommended)
+The application is configured to work automatically with Databricks Apps. The following environment variables are automatically provided:
+
 ```bash
-# Set environment variable in Vercel dashboard
-VITE_API_URL=https://your-backend-domain.com/api
+# Automatically provided by Databricks Apps
+DATABRICKS_APP_NAME=navy-pdm
+DATABRICKS_APP_PORT=8000
+DATABRICKS_APP_URL=https://navy-pdm-1444828305810485.aws.databricksapps.com
+FLASK_RUN_HOST=0.0.0.0
+FLASK_RUN_PORT=8000
+PORT=8000
 ```
 
-### Railway/Heroku (Backend)
+### Other Platforms
+For other deployment platforms, you may need to set these environment variables manually:
+
 ```bash
-# Set environment variables
-HOST=0.0.0.0
-PORT=5000
-CORS_ORIGINS=https://your-frontend-domain.com
+# Frontend
+VITE_API_URL=https://your-backend-domain.com/api
+
+# Backend
+FLASK_RUN_HOST=0.0.0.0
+FLASK_RUN_PORT=8000
+DATABRICKS_APP_URL=https://your-app-domain.com
 DATABASE_URL=postgresql://user:password@host:port/database
 ```
 
@@ -57,13 +69,18 @@ CMD ["python", "start_production.py"]
 ## Common Issues
 
 ### CORS Errors
-If you see CORS errors, make sure to set the `CORS_ORIGINS` environment variable with your frontend domain.
+If you see CORS errors, the backend automatically configures CORS based on the `DATABRICKS_APP_URL` environment variable. For Databricks Apps, this is automatically provided.
 
 ### API Connection Refused
 If you see `ERR_CONNECTION_REFUSED`, check that:
-1. Your backend is running and accessible
-2. The `VITE_API_URL` environment variable is set correctly
+1. Your backend is running and accessible on the correct port (8000 for Databricks Apps)
+2. The frontend is using the correct API URL (automatically detected in production)
 3. Your backend CORS configuration allows your frontend domain
 
 ### Environment Variables Not Loading
-Make sure your deployment platform is configured to inject environment variables at build time for the frontend, and at runtime for the backend.
+For Databricks Apps, all required environment variables are automatically provided. For other platforms, make sure your deployment platform is configured to inject environment variables at build time for the frontend, and at runtime for the backend.
+
+### Port Configuration
+- **Databricks Apps**: Uses port 8000 (automatically configured)
+- **Development**: Uses port 5000 (default Flask port)
+- **Other platforms**: May need to set `FLASK_RUN_PORT` environment variable

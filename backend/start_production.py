@@ -12,11 +12,15 @@ if __name__ == '__main__':
         db.create_all()
     
     print("Starting Navy PdM Flask Backend Server (Production Mode)...")
-    host = os.environ.get('HOST', '0.0.0.0')
-    port = os.environ.get('PORT', '5000')
+    host = os.environ.get('FLASK_RUN_HOST', os.environ.get('HOST', '0.0.0.0'))
+    port = os.environ.get('FLASK_RUN_PORT', os.environ.get('PORT', '5000'))
+    databricks_app_url = os.environ.get('DATABRICKS_APP_URL', '')
+    
     print(f"Server will be available at: http://{host}:{port}")
     print(f"API endpoints available at: http://{host}:{port}/api/")
     print(f"Health check: http://{host}:{port}/api/health")
+    if databricks_app_url:
+        print(f"Databricks App URL: {databricks_app_url}")
     
     # Gunicorn configuration
     bind = f"{host}:{port}"

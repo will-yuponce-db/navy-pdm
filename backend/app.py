@@ -22,8 +22,12 @@ logger = logging.getLogger(__name__)
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-# CORS configuration - allow all origins in production, specific origins in development
-allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5173').split(',')
+# CORS configuration - use Databricks Apps URL in production, localhost in development
+databricks_app_url = os.environ.get('DATABRICKS_APP_URL')
+if databricks_app_url:
+    allowed_origins = [databricks_app_url, 'http://localhost:3000', 'http://localhost:5173']
+else:
+    allowed_origins = ['http://localhost:3000', 'http://localhost:5173']
 CORS(app, origins=allowed_origins)
 
 # Database Models
