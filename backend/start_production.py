@@ -5,6 +5,11 @@ Production start script for the Flask backend server using Gunicorn
 
 import os
 import sys
+
+# Add backend directory to Python path when running from project root
+if not os.path.exists('app.py'):
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from app import app, db
 
 if __name__ == '__main__':

@@ -104,8 +104,8 @@ function startBackend() {
       NODE_ENV: config.nodeEnv,
     };
 
-    const backend = spawn('python3', ['start_production.py'], {
-      cwd: backendDir,
+    const backend = spawn('python3', ['backend/start_production.py'], {
+      cwd: ROOT_DIR,
       env: backendEnv,
       stdio: 'inherit',
       shell: true,
