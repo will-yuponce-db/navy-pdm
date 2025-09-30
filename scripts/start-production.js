@@ -85,26 +85,8 @@ function runCommand(command, args, options = {}) {
   });
 }
 
-// Install Python dependencies - now handled by Databricks automatically
-// This function just verifies packages are available
-async function installPythonDependencies() {
-  console.log('Verifying Python dependencies...');
-  
-  // Check if Flask is available (Databricks should have installed them)
-  try {
-    await runCommand('python3', [
-      '-c',
-      'import flask, flask_cors, flask_sqlalchemy, flask_migrate',
-    ], { silent: true });
-    console.log('✓ Python dependencies verified');
-    return true;
-  } catch (err) {
-    console.error('✗ Python dependencies not available');
-    console.error('Note: Databricks should automatically install from requirements.txt');
-    console.error('If you see this error, check that requirements.txt is at the project root');
-    return false;
-  }
-}
+// Python dependencies are now handled automatically by Databricks
+// No verification needed as Databricks ensures dependencies are available
 
 // Start backend server
 function startBackend() {
@@ -249,26 +231,20 @@ async function main() {
   let frontend = null;
 
   try {
-    // Step 1: Install Python dependencies
-    const depsInstalled = await installPythonDependencies();
-    if (!depsInstalled) {
-      process.exit(1);
-    }
-
-    // Step 2: Start backend
+    // Step 1: Start backend
     backend = await startBackend();
 
-    // Step 3: Wait for backend to be ready
+    // Step 2: Wait for backend to be ready
     const backendReady = await waitForBackend();
     if (!backendReady) {
       if (backend) backend.kill();
       process.exit(1);
     }
 
-    // Step 4: Start frontend
+    // Step 3: Start frontend
     frontend = startFrontend();
 
-    // Step 5: Setup graceful shutdown
+    // Step 4: Setup graceful shutdown
     setupGracefulShutdown(backend, frontend);
 
     // Keep process alive
