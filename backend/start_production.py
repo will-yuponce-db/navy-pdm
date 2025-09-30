@@ -20,12 +20,10 @@ if __name__ == '__main__':
     bind = "0.0.0.0:5000"
     workers = 4
     worker_class = "sync"
-    worker_connections = 1000
     timeout = 30
-    keepalive = 2
     max_requests = 1000
     max_requests_jitter = 100
     preload_app = True
     
     # Start with Gunicorn
-    os.system(f"gunicorn --bind {bind} --workers {workers} --worker-class {worker_class} --worker-connections {worker_connections} --timeout {timeout} --keepalive {keepalive} --max-requests {max_requests} --max-requests-jitter {max_requests_jitter} --preload app:app")
+    os.system(f"gunicorn --bind {bind} --workers {workers} --worker-class {worker_class} --timeout {timeout} --max-requests {max_requests} --max-requests-jitter {max_requests_jitter} --preload app:app")
