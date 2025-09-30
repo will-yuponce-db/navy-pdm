@@ -17,15 +17,28 @@ app.use('/api', createProxyMiddleware({
   logLevel: 'debug',
 }));
 
-// Serve static files from build directory
+// Serve static files from build/client directory
 app.use(express.static(join(__dirname, 'build/client')));
 
-// Handle React Router routes
-app.get('*', (req, res) => {
-  res.sendFile(join(__dirname, 'build/client/index.html'));
-});
+// Import and use React Router server
+let reactRouterServer;
+try {
+  const serverModule = await import('./build/server/index.js');
+  // React Router v7 exports the request handler directly
+  reactRouterServer = serverModule.default || serverModule;
+} catch (error) {
+  console.error('Failed to import React Router server:', error);
+  // Fallback for development or if server build fails
+  reactRouterServer = (req, res) => {
+    res.status(500).send('React Router server not available');
+  };
+}
+
+// Handle all other requests with React Router
+app.all('*', reactRouterServer);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`API proxy configured for /api -> http://localhost:8000`);
+  console.log(`React Router SSR server loaded`);
 });
