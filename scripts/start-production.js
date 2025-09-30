@@ -85,8 +85,52 @@ function runCommand(command, args, options = {}) {
   });
 }
 
-// Python dependencies are now handled automatically by Databricks
-// No verification needed as Databricks ensures dependencies are available
+// Install Python dependencies
+async function installPythonDependencies() {
+  console.log('Installing Python dependencies...');
+  
+  try {
+    // Try multiple pip methods for different environments
+    const pipMethods = [
+      ['pip3', ['install', '-r', 'backend/requirements.txt', '--quiet', '--break-system-packages']],
+      ['pip3', ['install', '-r', 'backend/requirements.txt', '--quiet']],
+      ['python3', ['-m', 'pip', 'install', '-r', 'backend/requirements.txt', '--quiet', '--break-system-packages']],
+      ['python3', ['-m', 'pip', 'install', '-r', 'backend/requirements.txt', '--quiet']],
+    ];
+
+    let installed = false;
+    for (const [command, args] of pipMethods) {
+      try {
+        await runCommand(command, args, { silent: true });
+        console.log(`✓ Python dependencies installed via ${command}`);
+        installed = true;
+        break;
+      } catch (err) {
+        // Try next method
+        continue;
+      }
+    }
+
+    if (!installed) {
+      // Check if packages are already available
+      try {
+        await runCommand('python3', ['-c', 'import flask, flask_cors, flask_sqlalchemy, flask_migrate'], { silent: true });
+        console.log('✓ Python dependencies appear to be pre-installed');
+        installed = true;
+      } catch (err) {
+        console.error('✗ Python dependencies missing and pip unavailable');
+        console.error('Tried: pip3, python3 -m pip');
+        console.error('Please ensure the environment has Python packages or pip available');
+        throw new Error('Failed to install Python dependencies');
+      }
+    }
+
+    return installed;
+  } catch (error) {
+    console.error('Failed to install Python dependencies:', error.message);
+    throw error;
+  }
+}
 
 // Start backend server
 function startBackend() {
@@ -231,20 +275,23 @@ async function main() {
   let frontend = null;
 
   try {
-    // Step 1: Start backend
+    // Step 1: Install Python dependencies
+    await installPythonDependencies();
+
+    // Step 2: Start backend
     backend = await startBackend();
 
-    // Step 2: Wait for backend to be ready
+    // Step 3: Wait for backend to be ready
     const backendReady = await waitForBackend();
     if (!backendReady) {
       if (backend) backend.kill();
       process.exit(1);
     }
 
-    // Step 3: Start frontend
+    // Step 4: Start frontend
     frontend = startFrontend();
 
-    // Step 4: Setup graceful shutdown
+    // Step 5: Setup graceful shutdown
     setupGracefulShutdown(backend, frontend);
 
     // Keep process alive
