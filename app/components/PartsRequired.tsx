@@ -3,19 +3,16 @@ import {
   TextField, 
   Box, 
   Typography, 
-  Autocomplete, 
+  Button,
   Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Checkbox,
-  ListItemText,
-  OutlinedInput
+  IconButton,
+  Tooltip
 } from "@mui/material";
+import { Add, Edit } from "@mui/icons-material";
 import { useSelector } from "react-redux";
 import { selectFilteredParts } from "../redux/services/partsSlice";
 import type { Part } from "../types";
+import PartsSelectionModal from "./PartsSelectionModal";
 
 interface PartsRequiredProps {
   partsRequired: string;
@@ -30,6 +27,7 @@ const PartsRequired: React.FC<PartsRequiredProps> = ({
 }) => {
   const parts = useSelector(selectFilteredParts);
   const [selectedParts, setSelectedParts] = useState<Part[]>([]);
+  const [modalOpen, setModalOpen] = useState(false);
 
   // Parse partsRequired string into selected parts
   useEffect(() => {
@@ -42,72 +40,88 @@ const PartsRequired: React.FC<PartsRequiredProps> = ({
     }
   }, [partsRequired, parts]);
 
-  const handlePartChange = (event: any, newValue: Part[]) => {
-    setSelectedParts(newValue);
-    const partsString = newValue.map(part => part.name).join(', ');
+  const handleModalOpen = () => {
+    setModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setModalOpen(false);
+  };
+
+  const handlePartsConfirm = (newSelectedParts: Part[]) => {
+    setSelectedParts(newSelectedParts);
+    const partsString = newSelectedParts.map(part => part.name).join(', ');
+    onPartsChange(partsString);
+  };
+
+  const handleRemovePart = (partToRemove: Part) => {
+    const updatedParts = selectedParts.filter(part => part.id !== partToRemove.id);
+    setSelectedParts(updatedParts);
+    const partsString = updatedParts.map(part => part.name).join(', ');
     onPartsChange(partsString);
   };
 
   return (
     <Box>
-      <Autocomplete
-        multiple
-        options={parts}
-        getOptionLabel={(option) => `${option.name} (${option.id})`}
-        value={selectedParts}
-        onChange={handlePartChange}
-        disabled={!editable}
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => (
-            <Chip
-              variant="outlined"
-              label={`${option.name} (${option.id})`}
-              {...getTagProps({ index })}
-              key={option.id}
-            />
-          ))
-        }
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            label="Parts Required"
-            variant="outlined"
-            placeholder="Select parts from inventory"
-            aria-describedby="parts-description"
-            inputProps={{
-              ...params.inputProps,
-              "aria-label": "Parts required for this work order",
-            }}
-          />
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+        <TextField
+          fullWidth
+          value={selectedParts.length > 0 ? `${selectedParts.length} part${selectedParts.length !== 1 ? 's' : ''} selected` : 'No parts selected'}
+          label="Parts Required"
+          variant="outlined"
+          disabled
+          aria-describedby="parts-description"
+          inputProps={{
+            "aria-label": "Parts required for this work order",
+          }}
+        />
+        {editable && (
+          <Tooltip title={selectedParts.length > 0 ? "Edit parts" : "Select parts"}>
+            <IconButton
+              onClick={handleModalOpen}
+              color="primary"
+              size="large"
+            >
+              {selectedParts.length > 0 ? <Edit /> : <Add />}
+            </IconButton>
+          </Tooltip>
         )}
-        renderOption={(props, option) => (
-          <Box component="li" {...props}>
-            <Box>
-              <Typography variant="body2" fontWeight="medium">
-                {option.name}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {option.id} • {option.category} • Stock: {option.stockLevel}
-              </Typography>
-            </Box>
-          </Box>
-        )}
-        isOptionEqualToValue={(option, value) => option.id === value.id}
-      />
+      </Box>
+
       <Typography
         id="parts-description"
         variant="caption"
         sx={{ mt: 0.5, display: "block", color: "text.secondary" }}
       >
-        Select parts from the available inventory. Only parts with stock will be available.
+        Click the {selectedParts.length > 0 ? 'edit' : 'add'} button to select parts from inventory
       </Typography>
+
       {selectedParts.length > 0 && (
-        <Box sx={{ mt: 1 }}>
-          <Typography variant="caption" color="text.secondary">
-            Selected parts: {selectedParts.map(p => p.name).join(', ')}
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Selected Parts:
           </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {selectedParts.map((part) => (
+              <Chip
+                key={part.id}
+                label={`${part.name} (${part.id})`}
+                onDelete={editable ? () => handleRemovePart(part) : undefined}
+                color="primary"
+                variant="outlined"
+              />
+            ))}
+          </Box>
         </Box>
       )}
+
+      <PartsSelectionModal
+        open={modalOpen}
+        onClose={handleModalClose}
+        onConfirm={handlePartsConfirm}
+        selectedParts={selectedParts}
+        title="Select Parts for Work Order"
+      />
     </Box>
   );
 };
