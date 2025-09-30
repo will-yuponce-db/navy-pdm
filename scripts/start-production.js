@@ -85,77 +85,23 @@ function runCommand(command, args, options = {}) {
   });
 }
 
-// Install Python dependencies
+// Install Python dependencies - now handled by npm start command
+// This function just verifies packages are available
 async function installPythonDependencies() {
-  console.log('Installing Python dependencies...');
-  const backendDir = join(ROOT_DIR, 'backend');
-  const requirementsFile = join(backendDir, 'requirements.txt');
-
-  if (!existsSync(requirementsFile)) {
-    console.log('⚠ requirements.txt not found, skipping Python dependencies');
-    return true;
-  }
-
-  // First, check if packages are already installed
-  console.log('Checking if Python packages are already available...');
+  console.log('Verifying Python dependencies...');
+  
+  // Check if Flask is available (pip install should have run before this)
   try {
     await runCommand('python3', [
       '-c',
-      'import flask, flask_cors, flask_sqlalchemy, flask_migrate, gunicorn; print("All packages found")',
-    ], { silent: false });
-    console.log('✓ All Python dependencies are already installed!');
+      'import flask, flask_cors, flask_sqlalchemy, flask_migrate',
+    ], { silent: true });
+    console.log('✓ Python dependencies verified');
     return true;
   } catch (err) {
-    console.log('Some packages missing, attempting to install...');
-  }
-
-  const pipCommands = [
-    ['pip3', ['install', '-r', requirementsFile, '--user']],
-    ['pip3', ['install', '-r', requirementsFile]],
-    ['pip3', ['install', '-r', requirementsFile, '--break-system-packages']],
-    ['python3', ['-m', 'pip', 'install', '-r', requirementsFile, '--user']],
-    ['python3', ['-m', 'pip', 'install', '-r', requirementsFile]],
-    ['python3', ['-m', 'pip', 'install', '-r', requirementsFile, '--break-system-packages']],
-  ];
-
-  // Try each pip command with verbose output
-  for (const [command, args] of pipCommands) {
-    try {
-      console.log(`Trying: ${command} ${args.join(' ')}`);
-      await runCommand(command, args, { cwd: backendDir, silent: false });
-      console.log(`✓ Python dependencies installed via ${command}`);
-      return true;
-    } catch (err) {
-      console.log(`  Failed with exit code ${err.code || 'unknown'}`);
-      // Continue to next method
-      continue;
-    }
-  }
-
-  // Final check if packages are available despite installation failures
-  console.log('⚠ All pip install attempts failed. Final check for pre-installed packages...');
-  try {
-    await runCommand('python3', [
-      '-c',
-      'import flask, flask_cors, flask_sqlalchemy, flask_migrate; print("Core packages available")',
-    ], { silent: false });
-    console.log('✓ Core Python dependencies are available (Flask installed)');
-    
-    // Check for gunicorn separately
-    try {
-      await runCommand('python3', ['-c', 'import gunicorn'], { silent: true });
-      console.log('✓ Gunicorn is available');
-    } catch (err) {
-      console.log('⚠ Gunicorn not available, will fall back to Flask dev server');
-    }
-    
-    return true;
-  } catch (err) {
-    console.error('✗ Python dependencies missing and could not be installed');
-    console.error('Tried: pip3 (--user, standard, --break-system-packages), python3 -m pip');
-    console.error('');
-    console.error('Databricks Apps should have these packages pre-installed.');
-    console.error('If this persists, contact Databricks support or check your environment configuration.');
+    console.error('✗ Python dependencies not available');
+    console.error('Note: pip3 install should have run before this script');
+    console.error('If you see this error, the pip install in npm start failed');
     return false;
   }
 }
