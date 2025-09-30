@@ -14,4 +14,6 @@ export default {
   // Performance optimizations
   serverBuildTarget: "node-esm",
   serverModuleFormat: "esm",
+  // Exclude API routes from React Router
+  serverDependenciesToBundle: [],
 } satisfies Config;
