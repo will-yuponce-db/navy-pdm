@@ -31,5 +31,21 @@ if __name__ == '__main__':
     max_requests_jitter = 100
     preload_app = True
     
-    # Start with Gunicorn
-    os.system(f"gunicorn --bind {bind} --workers {workers} --worker-class {worker_class} --timeout {timeout} --max-requests {max_requests} --max-requests-jitter {max_requests_jitter} --preload app:app")
+    # Start with Gunicorn or fallback to Flask dev server
+    try:
+        import gunicorn.app.wsgiapp as wsgi
+        sys.argv = [
+            'gunicorn',
+            '--bind', bind,
+            '--workers', str(workers),
+            '--worker-class', worker_class,
+            '--timeout', str(timeout),
+            '--max-requests', str(max_requests),
+            '--max-requests-jitter', str(max_requests_jitter),
+            '--preload',
+            'app:app'
+        ]
+        wsgi.run()
+    except ImportError:
+        print("Gunicorn not available, falling back to Flask development server")
+        app.run(host=host, port=int(port), debug=False)

@@ -2,7 +2,7 @@ import type { WorkOrder, Part, User, PaginatedResponse } from '../types';
 
 // API Configuration
 const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.PROD ? `${window.location.origin}/api` : 'http://localhost:8000/api');
+  (import.meta.env.PROD ? (typeof window !== 'undefined' ? `${window.location.origin}/api` : '/api') : 'http://localhost:8000/api');
 const API_TIMEOUT = 10000;
 
 // Custom error class for API errors
