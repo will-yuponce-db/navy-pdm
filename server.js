@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 
 // Proxy API requests to backend
 app.use('/api', createProxyMiddleware({
-  target: 'http://localhost:8000',
+  target: 'http://localhost:8001',
   changeOrigin: true,
   secure: false,
   logLevel: 'debug',
@@ -26,6 +26,11 @@ try {
   const serverModule = await import('./build/server/index.js');
   // React Router v7 exports the request handler directly
   reactRouterServer = serverModule.default || serverModule;
+  
+  // Ensure it's a function
+  if (typeof reactRouterServer !== 'function') {
+    throw new Error('React Router server export is not a function');
+  }
 } catch (error) {
   console.error('Failed to import React Router server:', error);
   // Fallback for development or if server build fails
@@ -35,10 +40,12 @@ try {
 }
 
 // Handle all other requests with React Router
-app.all('*', reactRouterServer);
+app.all('*', (req, res) => {
+  reactRouterServer(req, res);
+});
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`API proxy configured for /api -> http://localhost:8000`);
+  console.log(`API proxy configured for /api -> http://localhost:8001`);
   console.log(`React Router SSR server loaded`);
 });

@@ -13,7 +13,7 @@ if __name__ == '__main__':
     
     print("Starting Navy PdM Flask Backend Server (Production Mode)...")
     host = os.environ.get('FLASK_RUN_HOST', os.environ.get('HOST', '0.0.0.0'))
-    port = os.environ.get('FLASK_RUN_PORT', os.environ.get('PORT', '8000'))
+    port = os.environ.get('FLASK_RUN_PORT', os.environ.get('PORT', '8001'))
     databricks_app_url = os.environ.get('DATABRICKS_APP_URL', '')
     
     print(f"Server will be available at: http://{host}:{port}")
