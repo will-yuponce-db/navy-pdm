@@ -12,12 +12,14 @@ if __name__ == '__main__':
         db.create_all()
     
     print("Starting Navy PdM Flask Backend Server (Production Mode)...")
-    print("Server will be available at: http://localhost:5000")
-    print("API endpoints available at: http://localhost:5000/api/")
-    print("Health check: http://localhost:5000/api/health")
+    host = os.environ.get('HOST', '0.0.0.0')
+    port = os.environ.get('PORT', '5000')
+    print(f"Server will be available at: http://{host}:{port}")
+    print(f"API endpoints available at: http://{host}:{port}/api/")
+    print(f"Health check: http://{host}:{port}/api/health")
     
     # Gunicorn configuration
-    bind = "0.0.0.0:5000"
+    bind = f"{host}:{port}"
     workers = 4
     worker_class = "sync"
     timeout = 30

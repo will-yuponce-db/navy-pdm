@@ -22,7 +22,9 @@ logger = logging.getLogger(__name__)
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
-CORS(app, origins=['http://localhost:3000', 'http://localhost:5173'])
+# CORS configuration - allow all origins in production, specific origins in development
+allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5173').split(',')
+CORS(app, origins=allowed_origins)
 
 # Database Models
 
