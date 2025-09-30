@@ -23,14 +23,11 @@ app.use(express.static(join(__dirname, 'build/client')));
 // Import and use React Router server
 let reactRouterServer;
 try {
-  const serverModule = await import('./build/server/index.js');
-  // React Router v7 exports the request handler directly
-  reactRouterServer = serverModule.default || serverModule;
+  const { createRequestListener } = await import('@react-router/node');
+  const serverBuild = await import('./build/server/index.js');
   
-  // Ensure it's a function
-  if (typeof reactRouterServer !== 'function') {
-    throw new Error('React Router server export is not a function');
-  }
+  // Create request handler using React Router v7 API
+  reactRouterServer = createRequestListener(serverBuild);
 } catch (error) {
   console.error('Failed to import React Router server:', error);
   // Fallback for development or if server build fails
@@ -40,9 +37,7 @@ try {
 }
 
 // Handle all other requests with React Router
-app.all('*', (req, res) => {
-  reactRouterServer(req, res);
-});
+app.all('*', reactRouterServer);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
