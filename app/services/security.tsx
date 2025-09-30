@@ -1,4 +1,4 @@
-import { SecurityEvent, AuditLog } from '../types';
+import type { SecurityEvent, AuditLog } from '../types';
 
 // Security validation rules
 export interface ValidationRule {

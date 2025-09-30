@@ -11,13 +11,7 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ["react", "react-dom"],
-          mui: ["@mui/material", "@mui/icons-material", "@mui/x-data-grid"],
-          redux: ["@reduxjs/toolkit", "react-redux"],
-          charts: ["recharts"],
-          maps: ["leaflet", "react-leaflet"],
-        },
+        manualChunks: undefined,
       },
     },
     terserOptions: {

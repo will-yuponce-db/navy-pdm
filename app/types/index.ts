@@ -295,22 +295,6 @@ export interface ApiError {
   timestamp: string;
 }
 
-export interface ApiResponse<T> {
-  data: T;
-  message: string;
-  success: boolean;
-  timestamp: string;
-}
-
-export interface PaginatedResponse<T> {
-  items: T[];
-  total: number;
-  page: number;
-  pageSize: number;
-  hasNext: boolean;
-  hasPrevious: boolean;
-}
-
 
 // Performance Monitoring Types
 export interface PerformanceMetrics {
@@ -324,7 +308,7 @@ export interface PerformanceMetrics {
 // Security Types
 export interface SecurityEvent {
   id: string;
-  type: 'login' | 'logout' | 'permission_denied' | 'suspicious_activity';
+  type: string;
   userId: string;
   ipAddress: string;
   userAgent: string;

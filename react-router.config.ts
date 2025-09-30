@@ -13,6 +13,6 @@ export default {
   buildDirectory: "build",
   publicPath: "/",
   // Performance optimizations
-  serverBuildTarget: "node-cjs",
-  serverModuleFormat: "cjs",
+  serverBuildTarget: "node-esm",
+  serverModuleFormat: "esm",
 } satisfies Config;
