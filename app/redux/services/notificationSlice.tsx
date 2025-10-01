@@ -51,7 +51,7 @@ const notificationSlice = createSlice({
     addRealTimeNotification: (state, action: PayloadAction<Notification>) => {
       const notification = action.payload;
       // Check if notification already exists to avoid duplicates
-      const exists = state.notifications.some(n => n.id === notification.id);
+      const exists = state.notifications.some((n) => n.id === notification.id);
       if (!exists) {
         state.notifications.unshift(notification);
         // Keep only the last 50 notifications
@@ -61,16 +61,20 @@ const notificationSlice = createSlice({
       }
     },
     markNotificationAsReadRealTime: (state, action: PayloadAction<string>) => {
-      const notification = state.notifications.find(n => n.id === action.payload);
+      const notification = state.notifications.find(
+        (n) => n.id === action.payload,
+      );
       if (notification) {
         notification.read = true;
       }
     },
     removeNotificationRealTime: (state, action: PayloadAction<string>) => {
-      state.notifications = state.notifications.filter(n => n.id !== action.payload);
+      state.notifications = state.notifications.filter(
+        (n) => n.id !== action.payload,
+      );
     },
     markAllNotificationsAsReadRealTime: (state) => {
-      state.notifications.forEach(n => n.read = true);
+      state.notifications.forEach((n) => (n.read = true));
     },
   },
 });

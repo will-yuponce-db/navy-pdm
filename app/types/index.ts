@@ -12,8 +12,8 @@ export interface WorkOrder {
   recommendedAction?: string;
   partsRequired?: string;
   slaCategory?: string;
-  readonly createdAt?: Date;
-  readonly updatedAt?: Date;
+  readonly createdAt?: Date | string;
+  readonly updatedAt?: Date | string;
 }
 
 export type Priority = "Routine" | "Urgent" | "CASREP";
@@ -30,7 +30,7 @@ export interface Notification {
   type: NotificationType;
   title: string;
   message: string;
-  timestamp: string;
+  timestamp: string | Date;
   priority: NotificationPriority;
   category: NotificationCategory;
   read: boolean;
@@ -39,7 +39,11 @@ export interface Notification {
 
 export type NotificationType = "success" | "error" | "warning" | "info";
 export type NotificationPriority = "low" | "medium" | "high" | "critical";
-export type NotificationCategory = "maintenance" | "system" | "alert" | "update";
+export type NotificationCategory =
+  | "maintenance"
+  | "system"
+  | "alert"
+  | "update";
 
 // Navigation Types
 export interface NavItem {
@@ -55,6 +59,31 @@ export interface MaintenanceKPI {
   details: string;
   trend?: "up" | "down" | "stable";
   severity?: "normal" | "warning" | "critical";
+}
+
+// Utility Types
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+
+export type RequiredFields<T, K extends keyof T> = T & Required<Pick<T, K>>;
+
+// Generic API Types
+export interface BaseEntity {
+  readonly id: string;
+  readonly createdAt: Date | string;
+  readonly updatedAt: Date | string;
+}
+
+export interface SearchParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  filters?: Record<string, unknown>;
 }
 
 // Parts Management Types
@@ -117,6 +146,7 @@ export interface RootState {
   workOrders: WorkOrderState;
   notifications: NotificationState;
   parts: PartsState;
+  auth: AuthState;
 }
 
 // Component Props Types
@@ -242,7 +272,7 @@ export interface User {
   readonly updatedAt: Date;
 }
 
-export type UserRole = 
+export type UserRole =
   | "admin"
   | "commander"
   | "maintenance_manager"
@@ -250,7 +280,7 @@ export type UserRole =
   | "pmo_officer"
   | "viewer";
 
-export type Permission = 
+export type Permission =
   | "work_orders:read"
   | "work_orders:write"
   | "work_orders:delete"
@@ -295,7 +325,6 @@ export interface ApiError {
   timestamp: string;
 }
 
-
 // Performance Monitoring Types
 export interface PerformanceMetrics {
   pageLoadTime: number;
@@ -332,7 +361,7 @@ export interface AuditLog {
 export interface CacheConfig {
   ttl: number; // Time to live in seconds
   maxSize: number; // Maximum number of items
-  strategy: 'lru' | 'fifo' | 'ttl';
+  strategy: "lru" | "fifo" | "ttl";
 }
 
 export interface CacheItem<T> {
@@ -349,8 +378,8 @@ export interface PWAConfig {
   description: string;
   themeColor: string;
   backgroundColor: string;
-  display: 'fullscreen' | 'standalone' | 'minimal-ui' | 'browser';
-  orientation: 'portrait' | 'landscape' | 'any';
+  display: "fullscreen" | "standalone" | "minimal-ui" | "browser";
+  orientation: "portrait" | "landscape" | "any";
   startUrl: string;
   icons: Array<{
     src: string;
@@ -367,7 +396,7 @@ export interface OfflineData {
   lastSync: Date;
   pendingChanges: Array<{
     id: string;
-    type: 'create' | 'update' | 'delete';
+    type: "create" | "update" | "delete";
     data: unknown;
     timestamp: Date;
   }>;

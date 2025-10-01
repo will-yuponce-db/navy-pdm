@@ -61,7 +61,9 @@ describe("InteractiveImageGallery", () => {
   it("displays logistic analytics image", () => {
     render(<InteractiveImageGallery />);
 
-    expect(screen.getByText("Logistics Analytics Platform")).toBeInTheDocument();
+    expect(
+      screen.getByText("Logistics Analytics Platform"),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         "Advanced logistics and supply chain analytics, optimizing resource allocation and improving operational efficiency.",
@@ -145,7 +147,9 @@ describe("InteractiveImageGallery", () => {
     await user.click(firstImage);
 
     // Should display features in dialog - use getAllByText for multiple instances
-    expect(screen.getAllByText("Real-time Data Processing")[1]).toBeInTheDocument(); // Second instance is in dialog
+    expect(
+      screen.getAllByText("Real-time Data Processing")[1],
+    ).toBeInTheDocument(); // Second instance is in dialog
     expect(screen.getAllByText("Automated Workflows")[1]).toBeInTheDocument();
     expect(screen.getAllByText("User Interface Design")[1]).toBeInTheDocument();
   });

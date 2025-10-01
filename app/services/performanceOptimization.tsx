@@ -1,10 +1,10 @@
-import { CacheConfig } from '../types';
+import { CacheConfig } from "../types";
 
 // Cache strategies
 export enum CacheStrategy {
-  LRU = 'lru',
-  FIFO = 'fifo',
-  TTL = 'ttl',
+  LRU = "lru",
+  FIFO = "fifo",
+  TTL = "ttl",
 }
 
 // Cache entry interface
@@ -48,7 +48,7 @@ export class Cache<T> {
 
   get(key: string): T | null {
     const entry = this.cache.get(key);
-    
+
     if (!entry) {
       return null;
     }
@@ -101,7 +101,7 @@ export class Cache<T> {
   }
 
   private evictLRU(): void {
-    let oldestKey = '';
+    let oldestKey = "";
     let oldestTime = Date.now();
 
     for (const [key, entry] of this.cache.entries()) {
@@ -117,7 +117,7 @@ export class Cache<T> {
   }
 
   private evictFIFO(): void {
-    let oldestKey = '';
+    let oldestKey = "";
     let oldestTime = Date.now();
 
     for (const [key, entry] of this.cache.entries()) {
@@ -201,7 +201,7 @@ class MemoryCacheManager {
   }
 
   clearAll(): void {
-    this.caches.forEach(cache => cache.clear());
+    this.caches.forEach((cache) => cache.clear());
   }
 
   getAllStats(): Record<string, unknown> {
@@ -225,17 +225,17 @@ export class PerformanceMonitor {
   measure(name: string, startMark?: string, endMark?: string): number {
     const start = startMark ? this.marks.get(startMark) : 0;
     const end = endMark ? this.marks.get(endMark) : performance.now();
-    
+
     if (start === undefined) {
       throw new Error(`Start mark "${startMark}" not found`);
     }
 
     const duration = end - start;
-    
+
     if (!this.measures.has(name)) {
       this.measures.set(name, []);
     }
-    
+
     this.measures.get(name)!.push(duration);
     return duration;
   }
@@ -245,8 +245,10 @@ export class PerformanceMonitor {
     if (!measures || measures.length === 0) {
       return 0;
     }
-    
-    return measures.reduce((sum, measure) => sum + measure, 0) / measures.length;
+
+    return (
+      measures.reduce((sum, measure) => sum + measure, 0) / measures.length
+    );
   }
 
   getMeasureStats(name: string): {
@@ -257,7 +259,7 @@ export class PerformanceMonitor {
     total: number;
   } {
     const measures = this.measures.get(name) || [];
-    
+
     if (measures.length === 0) {
       return { count: 0, average: 0, min: 0, max: 0, total: 0 };
     }
@@ -280,7 +282,7 @@ export class PerformanceMonitor {
 export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number,
-  immediate = false
+  immediate = false,
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null = null;
 
@@ -302,7 +304,7 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
 // Throttle utility
 export function throttle<T extends (...args: unknown[]) => unknown>(
   func: T,
-  limit: number
+  limit: number,
 ): (...args: Parameters<T>) => void {
   let inThrottle: boolean;
 
@@ -318,13 +320,13 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
 // Memoization utility
 export function memoize<T extends (...args: unknown[]) => unknown>(
   func: T,
-  keyGenerator?: (...args: Parameters<T>) => string
+  keyGenerator?: (...args: Parameters<T>) => string,
 ): T {
   const cache = new Map<string, ReturnType<T>>();
 
   return ((...args: Parameters<T>) => {
     const key = keyGenerator ? keyGenerator(...args) : JSON.stringify(args);
-    
+
     if (cache.has(key)) {
       return cache.get(key);
     }
@@ -378,15 +380,12 @@ export function useLazyImage(src: string, options?: IntersectionObserverInit) {
   const imgRef = React.useRef<HTMLImageElement>(null);
 
   React.useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setImageSrc(src);
-          observer.disconnect();
-        }
-      },
-      options
-    );
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setImageSrc(src);
+        observer.disconnect();
+      }
+    }, options);
 
     if (imgRef.current) {
       observer.observe(imgRef.current);
@@ -412,14 +411,14 @@ export function useVirtualScrolling<T>(
   items: T[],
   itemHeight: number,
   containerHeight: number,
-  overscan = 5
+  overscan = 5,
 ) {
   const [scrollTop, setScrollTop] = React.useState(0);
 
   const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
   const endIndex = Math.min(
     items.length - 1,
-    Math.ceil((scrollTop + containerHeight) / itemHeight) + overscan
+    Math.ceil((scrollTop + containerHeight) / itemHeight) + overscan,
   );
 
   const visibleItems = items.slice(startIndex, endIndex + 1);
@@ -451,19 +450,28 @@ export class BundleAnalyzer {
     chunkSizes: Record<string, number>;
     recommendations: string[];
   } {
-    const totalSize = Array.from(this.chunks.values()).reduce((sum, size) => sum + size, 0);
+    const totalSize = Array.from(this.chunks.values()).reduce(
+      (sum, size) => sum + size,
+      0,
+    );
     const chunkSizes = Object.fromEntries(this.chunks);
     const recommendations: string[] = [];
 
     // Analyze chunk sizes
     for (const [chunk, size] of this.chunks.entries()) {
-      if (size > 500000) { // 500KB
-        recommendations.push(`Consider code splitting for chunk "${chunk}" (${(size / 1024).toFixed(2)}KB)`);
+      if (size > 500000) {
+        // 500KB
+        recommendations.push(
+          `Consider code splitting for chunk "${chunk}" (${(size / 1024).toFixed(2)}KB)`,
+        );
       }
     }
 
-    if (totalSize > 2000000) { // 2MB
-      recommendations.push('Total bundle size is large. Consider implementing lazy loading.');
+    if (totalSize > 2000000) {
+      // 2MB
+      recommendations.push(
+        "Total bundle size is large. Consider implementing lazy loading.",
+      );
     }
 
     return { totalSize, chunkSizes, recommendations };
@@ -504,4 +512,4 @@ export const CACHE_CONFIGS = {
 } as const;
 
 // React import for hooks
-import React from 'react';
+import React from "react";

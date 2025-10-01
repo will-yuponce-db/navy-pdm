@@ -1,3 +1,11 @@
+import React, {
+  useState,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -5,17 +13,15 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { Provider, useSelector } from "react-redux";
 
 import type { Route } from "./+types/root";
 import "./app.css";
 import NavComponent from "./components/NavComponent";
-import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { store } from "../app/redux/store/store";
-import { Provider } from "react-redux";
-import React, { useState, createContext, useContext, useEffect } from "react";
 import { ErrorSnackbar, useErrorHandler } from "./components/ErrorHandling";
 import { NotificationCenter } from "./components/NotificationSystem";
-import { useSelector } from "react-redux";
 import { useAppDispatch } from "./redux/hooks";
 import type { RootState } from "./types";
 import {
@@ -33,82 +39,25 @@ const ThemeContext = createContext({
 
 export const useTheme = () => useContext(ThemeContext);
 
-const lightTheme = createTheme({
-  palette: {
-    mode: "light",
-    primary: {
-      main: "#FF3621", // Databricks Orange
-    },
-    secondary: {
-      main: "#1B3139", // Databricks Teal
-    },
-    background: {
-      default: "#fafafa", // Soft background
-      paper: "#ffffff",
-    },
-    error: {
-      main: "#b71c1c", // Darker red for better contrast
-      light: "#ffebee", // Light red background
-      dark: "#8b0000", // Darker red for hover states
-    },
-    warning: {
-      main: "#f57c00", // High contrast orange
-    },
-    success: {
-      main: "#388e3c", // High contrast green
-    },
-    text: {
-      primary: "#212121", // High contrast text
-      secondary: "#424242",
-    },
-  },
+// Shared theme configuration to reduce duplication
+const baseThemeConfig = {
   typography: {
     fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    h1: {
-      fontSize: "2rem",
-      fontWeight: 600,
-      lineHeight: 1.2,
-    },
-    h2: {
-      fontSize: "1.75rem",
-      fontWeight: 600,
-      lineHeight: 1.3,
-    },
-    h3: {
-      fontSize: "1.5rem",
-      fontWeight: 600,
-      lineHeight: 1.4,
-    },
-    h4: {
-      fontSize: "1.25rem",
-      fontWeight: 600,
-      lineHeight: 1.4,
-    },
-    h5: {
-      fontSize: "1.125rem",
-      fontWeight: 600,
-      lineHeight: 1.5,
-    },
-    h6: {
-      fontSize: "1rem",
-      fontWeight: 600,
-      lineHeight: 1.5,
-    },
-    body1: {
-      fontSize: "1rem",
-      lineHeight: 1.6,
-    },
-    body2: {
-      fontSize: "0.875rem",
-      lineHeight: 1.6,
-    },
+    h1: { fontSize: "2rem", fontWeight: 600, lineHeight: 1.2 },
+    h2: { fontSize: "1.75rem", fontWeight: 600, lineHeight: 1.3 },
+    h3: { fontSize: "1.5rem", fontWeight: 600, lineHeight: 1.4 },
+    h4: { fontSize: "1.25rem", fontWeight: 600, lineHeight: 1.4 },
+    h5: { fontSize: "1.125rem", fontWeight: 600, lineHeight: 1.5 },
+    h6: { fontSize: "1rem", fontWeight: 600, lineHeight: 1.5 },
+    body1: { fontSize: "1rem", lineHeight: 1.6 },
+    body2: { fontSize: "0.875rem", lineHeight: 1.6 },
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
           borderRadius: 4,
-          textTransform: "none",
+          textTransform: "none" as const,
           fontWeight: 600,
           minHeight: 44, // ADA minimum touch target
         },
@@ -132,105 +81,52 @@ const lightTheme = createTheme({
       },
     },
   },
+};
+
+const lightTheme = createTheme({
+  ...baseThemeConfig,
+  palette: {
+    mode: "light",
+    primary: { main: "#FF3621" }, // Databricks Orange
+    secondary: { main: "#1B3139" }, // Databricks Teal
+    background: {
+      default: "#fafafa",
+      paper: "#ffffff",
+    },
+    error: {
+      main: "#b71c1c",
+      light: "#ffebee",
+      dark: "#8b0000",
+    },
+    warning: { main: "#f57c00" },
+    success: { main: "#388e3c" },
+    text: {
+      primary: "#212121",
+      secondary: "#424242",
+    },
+  },
 });
 
 const darkTheme = createTheme({
+  ...baseThemeConfig,
   palette: {
     mode: "dark",
-    primary: {
-      main: "#FF6B4A", // Lighter Databricks Orange for dark mode
-    },
-    secondary: {
-      main: "#2C646E", // Databricks Myrtle Green for dark mode
-    },
+    primary: { main: "#FF6B4A" }, // Lighter Databricks Orange for dark mode
+    secondary: { main: "#2C646E" }, // Databricks Myrtle Green for dark mode
     background: {
       default: "#121212",
       paper: "#1e1e1e",
     },
     error: {
-      main: "#ff6b6b", // Brighter red for dark theme
-      light: "#2d1b1b", // Dark red background
-      dark: "#ff5252", // Lighter red for hover states
+      main: "#ff6b6b",
+      light: "#2d1b1b",
+      dark: "#ff5252",
     },
-    warning: {
-      main: "#ff9800",
-    },
-    success: {
-      main: "#4caf50",
-    },
+    warning: { main: "#ff9800" },
+    success: { main: "#4caf50" },
     text: {
       primary: "#ffffff",
       secondary: "#bdbdbd",
-    },
-  },
-  typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    h1: {
-      fontSize: "2rem",
-      fontWeight: 600,
-      lineHeight: 1.2,
-    },
-    h2: {
-      fontSize: "1.75rem",
-      fontWeight: 600,
-      lineHeight: 1.3,
-    },
-    h3: {
-      fontSize: "1.5rem",
-      fontWeight: 600,
-      lineHeight: 1.4,
-    },
-    h4: {
-      fontSize: "1.25rem",
-      fontWeight: 600,
-      lineHeight: 1.4,
-    },
-    h5: {
-      fontSize: "1.125rem",
-      fontWeight: 600,
-      lineHeight: 1.5,
-    },
-    h6: {
-      fontSize: "1rem",
-      fontWeight: 600,
-      lineHeight: 1.5,
-    },
-    body1: {
-      fontSize: "1rem",
-      lineHeight: 1.6,
-    },
-    body2: {
-      fontSize: "0.875rem",
-      lineHeight: 1.6,
-    },
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 4,
-          textTransform: "none",
-          fontWeight: 600,
-          minHeight: 44,
-        },
-      },
-    },
-    MuiIconButton: {
-      styleOverrides: {
-        root: {
-          minWidth: 44,
-          minHeight: 44,
-        },
-      },
-    },
-    MuiTextField: {
-      styleOverrides: {
-        root: {
-          "& .MuiOutlinedInput-root": {
-            borderRadius: 4,
-          },
-        },
-      },
     },
   },
 });
@@ -286,6 +182,56 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Sample notifications data to reduce inline object creation
+const SAMPLE_NOTIFICATIONS = [
+  {
+    type: "warning" as const,
+    title: "CASREP Alert",
+    message:
+      "USS Cole (DDG-67) - High EGT detected, immediate inspection required",
+    priority: "critical" as const,
+    category: "maintenance" as const,
+  },
+  {
+    type: "info" as const,
+    title: "Maintenance Scheduled",
+    message:
+      "USS Bainbridge (DDG-96) - Routine maintenance scheduled for tomorrow",
+    priority: "medium" as const,
+    category: "maintenance" as const,
+  },
+  {
+    type: "success" as const,
+    title: "Work Order Completed",
+    message: "Work Order #ABC123 has been successfully completed",
+    priority: "low" as const,
+    category: "update" as const,
+  },
+];
+
+// WebSocket status indicator component
+const WebSocketStatusIndicator = ({
+  isConnected,
+}: {
+  isConnected: boolean;
+}) => (
+  <div
+    style={{
+      position: "fixed",
+      top: 10,
+      right: 10,
+      width: 12,
+      height: 12,
+      borderRadius: "50%",
+      backgroundColor: isConnected ? "#4caf50" : "#f44336",
+      zIndex: 9999,
+      border: "2px solid white",
+      boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+    }}
+    title={isConnected ? "WebSocket Connected" : "WebSocket Disconnected"}
+  />
+);
+
 // Inner component that uses Redux hooks
 function AppContent() {
   const notifications = useSelector(
@@ -294,9 +240,13 @@ function AppContent() {
   const dispatch = useAppDispatch();
   const { error, clearError } = useErrorHandler();
   const [isClient, setIsClient] = useState(false);
-  
+
   // Initialize WebSocket connection
-  const { isConnected, markAsRead: wsMarkAsRead, dismiss: wsDismiss } = useWebSocket();
+  const {
+    isConnected,
+    markAsRead: wsMarkAsRead,
+    dismiss: wsDismiss,
+  } = useWebSocket();
 
   // Track client-side hydration
   useEffect(() => {
@@ -306,53 +256,39 @@ function AppContent() {
   // Initialize sample notifications on client side only after hydration
   useEffect(() => {
     if (isClient && notifications.length === 0) {
-      dispatch(
-        addNotification({
-          type: "warning",
-          title: "CASREP Alert",
-          message:
-            "USS Cole (DDG-67) - High EGT detected, immediate inspection required",
-          priority: "critical",
-          category: "maintenance",
-        }),
-      );
-
-      dispatch(
-        addNotification({
-          type: "info",
-          title: "Maintenance Scheduled",
-          message:
-            "USS Bainbridge (DDG-96) - Routine maintenance scheduled for tomorrow",
-          priority: "medium",
-          category: "maintenance",
-        }),
-      );
-
-      dispatch(
-        addNotification({
-          type: "success",
-          title: "Work Order Completed",
-          message: "Work Order #ABC123 has been successfully completed",
-          priority: "low",
-          category: "update",
-        }),
-      );
+      SAMPLE_NOTIFICATIONS.forEach((notification) => {
+        dispatch(addNotification(notification));
+      });
     }
-  }, [dispatch, isClient]); // Only run after client hydration
+  }, [dispatch, isClient, notifications.length]);
 
-  const handleDismissNotification = (id: string) => {
-    // Use WebSocket to notify server and other clients
-    wsDismiss(id);
-    // Also update local state immediately for better UX
-    dispatch(dismissNotification(id));
-  };
+  const handleDismissNotification = useCallback(
+    (id: string) => {
+      wsDismiss(id);
+      dispatch(dismissNotification(id));
+    },
+    [wsDismiss, dispatch],
+  );
 
-  const handleMarkAsRead = (id: string) => {
-    // Use WebSocket to notify server and other clients
-    wsMarkAsRead(id);
-    // Also update local state immediately for better UX
-    dispatch(markAsRead(id));
-  };
+  const handleMarkAsRead = useCallback(
+    (id: string) => {
+      wsMarkAsRead(id);
+      dispatch(markAsRead(id));
+    },
+    [wsMarkAsRead, dispatch],
+  );
+
+  const processedNotifications = useMemo(
+    () =>
+      notifications.map((n) => ({
+        ...n,
+        timestamp:
+          typeof n.timestamp === "string"
+            ? n.timestamp
+            : (n.timestamp as Date).toISOString(),
+      })),
+    [notifications],
+  );
 
   return (
     <>
@@ -360,29 +296,11 @@ function AppContent() {
       {isClient && (
         <>
           <NotificationCenter
-            notifications={notifications.map(n => ({
-              ...n,
-              timestamp: typeof n.timestamp === 'string' ? n.timestamp : (n.timestamp as Date).toISOString()
-            }))}
+            notifications={processedNotifications}
             onDismiss={handleDismissNotification}
             onMarkAsRead={handleMarkAsRead}
           />
-          {/* WebSocket connection status indicator */}
-          <div
-            style={{
-              position: 'fixed',
-              top: 10,
-              right: 10,
-              width: 12,
-              height: 12,
-              borderRadius: '50%',
-              backgroundColor: isConnected ? '#4caf50' : '#f44336',
-              zIndex: 9999,
-              border: '2px solid white',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-            }}
-            title={isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
-          />
+          <WebSocketStatusIndicator isConnected={isConnected} />
         </>
       )}
     </>
@@ -390,29 +308,30 @@ function AppContent() {
 }
 
 export default function App() {
-  const [isDarkMode, setIsDarkMode] = useState(false); // Always start with false to match server
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
   // Handle hydration and theme initialization
   useEffect(() => {
     setIsHydrated(true);
-    // Check localStorage for saved theme preference (only on client side after hydration)
     if (typeof window !== "undefined" && window.localStorage) {
       const savedTheme = localStorage.getItem("theme");
       setIsDarkMode(savedTheme === "dark");
     }
   }, []);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
-    // Save theme preference to localStorage (only on client side)
     if (typeof window !== "undefined" && window.localStorage) {
       localStorage.setItem("theme", newMode ? "dark" : "light");
     }
-  };
+  }, [isDarkMode]);
 
-  const theme = isDarkMode ? darkTheme : lightTheme;
+  const theme = useMemo(
+    () => (isDarkMode ? darkTheme : lightTheme),
+    [isDarkMode],
+  );
 
   // Apply theme to document (only on client side)
   useEffect(() => {
@@ -425,8 +344,16 @@ export default function App() {
     }
   }, [isDarkMode, isHydrated]);
 
+  const themeContextValue = useMemo(
+    () => ({
+      toggleTheme,
+      isDarkMode,
+    }),
+    [toggleTheme, isDarkMode],
+  );
+
   return (
-    <ThemeContext.Provider value={{ toggleTheme, isDarkMode }}>
+    <ThemeContext.Provider value={themeContextValue}>
       <ThemeProvider theme={theme}>
         <Provider store={store}>
           <NavComponent />

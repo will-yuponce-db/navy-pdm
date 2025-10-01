@@ -63,9 +63,8 @@ export const useWorkflowShortcuts = ({
       // Quick access to critical work orders
       if (event.key === "c" && event.ctrlKey) {
         event.preventDefault();
-        const criticalWorkOrders = workOrders?.filter(
-          (wo) => wo.priority === "CASREP",
-        ) || [];
+        const criticalWorkOrders =
+          workOrders?.filter((wo) => wo.priority === "CASREP") || [];
         if (criticalWorkOrders.length > 0) {
           navigate("/work-order?filter=CASREP");
         }
@@ -74,9 +73,8 @@ export const useWorkflowShortcuts = ({
       // Quick access to urgent work orders
       if (event.key === "u" && event.ctrlKey) {
         event.preventDefault();
-        const urgentWorkOrders = workOrders?.filter(
-          (wo) => wo.priority === "Urgent",
-        ) || [];
+        const urgentWorkOrders =
+          workOrders?.filter((wo) => wo.priority === "Urgent") || [];
         if (urgentWorkOrders.length > 0) {
           navigate("/work-order?filter=Urgent");
         }

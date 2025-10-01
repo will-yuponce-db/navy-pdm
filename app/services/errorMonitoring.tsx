@@ -1,23 +1,23 @@
-import type { ApiError } from '../types';
+import type { ApiError } from "../types";
 
 // Error severity levels
 export enum ErrorSeverity {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
-  CRITICAL = 'critical',
+  LOW = "low",
+  MEDIUM = "medium",
+  HIGH = "high",
+  CRITICAL = "critical",
 }
 
 // Error categories
 export enum ErrorCategory {
-  API = 'api',
-  NETWORK = 'network',
-  VALIDATION = 'validation',
-  AUTHENTICATION = 'authentication',
-  PERMISSION = 'permission',
-  COMPONENT = 'component',
-  SYSTEM = 'system',
-  USER_ACTION = 'user_action',
+  API = "api",
+  NETWORK = "network",
+  VALIDATION = "validation",
+  AUTHENTICATION = "authentication",
+  PERMISSION = "permission",
+  COMPONENT = "component",
+  SYSTEM = "system",
+  USER_ACTION = "user_action",
 }
 
 // Error context interface
@@ -51,7 +51,7 @@ export interface PerformanceEntry {
   name: string;
   duration: number;
   timestamp: Date;
-  type: 'navigation' | 'measure' | 'mark';
+  type: "navigation" | "measure" | "mark";
   additionalData?: Record<string, unknown>;
 }
 
@@ -66,7 +66,7 @@ class ErrorMonitoringService {
 
   constructor() {
     this.sessionId = this.generateSessionId();
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       this.setupGlobalErrorHandlers();
       this.setupPerformanceMonitoring();
     }
@@ -77,33 +77,35 @@ class ErrorMonitoringService {
   }
 
   private setupGlobalErrorHandlers(): void {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === "undefined") return;
+
     // Global error handler
-    window.addEventListener('error', (event) => {
+    window.addEventListener("error", (event) => {
       this.logError({
         message: event.message,
         stack: event.error?.stack,
         severity: ErrorSeverity.HIGH,
         category: ErrorCategory.SYSTEM,
         context: {
-          url: typeof window !== 'undefined' ? window.location.href : '',
-          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+          url: typeof window !== "undefined" ? window.location.href : "",
+          userAgent:
+            typeof navigator !== "undefined" ? navigator.userAgent : "",
           timestamp: new Date(),
         },
       });
     });
 
     // Unhandled promise rejection handler
-    window.addEventListener('unhandledrejection', (event) => {
+    window.addEventListener("unhandledrejection", (event) => {
       this.logError({
         message: `Unhandled Promise Rejection: ${event.reason}`,
         stack: event.reason?.stack,
         severity: ErrorSeverity.MEDIUM,
         category: ErrorCategory.SYSTEM,
         context: {
-          url: typeof window !== 'undefined' ? window.location.href : '',
-          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+          url: typeof window !== "undefined" ? window.location.href : "",
+          userAgent:
+            typeof navigator !== "undefined" ? navigator.userAgent : "",
           timestamp: new Date(),
         },
       });
@@ -111,18 +113,21 @@ class ErrorMonitoringService {
   }
 
   private setupPerformanceMonitoring(): void {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === "undefined") return;
+
     // Monitor page load performance
-    window.addEventListener('load', () => {
-      const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
-      
+    window.addEventListener("load", () => {
+      const navigation = performance.getEntriesByType(
+        "navigation",
+      )[0] as PerformanceNavigationTiming;
+
       this.logPerformance({
-        name: 'page_load',
+        name: "page_load",
         duration: navigation.loadEventEnd - navigation.fetchStart,
-        type: 'navigation',
+        type: "navigation",
         additionalData: {
-          domContentLoaded: navigation.domContentLoadedEventEnd - navigation.fetchStart,
+          domContentLoaded:
+            navigation.domContentLoadedEventEnd - navigation.fetchStart,
           firstPaint: this.getFirstPaint(),
           firstContentfulPaint: this.getFirstContentfulPaint(),
         },
@@ -134,45 +139,49 @@ class ErrorMonitoringService {
   }
 
   private getFirstPaint(): number | undefined {
-    const paintEntries = performance.getEntriesByType('paint');
-    const firstPaint = paintEntries.find(entry => entry.name === 'first-paint');
+    const paintEntries = performance.getEntriesByType("paint");
+    const firstPaint = paintEntries.find(
+      (entry) => entry.name === "first-paint",
+    );
     return firstPaint?.startTime;
   }
 
   private getFirstContentfulPaint(): number | undefined {
-    const paintEntries = performance.getEntriesByType('paint');
-    const firstContentfulPaint = paintEntries.find(entry => entry.name === 'first-contentful-paint');
+    const paintEntries = performance.getEntriesByType("paint");
+    const firstContentfulPaint = paintEntries.find(
+      (entry) => entry.name === "first-contentful-paint",
+    );
     return firstContentfulPaint?.startTime;
   }
 
   private interceptFetch(): void {
-    if (typeof window === 'undefined') return;
-    
+    if (typeof window === "undefined") return;
+
     const originalFetch = window.fetch;
-    
+
     window.fetch = async (...args) => {
       const startTime = performance.now();
       const url = args[0] as string;
-      
+
       try {
         const response = await originalFetch(...args);
         const endTime = performance.now();
-        
+
         this.logPerformance({
           name: `api_${url}`,
           duration: endTime - startTime,
-          type: 'measure',
+          type: "measure",
           additionalData: {
             url,
             status: response.status,
-            method: args[1]?.method || 'GET',
+            method: args[1]?.method || "GET",
           },
         });
 
         return response;
       } catch (error) {
         const endTime = performance.now();
-        
+
         this.logError({
           message: `API Error: ${error}`,
           severity: ErrorSeverity.MEDIUM,
@@ -197,15 +206,15 @@ class ErrorMonitoringService {
   logError(error: Partial<ErrorLogEntry>): void {
     const errorEntry: ErrorLogEntry = {
       id: this.generateErrorId(),
-      message: error.message || 'Unknown error',
+      message: error.message || "Unknown error",
       stack: error.stack,
       severity: error.severity || ErrorSeverity.MEDIUM,
       category: error.category || ErrorCategory.SYSTEM,
       context: {
         userId: this.userId,
         sessionId: this.sessionId,
-        url: typeof window !== 'undefined' ? window.location.href : '',
-        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+        url: typeof window !== "undefined" ? window.location.href : "",
+        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
         timestamp: new Date(),
         ...error.context,
       },
@@ -215,7 +224,7 @@ class ErrorMonitoringService {
     };
 
     this.errors.unshift(errorEntry);
-    
+
     // Keep only the most recent errors
     if (this.errors.length > this.maxErrors) {
       this.errors = this.errors.slice(0, this.maxErrors);
@@ -226,25 +235,28 @@ class ErrorMonitoringService {
 
     // Log to console in development
     if (import.meta.env.DEV) {
-      console.error('Error logged:', errorEntry);
+      console.error("Error logged:", errorEntry);
     }
   }
 
   logPerformance(entry: Partial<PerformanceEntry>): void {
     const performanceEntry: PerformanceEntry = {
       id: this.generatePerformanceId(),
-      name: entry.name || 'unknown',
+      name: entry.name || "unknown",
       duration: entry.duration || 0,
       timestamp: new Date(),
-      type: entry.type || 'measure',
+      type: entry.type || "measure",
       additionalData: entry.additionalData,
     };
 
     this.performanceEntries.unshift(performanceEntry);
-    
+
     // Keep only the most recent entries
     if (this.performanceEntries.length > this.maxPerformanceEntries) {
-      this.performanceEntries = this.performanceEntries.slice(0, this.maxPerformanceEntries);
+      this.performanceEntries = this.performanceEntries.slice(
+        0,
+        this.maxPerformanceEntries,
+      );
     }
   }
 
@@ -267,7 +279,7 @@ class ErrorMonitoringService {
     this.logPerformance({
       name: `user_action_${action}`,
       duration: 0,
-      type: 'mark',
+      type: "mark",
       additionalData: { action, ...context?.additionalData },
     });
   }
@@ -294,15 +306,15 @@ class ErrorMonitoringService {
     };
 
     // Initialize counters
-    Object.values(ErrorSeverity).forEach(severity => {
+    Object.values(ErrorSeverity).forEach((severity) => {
       stats.bySeverity[severity] = 0;
     });
-    Object.values(ErrorCategory).forEach(category => {
+    Object.values(ErrorCategory).forEach((category) => {
       stats.byCategory[category] = 0;
     });
 
     // Count errors
-    this.errors.forEach(error => {
+    this.errors.forEach((error) => {
       stats.bySeverity[error.severity]++;
       stats.byCategory[error.category]++;
       if (!error.resolved) stats.unresolved++;
@@ -316,16 +328,24 @@ class ErrorMonitoringService {
     averageApiResponse: number;
     slowestOperations: PerformanceEntry[];
   } {
-    const pageLoads = this.performanceEntries.filter(entry => entry.name === 'page_load');
-    const apiCalls = this.performanceEntries.filter(entry => entry.name.startsWith('api_'));
+    const pageLoads = this.performanceEntries.filter(
+      (entry) => entry.name === "page_load",
+    );
+    const apiCalls = this.performanceEntries.filter((entry) =>
+      entry.name.startsWith("api_"),
+    );
 
-    const averagePageLoad = pageLoads.length > 0 
-      ? pageLoads.reduce((sum, entry) => sum + entry.duration, 0) / pageLoads.length 
-      : 0;
+    const averagePageLoad =
+      pageLoads.length > 0
+        ? pageLoads.reduce((sum, entry) => sum + entry.duration, 0) /
+          pageLoads.length
+        : 0;
 
-    const averageApiResponse = apiCalls.length > 0 
-      ? apiCalls.reduce((sum, entry) => sum + entry.duration, 0) / apiCalls.length 
-      : 0;
+    const averageApiResponse =
+      apiCalls.length > 0
+        ? apiCalls.reduce((sum, entry) => sum + entry.duration, 0) /
+          apiCalls.length
+        : 0;
 
     const slowestOperations = [...this.performanceEntries]
       .sort((a, b) => b.duration - a.duration)
@@ -347,7 +367,7 @@ class ErrorMonitoringService {
   }
 
   markErrorResolved(errorId: string): void {
-    const error = this.errors.find(e => e.id === errorId);
+    const error = this.errors.find((e) => e.id === errorId);
     if (error) {
       error.resolved = true;
     }
@@ -368,24 +388,26 @@ class ErrorMonitoringService {
     return ErrorSeverity.LOW;
   }
 
-  private async sendToExternalService(errorEntry: ErrorLogEntry): Promise<void> {
+  private async sendToExternalService(
+    errorEntry: ErrorLogEntry,
+  ): Promise<void> {
     // In a real application, you would send this to services like:
     // - Sentry
     // - LogRocket
     // - Bugsnag
     // - Custom logging endpoint
-    
-    if (import.meta.env.VITE_ERROR_REPORTING_ENABLED === 'true') {
+
+    if (import.meta.env.VITE_ERROR_REPORTING_ENABLED === "true") {
       try {
-        await fetch('/api/errors', {
-          method: 'POST',
+        await fetch("/api/errors", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(errorEntry),
         });
       } catch (error) {
-        console.warn('Failed to send error to external service:', error);
+        console.warn("Failed to send error to external service:", error);
       }
     }
   }
@@ -403,8 +425,7 @@ export const errorMonitoringService = {
   getErrorLogs: () => [],
   getPerformanceLogs: () => [],
   clearLogs: () => {},
-  exportLogs: () => '',
+  exportLogs: () => "",
   getErrorSummary: () => ({ total: 0, bySeverity: {}, byCategory: {} }),
   getPerformanceSummary: () => ({ averageLoadTime: 0, slowestPages: [] }),
 };
-

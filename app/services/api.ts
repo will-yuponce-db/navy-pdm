@@ -1,33 +1,45 @@
-import type { WorkOrder, Part, User, PaginatedResponse } from '../types';
+import type { WorkOrder, Part, User, PaginatedResponse } from "../types";
 
 // API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.PROD ? (typeof window !== 'undefined' ? `${window.location.origin}/api` : '/api') : 'http://localhost:8000/api');
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD
+    ? typeof window !== "undefined"
+      ? `${window.location.origin}/api`
+      : "/api"
+    : "http://localhost:8000/api");
 const API_TIMEOUT = 10000;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
 
 // Custom error class for API errors
 export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
-    public code?: string
+    public code?: string,
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
 // Request headers
 const getHeaders = (): HeadersInit => {
   return {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   };
 };
 
-// Generic API request function with error handling
+// Retry utility function
+const delay = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+// Generic API request function with error handling and retry logic
 const apiRequest = async <T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  retryCount = 0,
 ): Promise<T> => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
@@ -46,53 +58,78 @@ const apiRequest = async <T>(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new ApiError(
+      const error = new ApiError(
         errorData.message || `HTTP ${response.status}: ${response.statusText}`,
         response.status,
-        errorData.code
+        errorData.code,
       );
+
+      // Retry on server errors (5xx) and specific client errors
+      if (
+        retryCount < MAX_RETRIES &&
+        (response.status >= 500 ||
+          response.status === 429 ||
+          response.status === 408)
+      ) {
+        await delay(RETRY_DELAY * Math.pow(2, retryCount));
+        return apiRequest<T>(endpoint, options, retryCount + 1);
+      }
+
+      throw error;
     }
 
     return await response.json();
   } catch (error) {
     clearTimeout(timeoutId);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new ApiError('Request timeout', 408);
+
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new ApiError("Request timeout", 408);
     }
-    
-    throw new ApiError('Network error', 0);
+
+    // Retry on network errors
+    if (retryCount < MAX_RETRIES) {
+      await delay(RETRY_DELAY * Math.pow(2, retryCount));
+      return apiRequest<T>(endpoint, options, retryCount + 1);
+    }
+
+    throw new ApiError("Network error", 0);
   }
 };
 
 // Authentication API
 export const authApi = {
-  login: async (credentials: { email: string; password: string }): Promise<{ user: User; token: string }> => {
-    return apiRequest('/auth/login', {
-      method: 'POST',
+  login: async (credentials: {
+    email: string;
+    password: string;
+  }): Promise<{ user: User; token: string }> => {
+    return apiRequest("/auth/login", {
+      method: "POST",
       body: JSON.stringify(credentials),
     });
   },
 
   logout: async (): Promise<void> => {
-    return apiRequest('/auth/logout', { method: 'POST' });
+    return apiRequest("/auth/logout", { method: "POST" });
   },
 
   refreshToken: async (): Promise<{ token: string }> => {
-    return apiRequest('/auth/refresh', { method: 'POST' });
+    return apiRequest("/auth/refresh", { method: "POST" });
   },
 
   getCurrentUser: async (): Promise<User> => {
-    return apiRequest('/auth/me');
+    return apiRequest("/auth/me");
   },
 
-  changePassword: async (data: { currentPassword: string; newPassword: string }): Promise<void> => {
-    return apiRequest('/auth/change-password', {
-      method: 'POST',
+  changePassword: async (data: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<void> => {
+    return apiRequest("/auth/change-password", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   },
@@ -107,7 +144,7 @@ export const workOrdersApi = {
     priority?: string;
     search?: string;
     sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
+    sortOrder?: "asc" | "desc";
   }): Promise<PaginatedResponse<WorkOrder>> => {
     const queryParams = new URLSearchParams();
     if (params) {
@@ -117,36 +154,43 @@ export const workOrdersApi = {
         }
       });
     }
-    
+
     const queryString = queryParams.toString();
-    return apiRequest(`/work-orders${queryString ? `?${queryString}` : ''}`);
+    return apiRequest(`/work-orders${queryString ? `?${queryString}` : ""}`);
   },
 
   getById: async (id: string): Promise<WorkOrder> => {
     return apiRequest(`/work-orders/${id}`);
   },
 
-  create: async (workOrder: Omit<WorkOrder, 'wo' | 'createdAt' | 'updatedAt'>): Promise<WorkOrder> => {
-    return apiRequest('/work-orders', {
-      method: 'POST',
+  create: async (
+    workOrder: Omit<WorkOrder, "wo" | "createdAt" | "updatedAt">,
+  ): Promise<WorkOrder> => {
+    return apiRequest("/work-orders", {
+      method: "POST",
       body: JSON.stringify(workOrder),
     });
   },
 
-  update: async (id: string, updates: Partial<WorkOrder>): Promise<WorkOrder> => {
+  update: async (
+    id: string,
+    updates: Partial<WorkOrder>,
+  ): Promise<WorkOrder> => {
     return apiRequest(`/work-orders/${id}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(updates),
     });
   },
 
   delete: async (id: string): Promise<void> => {
-    return apiRequest(`/work-orders/${id}`, { method: 'DELETE' });
+    return apiRequest(`/work-orders/${id}`, { method: "DELETE" });
   },
 
-  bulkUpdate: async (updates: { id: string; updates: Partial<WorkOrder> }[]): Promise<WorkOrder[]> => {
-    return apiRequest('/work-orders/bulk', {
-      method: 'PATCH',
+  bulkUpdate: async (
+    updates: { id: string; updates: Partial<WorkOrder> }[],
+  ): Promise<WorkOrder[]> => {
+    return apiRequest("/work-orders/bulk", {
+      method: "PATCH",
       body: JSON.stringify({ updates }),
     });
   },
@@ -160,16 +204,19 @@ export const workOrdersApi = {
         }
       });
     }
-    
+
     const queryString = queryParams.toString();
-    const response = await fetch(`${API_BASE_URL}/work-orders/export${queryString ? `?${queryString}` : ''}`, {
-      headers: getHeaders(),
-    });
-    
+    const response = await fetch(
+      `${API_BASE_URL}/work-orders/export${queryString ? `?${queryString}` : ""}`,
+      {
+        headers: getHeaders(),
+      },
+    );
+
     if (!response.ok) {
-      throw new ApiError('Export failed', response.status);
+      throw new ApiError("Export failed", response.status);
     }
-    
+
     return response.blob();
   },
 };
@@ -192,38 +239,41 @@ export const partsApi = {
         }
       });
     }
-    
+
     const queryString = queryParams.toString();
-    return apiRequest(`/parts${queryString ? `?${queryString}` : ''}`);
+    return apiRequest(`/parts${queryString ? `?${queryString}` : ""}`);
   },
 
   getById: async (id: string): Promise<Part> => {
     return apiRequest(`/parts/${id}`);
   },
 
-  create: async (part: Omit<Part, 'id' | 'lastUpdated'>): Promise<Part> => {
-    return apiRequest('/parts', {
-      method: 'POST',
+  create: async (part: Omit<Part, "id" | "lastUpdated">): Promise<Part> => {
+    return apiRequest("/parts", {
+      method: "POST",
       body: JSON.stringify(part),
     });
   },
 
   update: async (id: string, updates: Partial<Part>): Promise<Part> => {
     return apiRequest(`/parts/${id}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(updates),
     });
   },
 
   delete: async (id: string): Promise<void> => {
-    return apiRequest(`/parts/${id}`, { method: 'DELETE' });
+    return apiRequest(`/parts/${id}`, { method: "DELETE" });
   },
 
-  updateStock: async (id: string, quantity: number, operation: 'add' | 'subtract'): Promise<Part> => {
+  updateStock: async (
+    id: string,
+    quantity: number,
+    operation: "add" | "subtract",
+  ): Promise<Part> => {
     return apiRequest(`/parts/${id}/stock`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify({ quantity, operation }),
     });
   },
 };
-

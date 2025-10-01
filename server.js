@@ -317,6 +317,12 @@ app.patch('/api/work-orders/:wo_id', (req, res) => {
     const data = req.body;
     const woId = req.params.wo_id;
     
+    // Get the current work order to compare status changes
+    const currentWorkOrder = db.prepare('SELECT * FROM work_orders WHERE wo = ?').get(woId);
+    if (!currentWorkOrder) {
+      return res.status(404).json({ message: 'Work order not found' });
+    }
+    
     // Build dynamic update query
     const updates = [];
     const params = [];
@@ -352,7 +358,7 @@ app.patch('/api/work-orders/:wo_id', (req, res) => {
     
     const workOrder = db.prepare('SELECT * FROM work_orders WHERE wo = ?').get(woId);
     
-    res.json({
+    const responseData = {
       wo: workOrder.wo,
       ship: workOrder.ship,
       homeport: workOrder.homeport,
@@ -367,7 +373,86 @@ app.patch('/api/work-orders/:wo_id', (req, res) => {
       slaCategory: workOrder.sla_category,
       createdAt: workOrder.created_at,
       updatedAt: workOrder.updated_at
+    };
+
+    // Check if status changed and broadcast WebSocket event
+    if (data.status && data.status !== currentWorkOrder.status) {
+      // Create notification for status change
+      const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      let notificationType = 'info';
+      let notificationTitle = 'Work Order Updated';
+      let notificationMessage = `Work Order ${workOrder.wo} for ${workOrder.ship} has been updated`;
+      let notificationPriority = 'medium';
+
+      switch (data.status) {
+        case 'In Progress':
+          notificationType = 'info';
+          notificationPriority = 'medium';
+          notificationTitle = 'Work Order Started';
+          notificationMessage = `Work Order ${workOrder.wo} for ${workOrder.ship} is now in progress`;
+          break;
+        case 'Completed':
+          notificationType = 'success';
+          notificationPriority = 'low';
+          notificationTitle = 'Work Order Completed';
+          notificationMessage = `Work Order ${workOrder.wo} for ${workOrder.ship} has been completed successfully`;
+          break;
+        case 'Cancelled':
+          notificationType = 'warning';
+          notificationPriority = 'medium';
+          notificationTitle = 'Work Order Cancelled';
+          notificationMessage = `Work Order ${workOrder.wo} for ${workOrder.ship} has been cancelled`;
+          break;
+        case 'On Hold':
+          notificationType = 'warning';
+          notificationPriority = 'high';
+          notificationTitle = 'Work Order On Hold';
+          notificationMessage = `Work Order ${workOrder.wo} for ${workOrder.ship} has been put on hold`;
+          break;
+      }
+
+      // Insert notification into database
+      const notificationStmt = db.prepare(`
+        INSERT INTO notifications (id, type, title, message, priority, category, work_order_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+      
+      notificationStmt.run(
+        notificationId,
+        notificationType,
+        notificationTitle,
+        notificationMessage,
+        notificationPriority,
+        'maintenance',
+        workOrder.wo
+      );
+
+      const notification = db.prepare('SELECT * FROM notifications WHERE id = ?').get(notificationId);
+      
+      const notificationData = {
+        id: notification.id,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        timestamp: notification.timestamp,
+        priority: notification.priority,
+        category: notification.category,
+        read: Boolean(notification.read),
+        workOrderId: notification.work_order_id
+      };
+
+      // Broadcast notification to all connected clients
+      broadcastNotification(notificationData);
+    }
+
+    // Broadcast work order update to all connected clients
+    io.to('notifications').emit('workorder:updated', {
+      workOrder: responseData,
+      changes: data
     });
+    
+    res.json(responseData);
   } catch (error) {
     console.error('Error updating work order:', error);
     res.status(500).json({ error: 'Internal server error' });

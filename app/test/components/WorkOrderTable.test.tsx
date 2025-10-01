@@ -181,7 +181,7 @@ describe("WorkOrderTable", () => {
 
     const checkboxes = screen.getAllByRole("checkbox");
     expect(checkboxes.length).toBeGreaterThan(1); // Should have select all + individual checkboxes
-    
+
     const firstWorkOrderCheckbox = checkboxes[1]; // Skip the "select all" checkbox
     expect(firstWorkOrderCheckbox).toBeInTheDocument();
 

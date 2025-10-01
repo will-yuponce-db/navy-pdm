@@ -1,4 +1,3 @@
-import React from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 
@@ -18,7 +17,14 @@ interface LoadingSpinnerProps {
   /**
    * Color of the spinner
    */
-  color?: "primary" | "secondary" | "error" | "info" | "success" | "warning" | "inherit";
+  color?:
+    | "primary"
+    | "secondary"
+    | "error"
+    | "info"
+    | "success"
+    | "warning"
+    | "inherit";
   /**
    * Whether to show the spinner as an overlay
    */

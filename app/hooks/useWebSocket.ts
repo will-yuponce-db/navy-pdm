@@ -1,13 +1,14 @@
-import { useEffect, useRef } from 'react';
-import { useDispatch } from 'react-redux';
-import { webSocketService } from '../services/websocket';
+import { useEffect, useRef } from "react";
+import { useDispatch } from "react-redux";
+import { webSocketService } from "../services/websocket";
 import {
   addRealTimeNotification,
   markNotificationAsReadRealTime,
   removeNotificationRealTime,
   markAllNotificationsAsReadRealTime,
-} from '../redux/services/notificationSlice';
-import type { Notification } from '../types';
+} from "../redux/services/notificationSlice";
+import { updateWorkOrder } from "../redux/services/workOrderSlice";
+import type { Notification } from "../types";
 
 export const useWebSocket = () => {
   const dispatch = useDispatch();
@@ -22,23 +23,34 @@ export const useWebSocket = () => {
 
     // Set up event listeners
     webSocketService.onNotificationNew((notification: Notification) => {
-      console.log('New notification received:', notification);
+      console.log("New notification received:", notification);
       dispatch(addRealTimeNotification(notification));
     });
 
     webSocketService.onNotificationRead((data: { notificationId: string }) => {
-      console.log('Notification marked as read:', data.notificationId);
+      console.log("Notification marked as read:", data.notificationId);
       dispatch(markNotificationAsReadRealTime(data.notificationId));
     });
 
-    webSocketService.onNotificationDismissed((data: { notificationId: string }) => {
-      console.log('Notification dismissed:', data.notificationId);
-      dispatch(removeNotificationRealTime(data.notificationId));
-    });
+    webSocketService.onNotificationDismissed(
+      (data: { notificationId: string }) => {
+        console.log("Notification dismissed:", data.notificationId);
+        dispatch(removeNotificationRealTime(data.notificationId));
+      },
+    );
 
     webSocketService.onNotificationsAllRead(() => {
-      console.log('All notifications marked as read');
+      console.log("All notifications marked as read");
       dispatch(markAllNotificationsAsReadRealTime());
+    });
+
+    // Handle work order updates
+    webSocketService.onWorkOrderUpdated((data) => {
+      console.log("Work order updated via WebSocket:", data);
+      dispatch(updateWorkOrder({
+        wo: data.workOrder.wo,
+        updates: data.workOrder
+      }));
     });
 
     // Cleanup on unmount

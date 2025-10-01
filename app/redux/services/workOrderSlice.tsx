@@ -1,14 +1,14 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 import { v4 as uuidv4 } from "uuid";
-import type { WorkOrder, WorkOrderState } from "../../types";
+
+import type { WorkOrder, WorkOrderState, RootState } from "../../types";
 import {
   addNotification,
   createWorkOrderNotifications,
 } from "./notificationSlice";
 import { selectAllParts, getStockStatus } from "./partsSlice";
 import { workOrdersApi } from "../../services/api";
-import type { RootState } from "../../types";
 
 const initialState: WorkOrderState = {
   workOrders: [],
@@ -19,10 +19,16 @@ const initialState: WorkOrderState = {
 // Thunk actions for work order operations with notifications
 export const fetchWorkOrders = createAsyncThunk(
   "workOrders/fetchWorkOrders",
-  async (params?: { page?: number; limit?: number; status?: string; priority?: string; search?: string }) => {
+  async (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    priority?: string;
+    search?: string;
+  }) => {
     const response = await workOrdersApi.getAll(params);
     return response.items;
-  }
+  },
 );
 
 export const addWorkOrderWithNotification = createAsyncThunk(
@@ -131,7 +137,7 @@ export const deleteWorkOrderWithNotification = createAsyncThunk(
   "workOrders/deleteWithNotification",
   async (workOrderIds: string[], { dispatch }) => {
     // Delete work orders from API
-    await Promise.all(workOrderIds.map(id => workOrdersApi.delete(id)));
+    await Promise.all(workOrderIds.map((id) => workOrdersApi.delete(id)));
 
     // Dispatch notification
     dispatch(
@@ -152,12 +158,12 @@ const workOrderSlice = createSlice({
       state,
       action: PayloadAction<Omit<WorkOrder, "wo" | "createdAt" | "updatedAt">>,
     ) => {
-    const newWorkOrder: WorkOrder = {
-      wo: uuidv4().split("-")[0].toUpperCase(),
-      ...action.payload,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+      const newWorkOrder: WorkOrder = {
+        wo: uuidv4().split("-")[0].toUpperCase(),
+        ...action.payload,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       state.workOrders.push(newWorkOrder);
     },
     deleteWorkOrder: (state, action: PayloadAction<string[]>) => {
@@ -255,8 +261,13 @@ const workOrderSlice = createSlice({
   },
 });
 
-export const { addWorkOrder, deleteWorkOrder, updateWorkOrder, setLoading, setError } =
-  workOrderSlice.actions;
+export const {
+  addWorkOrder,
+  deleteWorkOrder,
+  updateWorkOrder,
+  setLoading,
+  setError,
+} = workOrderSlice.actions;
 
 // Selectors
 export const selectAllWorkOrders = (state: RootState) => {

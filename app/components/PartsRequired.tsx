@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { 
-  TextField, 
-  Box, 
-  Typography, 
+import {
+  TextField,
+  Box,
+  Typography,
   Chip,
   IconButton,
-  Tooltip
+  Tooltip,
 } from "@mui/material";
 import { Add, Edit } from "@mui/icons-material";
 import { useSelector } from "react-redux";
@@ -31,8 +31,11 @@ const PartsRequired: React.FC<PartsRequiredProps> = ({
   // Parse partsRequired string into selected parts
   useEffect(() => {
     if (partsRequired) {
-      const partNames = partsRequired.split(',').map(name => name.trim()).filter(Boolean);
-      const foundParts = parts.filter(part => partNames.includes(part.name));
+      const partNames = partsRequired
+        .split(",")
+        .map((name) => name.trim())
+        .filter(Boolean);
+      const foundParts = parts.filter((part) => partNames.includes(part.name));
       setSelectedParts(foundParts);
     } else {
       setSelectedParts([]);
@@ -49,23 +52,29 @@ const PartsRequired: React.FC<PartsRequiredProps> = ({
 
   const handlePartsConfirm = (newSelectedParts: Part[]) => {
     setSelectedParts(newSelectedParts);
-    const partsString = newSelectedParts.map(part => part.name).join(', ');
+    const partsString = newSelectedParts.map((part) => part.name).join(", ");
     onPartsChange(partsString);
   };
 
   const handleRemovePart = (partToRemove: Part) => {
-    const updatedParts = selectedParts.filter(part => part.id !== partToRemove.id);
+    const updatedParts = selectedParts.filter(
+      (part) => part.id !== partToRemove.id,
+    );
     setSelectedParts(updatedParts);
-    const partsString = updatedParts.map(part => part.name).join(', ');
+    const partsString = updatedParts.map((part) => part.name).join(", ");
     onPartsChange(partsString);
   };
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
         <TextField
           fullWidth
-          value={selectedParts.length > 0 ? `${selectedParts.length} part${selectedParts.length !== 1 ? 's' : ''} selected` : 'No parts selected'}
+          value={
+            selectedParts.length > 0
+              ? `${selectedParts.length} part${selectedParts.length !== 1 ? "s" : ""} selected`
+              : "No parts selected"
+          }
           label="Parts Required"
           variant="outlined"
           disabled
@@ -75,12 +84,10 @@ const PartsRequired: React.FC<PartsRequiredProps> = ({
           }}
         />
         {editable && (
-          <Tooltip title={selectedParts.length > 0 ? "Edit parts" : "Select parts"}>
-            <IconButton
-              onClick={handleModalOpen}
-              color="primary"
-              size="large"
-            >
+          <Tooltip
+            title={selectedParts.length > 0 ? "Edit parts" : "Select parts"}
+          >
+            <IconButton onClick={handleModalOpen} color="primary" size="large">
               {selectedParts.length > 0 ? <Edit /> : <Add />}
             </IconButton>
           </Tooltip>
@@ -92,7 +99,8 @@ const PartsRequired: React.FC<PartsRequiredProps> = ({
         variant="caption"
         sx={{ mt: 0.5, display: "block", color: "text.secondary" }}
       >
-        Click the {selectedParts.length > 0 ? 'edit' : 'add'} button to select parts from inventory
+        Click the {selectedParts.length > 0 ? "edit" : "add"} button to select
+        parts from inventory
       </Typography>
 
       {selectedParts.length > 0 && (
@@ -100,7 +108,7 @@ const PartsRequired: React.FC<PartsRequiredProps> = ({
           <Typography variant="subtitle2" gutterBottom>
             Selected Parts:
           </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
             {selectedParts.map((part) => (
               <Chip
                 key={part.id}

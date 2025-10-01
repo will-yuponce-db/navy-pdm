@@ -50,7 +50,9 @@ export const AdvancedFilters = ({
   // Get unique values for filter options with null safety
   const uniqueValues = useMemo(
     () => ({
-      homeports: [...new Set(data.map((item) => item.homeport).filter(Boolean))],
+      homeports: [
+        ...new Set(data.map((item) => item.homeport).filter(Boolean)),
+      ],
       gtes: [...new Set(data.map((item) => item.gte).filter(Boolean))],
       ships: [...new Set(data.map((item) => item.ship).filter(Boolean))],
       failureModes: [...new Set(data.map((item) => item.fm).filter(Boolean))],
@@ -65,7 +67,7 @@ export const AdvancedFilters = ({
     let filtered = data;
 
     // Early return for empty filters
-    const hasActiveFilters = 
+    const hasActiveFilters =
       filters.search ||
       filters.status !== "All" ||
       filters.priority !== "All" ||
@@ -154,44 +156,47 @@ export const AdvancedFilters = ({
   }, [data, filters]);
 
   // Optimized comparison function
-  const compareValues = useCallback((aValue: unknown, bValue: unknown, sortOrder: "asc" | "desc") => {
-    // Handle null/undefined values
-    if (aValue == null && bValue == null) return 0;
-    if (aValue == null) return sortOrder === "asc" ? -1 : 1;
-    if (bValue == null) return sortOrder === "asc" ? 1 : -1;
+  const compareValues = useCallback(
+    (aValue: unknown, bValue: unknown, sortOrder: "asc" | "desc") => {
+      // Handle null/undefined values
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return sortOrder === "asc" ? -1 : 1;
+      if (bValue == null) return sortOrder === "asc" ? 1 : -1;
 
-    // Handle Date objects
-    if (aValue instanceof Date && bValue instanceof Date) {
-      const aTime = aValue.getTime();
-      const bTime = bValue.getTime();
-      return sortOrder === "asc" ? aTime - bTime : bTime - aTime;
-    }
-
-    // Handle strings
-    if (typeof aValue === "string" && typeof bValue === "string") {
-      const aLower = aValue.toLowerCase();
-      const bLower = bValue.toLowerCase();
-      if (sortOrder === "asc") {
-        return aLower < bLower ? -1 : aLower > bLower ? 1 : 0;
-      } else {
-        return aLower > bLower ? -1 : aLower < bLower ? 1 : 0;
+      // Handle Date objects
+      if (aValue instanceof Date && bValue instanceof Date) {
+        const aTime = aValue.getTime();
+        const bTime = bValue.getTime();
+        return sortOrder === "asc" ? aTime - bTime : bTime - aTime;
       }
-    }
 
-    // Handle numbers
-    if (typeof aValue === "number" && typeof bValue === "number") {
-      return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
-    }
+      // Handle strings
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        const aLower = aValue.toLowerCase();
+        const bLower = bValue.toLowerCase();
+        if (sortOrder === "asc") {
+          return aLower < bLower ? -1 : aLower > bLower ? 1 : 0;
+        } else {
+          return aLower > bLower ? -1 : aLower < bLower ? 1 : 0;
+        }
+      }
 
-    // Fallback to string comparison
-    const aStr = String(aValue).toLowerCase();
-    const bStr = String(bValue).toLowerCase();
-    if (sortOrder === "asc") {
-      return aStr < bStr ? -1 : aStr > bStr ? 1 : 0;
-    } else {
-      return aStr > bStr ? -1 : aStr < bStr ? 1 : 0;
-    }
-  }, []);
+      // Handle numbers
+      if (typeof aValue === "number" && typeof bValue === "number") {
+        return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
+      }
+
+      // Fallback to string comparison
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+      if (sortOrder === "asc") {
+        return aStr < bStr ? -1 : aStr > bStr ? 1 : 0;
+      } else {
+        return aStr > bStr ? -1 : aStr < bStr ? 1 : 0;
+      }
+    },
+    [],
+  );
 
   // Update filtered data when filters change
   useEffect(() => {

@@ -261,9 +261,9 @@ export default function Assets() {
         Fleet Overview
       </Typography>
 
-      <TableContainer 
-        component={Paper} 
-        sx={{ 
+      <TableContainer
+        component={Paper}
+        sx={{
           mb: 4,
           ...tableStyles.container,
         }}

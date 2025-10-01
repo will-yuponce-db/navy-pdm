@@ -3,27 +3,43 @@ import { Provider } from "react-redux";
 import { configureStore } from "@reduxjs/toolkit";
 import { ReactElement } from "react";
 import { BrowserRouter } from "react-router";
+
 import workOrderReducer from "../redux/services/workOrderSlice";
 import notificationReducer from "../redux/services/notificationSlice";
 import partsReducer from "../redux/services/partsSlice";
+import authReducer from "../redux/services/authSlice";
 import type { RootState } from "../types";
 
 // Create a test store
 const createTestStore = (preloadedState?: Partial<RootState>) => {
   return configureStore({
     reducer: {
-      workOrder: workOrderReducer,
+      workOrders: workOrderReducer,
       notifications: notificationReducer,
       parts: partsReducer,
+      auth: authReducer,
     },
     preloadedState: {
-      workOrder: [],
-      notifications: [],
+      workOrders: {
+        workOrders: [],
+        loading: false,
+        error: null,
+      },
+      notifications: {
+        notifications: [],
+      },
       parts: {
         parts: [],
         loading: false,
         error: null,
         filters: {},
+      },
+      auth: {
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
       },
       ...preloadedState,
     },

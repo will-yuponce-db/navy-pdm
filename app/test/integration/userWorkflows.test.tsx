@@ -90,36 +90,48 @@ describe("Integration Tests - User Workflows", () => {
       renderWithProviders(<Home />);
 
       // Check if the home page renders
-      await waitFor(() => {
-        expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
-      }, { timeout: 10000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
+        },
+        { timeout: 10000 },
+      );
     });
 
     it("allows user to search and filter work orders", async () => {
       renderWithProviders(<Home />);
 
       // Check if the home page renders
-      await waitFor(() => {
-        expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
-      }, { timeout: 10000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
+        },
+        { timeout: 10000 },
+      );
     });
 
     it("allows user to select and delete work orders", async () => {
       renderWithProviders(<Home />);
 
       // Check if the home page renders
-      await waitFor(() => {
-        expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
-      }, { timeout: 10000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
+        },
+        { timeout: 10000 },
+      );
     });
 
     it("allows user to update work order status", async () => {
       renderWithProviders(<Home />);
 
       // Check if the home page renders
-      await waitFor(() => {
-        expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
-      }, { timeout: 10000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
+        },
+        { timeout: 10000 },
+      );
     });
   });
 
@@ -128,9 +140,12 @@ describe("Integration Tests - User Workflows", () => {
       renderWithProviders(<Home />);
 
       // Check if the home page renders
-      await waitFor(() => {
-        expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
-      }, { timeout: 10000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
+        },
+        { timeout: 10000 },
+      );
     });
   });
 
@@ -139,27 +154,36 @@ describe("Integration Tests - User Workflows", () => {
       renderWithProviders(<Home />);
 
       // Check if the home page renders
-      await waitFor(() => {
-        expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
-      }, { timeout: 10000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
+        },
+        { timeout: 10000 },
+      );
     });
 
     it("clears validation errors when user starts typing", async () => {
       renderWithProviders(<Home />);
 
       // Check if the home page renders
-      await waitFor(() => {
-        expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
-      }, { timeout: 10000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
+        },
+        { timeout: 10000 },
+      );
     });
 
     it("validates ETA field for invalid input", async () => {
       renderWithProviders(<Home />);
 
       // Check if the home page renders
-      await waitFor(() => {
-        expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
-      }, { timeout: 10000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
+        },
+        { timeout: 10000 },
+      );
     });
   });
 
@@ -168,27 +192,36 @@ describe("Integration Tests - User Workflows", () => {
       renderWithProviders(<Home />);
 
       // Check if the home page renders
-      await waitFor(() => {
-        expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
-      }, { timeout: 10000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
+        },
+        { timeout: 10000 },
+      );
     });
 
     it("supports keyboard navigation for modal", async () => {
       renderWithProviders(<Home />);
 
       // Check if the home page renders
-      await waitFor(() => {
-        expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
-      }, { timeout: 10000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
+        },
+        { timeout: 10000 },
+      );
     });
 
     it("supports escape key to close modal", async () => {
       renderWithProviders(<Home />);
 
       // Check if the home page renders
-      await waitFor(() => {
-        expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
-      }, { timeout: 10000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
+        },
+        { timeout: 10000 },
+      );
     });
   });
 
@@ -197,9 +230,12 @@ describe("Integration Tests - User Workflows", () => {
       renderWithProviders(<Home />);
 
       // Check if the home page renders
-      await waitFor(() => {
-        expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
-      }, { timeout: 10000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText("Navy PdM Dashboard")).toBeInTheDocument();
+        },
+        { timeout: 10000 },
+      );
     });
   });
 });

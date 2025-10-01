@@ -1,4 +1,3 @@
-import * as React from "react";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -20,18 +19,17 @@ import type { RootState } from "../types";
 
 export default function QuickActions() {
   const navigate = useNavigate();
-  const workOrders = useSelector((state: RootState) => state.workOrders.workOrders);
+  const workOrders = useSelector(
+    (state: RootState) => state.workOrders.workOrders,
+  );
 
   // Calculate critical metrics
-  const criticalWorkOrders = workOrders?.filter(
-    (wo) => wo.priority === "CASREP",
-  ).length || 0;
-  const urgentWorkOrders = workOrders?.filter(
-    (wo) => wo.priority === "Urgent",
-  ).length || 0;
-  const inProgressWorkOrders = workOrders?.filter(
-    (wo) => wo.status === "In Progress",
-  ).length || 0;
+  const criticalWorkOrders =
+    workOrders?.filter((wo) => wo.priority === "CASREP").length || 0;
+  const urgentWorkOrders =
+    workOrders?.filter((wo) => wo.priority === "Urgent").length || 0;
+  const inProgressWorkOrders =
+    workOrders?.filter((wo) => wo.status === "In Progress").length || 0;
 
   const quickActions = [
     {

@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Button,
   Menu,
@@ -130,7 +129,10 @@ export const ExportData = ({ data, dataType, fileName }: ExportDataProps) => {
     return { data, summary };
   };
 
-  const generateHTMLReport = (reportData: { data: unknown; summary: unknown }) => {
+  const generateHTMLReport = (reportData: {
+    data: unknown;
+    summary: unknown;
+  }) => {
     const { data, summary } = reportData;
 
     return `

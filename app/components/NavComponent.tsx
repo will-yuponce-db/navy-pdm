@@ -177,14 +177,23 @@ const NavComponent = memo(() => {
               handleAppHeader(item.title);
               navigate(item.route);
               handleDrawerClose();
-            }, [item.title, item.route, handleAppHeader, navigate, handleDrawerClose]);
+            }, [
+              item.title,
+              item.route,
+              handleAppHeader,
+              navigate,
+              handleDrawerClose,
+            ]);
 
-            const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                handleNavigation();
-              }
-            }, [handleNavigation]);
+            const handleKeyDown = useCallback(
+              (e: React.KeyboardEvent) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleNavigation();
+                }
+              },
+              [handleNavigation],
+            );
 
             return (
               <ListItem key={item.title} disablePadding>
@@ -227,6 +236,6 @@ const NavComponent = memo(() => {
   );
 });
 
-NavComponent.displayName = 'NavComponent';
+NavComponent.displayName = "NavComponent";
 
 export default NavComponent;

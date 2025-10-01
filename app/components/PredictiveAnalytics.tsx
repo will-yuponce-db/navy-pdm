@@ -15,12 +15,7 @@ import {
   Divider,
 } from "@mui/material";
 import LoadingSpinner from "./LoadingSpinner";
-import {
-  Warning,
-  Timeline,
-  Refresh,
-  FilterList,
-} from "@mui/icons-material";
+import { Warning, Timeline, Refresh, FilterList } from "@mui/icons-material";
 import {
   XAxis,
   YAxis,
@@ -184,8 +179,7 @@ export default function PredictiveAnalytics() {
   const [sensorData, setSensorData] =
     useState<SensorData[]>(generateSensorData());
   const [anomalies] = useState<Anomaly[]>(mockAnomalies);
-  const [rulPredictions] =
-    useState<RULPrediction[]>(mockRULPredictions);
+  const [rulPredictions] = useState<RULPrediction[]>(mockRULPredictions);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
 

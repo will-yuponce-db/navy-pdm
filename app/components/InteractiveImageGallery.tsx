@@ -357,7 +357,6 @@ export default function InteractiveImageGallery() {
           </>
         )}
       </Dialog>
-
     </Box>
   );
 }

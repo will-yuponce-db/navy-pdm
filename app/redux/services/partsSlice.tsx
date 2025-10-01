@@ -1,15 +1,16 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 import { v4 as uuidv4 } from "uuid";
+
 import type {
   Part,
   PartCategory,
   PartCondition,
   StockStatus,
+  RootState,
 } from "../../types";
 import { addNotification } from "./notificationSlice";
 import { partsApi } from "../../services/api";
-import type { RootState } from "../../types";
 
 export interface PartsState {
   parts: Part[];
@@ -46,10 +47,16 @@ export const getStockStatus = (
 // Thunk actions for parts operations with notifications
 export const fetchParts = createAsyncThunk(
   "parts/fetchParts",
-  async (params?: { page?: number; limit?: number; category?: string; condition?: string; search?: string }) => {
+  async (params?: {
+    page?: number;
+    limit?: number;
+    category?: string;
+    condition?: string;
+    search?: string;
+  }) => {
     const response = await partsApi.getAll(params);
     return response.items;
-  }
+  },
 );
 
 export const addPartWithNotification = createAsyncThunk(
@@ -315,8 +322,13 @@ export const selectFilteredParts = (state: RootState) => {
   const filters = state.parts?.filters || {};
 
   // Early return if no filters applied
-  if (!filters.category && !filters.condition && !filters.stockStatus && 
-      !filters.system && !filters.searchTerm) {
+  if (
+    !filters.category &&
+    !filters.condition &&
+    !filters.stockStatus &&
+    !filters.system &&
+    !filters.searchTerm
+  ) {
     return parts;
   }
 

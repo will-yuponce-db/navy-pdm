@@ -178,9 +178,7 @@ function EnhancedTableHead(props: EnhancedTableHeadProps) {
 
 function EnhancedTableToolbar(props: EnhancedTableToolbarProps) {
   const dispatch = useAppDispatch();
-  const {
-    numSelected = 0,
-  } = props;
+  const { numSelected = 0 } = props;
   const safeNumSelected = numSelected || 0;
   return (
     <Toolbar
@@ -273,30 +271,36 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
     dispatch(fetchWorkOrders());
   }, [dispatch]);
 
-  const handleRequestSort = useCallback((
-    event: React.MouseEvent<unknown>,
-    property: React.SetStateAction<string>,
-  ) => {
-    const isAsc = orderBy === property && order === "asc";
-    setOrder(isAsc ? "desc" : "asc");
-    setOrderBy(property);
-  }, [orderBy, order]);
-  
+  const handleRequestSort = useCallback(
+    (
+      event: React.MouseEvent<unknown>,
+      property: React.SetStateAction<string>,
+    ) => {
+      const isAsc = orderBy === property && order === "asc";
+      setOrder(isAsc ? "desc" : "asc");
+      setOrderBy(property);
+    },
+    [orderBy, order],
+  );
+
   const handleDeselect = useCallback(() => {
     setSelected([]);
   }, []);
-  const handleSelectAllClick = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.checked) {
-      if (!workOrders || !Array.isArray(workOrders)) {
-        setSelected([]);
+  const handleSelectAllClick = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (event.target.checked) {
+        if (!workOrders || !Array.isArray(workOrders)) {
+          setSelected([]);
+          return;
+        }
+        const newSelected = workOrders?.map((n: { wo: string }) => n.wo) || [];
+        setSelected(newSelected);
         return;
       }
-      const newSelected = workOrders?.map((n: { wo: string }) => n.wo) || [];
-      setSelected(newSelected);
-      return;
-    }
-    setSelected([]);
-  }, [workOrders]);
+      setSelected([]);
+    },
+    [workOrders],
+  );
 
   const handleClick = (event: React.MouseEvent<unknown>, id: string) => {
     const selectedIndex = selected.indexOf(id);
@@ -418,7 +422,10 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
   );
 
   return (
-    <Box sx={{ width: "100%", maxWidth: "100%" }} data-testid="work-order-table">
+    <Box
+      sx={{ width: "100%", maxWidth: "100%" }}
+      data-testid="work-order-table"
+    >
       <Paper
         sx={{
           width: "100%",
@@ -670,7 +677,7 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
                               stopPropagation: () => {},
                               stopImmediatePropagation: () => {},
                               timeStamp: Date.now(),
-                              type: 'click'
+                              type: "click",
                             } as unknown as React.MouseEvent<HTMLElement>;
                             handleStatusClick(syntheticEvent, row.wo);
                           }
@@ -755,6 +762,6 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
   );
 });
 
-WorkOrderTable.displayName = 'WorkOrderTable';
+WorkOrderTable.displayName = "WorkOrderTable";
 
 export default WorkOrderTable;

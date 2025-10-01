@@ -249,9 +249,10 @@ const createShipIcon = (status: Ship["status"], healthScore: number) => {
   if (!L) return null;
 
   // Create cache key based on status and health score range
-  const healthRange = healthScore > 80 ? 'high' : healthScore > 60 ? 'medium' : 'low';
+  const healthRange =
+    healthScore > 80 ? "high" : healthScore > 60 ? "medium" : "low";
   const cacheKey = `${status}-${healthRange}`;
-  
+
   // Return cached icon if available
   if (iconCache.has(cacheKey)) {
     return iconCache.get(cacheKey);
@@ -314,11 +315,7 @@ const createShipIcon = (status: Ship["status"], healthScore: number) => {
 };
 
 // Component to handle map events
-const MapEventHandler = ({
-  selectedShip,
-}: {
-  selectedShip: Ship | null;
-}) => {
+const MapEventHandler = ({ selectedShip }: { selectedShip: Ship | null }) => {
   if (!useMap) return null;
 
   const map = useMap();
@@ -333,172 +330,179 @@ const MapEventHandler = ({
 };
 
 // Client-only map component (memoized to prevent unnecessary re-renders)
-const ClientOnlyMap = memo(({
-  mapCenter,
-  mapZoom,
-  filteredShips,
-  showSupplyRoutes,
-  supplyRoutes,
-  supplyRouteCoordinates,
-  selectedShip,
-  handleShipSelect,
-}: {
-  mapCenter: [number, number];
-  mapZoom: number;
-  filteredShips: Ship[];
-  showSupplyRoutes: boolean;
-  supplyRoutes: SupplyRoute[];
-  supplyRouteCoordinates: Record<string, [number, number][]>;
-  selectedShip: Ship | null;
-  handleShipSelect: (ship: Ship) => void;
-}) => {
-  const [isLoaded, setIsLoaded] = useState(false);
+const ClientOnlyMap = memo(
+  ({
+    mapCenter,
+    mapZoom,
+    filteredShips,
+    showSupplyRoutes,
+    supplyRoutes,
+    supplyRouteCoordinates,
+    selectedShip,
+    handleShipSelect,
+  }: {
+    mapCenter: [number, number];
+    mapZoom: number;
+    filteredShips: Ship[];
+    showSupplyRoutes: boolean;
+    supplyRoutes: SupplyRoute[];
+    supplyRouteCoordinates: Record<string, [number, number][]>;
+    selectedShip: Ship | null;
+    handleShipSelect: (ship: Ship) => void;
+  }) => {
+    const [isLoaded, setIsLoaded] = useState(false);
 
-  useEffect(() => {
-    loadLeafletComponents().then(() => {
-      setIsLoaded(true);
-    });
-  }, []);
+    useEffect(() => {
+      loadLeafletComponents().then(() => {
+        setIsLoaded(true);
+      });
+    }, []);
 
-  if (!isLoaded || typeof window === "undefined") {
+    if (!isLoaded || typeof window === "undefined") {
+      return (
+        <Box
+          sx={{
+            height: 400,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background:
+              "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)",
+            borderRadius: 2,
+            border: "1px solid rgba(255,255,255,0.1)",
+          }}
+        >
+          <Typography variant="h6" sx={{ color: "text.secondary" }}>
+            Loading map...
+          </Typography>
+        </Box>
+      );
+    }
+
     return (
-      <Box
-        sx={{
-          height: 400,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background:
-            "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)",
-          borderRadius: 2,
-          border: "1px solid rgba(255,255,255,0.1)",
-        }}
+      <MapContainer
+        center={mapCenter}
+        zoom={mapZoom}
+        style={{ height: "100%", width: "100%" }}
+        zoomControl={false}
       >
-        <Typography variant="h6" sx={{ color: "text.secondary" }}>
-          Loading map...
-        </Typography>
-      </Box>
-    );
-  }
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
 
-  return (
-    <MapContainer
-      center={mapCenter}
-      zoom={mapZoom}
-      style={{ height: "100%", width: "100%" }}
-      zoomControl={false}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-
-      {/* Ship Markers */}
-      {filteredShips.map((ship) => {
-        const icon = createShipIcon(ship.status, ship.healthScore);
-        if (!icon) return null;
-
-        return (
-          <Marker
-            key={ship.id}
-            position={[ship.latitude, ship.longitude]}
-            icon={icon}
-            eventHandlers={{
-              click: () => handleShipSelect(ship),
-            }}
-          >
-            <Popup>
-              <Box sx={{ minWidth: 200 }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-                  {ship.name}
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 1 }}
-                >
-                  {ship.designation} • {ship.homeport}
-                </Typography>
-                <Box
-                  sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
-                >
-                  {getStatusIcon(ship.status)}
-                  <Chip
-                    label={ship.status}
-                    size="small"
-                    color={getStatusColor(ship.status)}
-                    variant="outlined"
-                  />
-                </Box>
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  Health Score: <strong>{ship.healthScore}%</strong>
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  Anomalies: <strong>{ship.anomalies}</strong>
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  Predicted Failures: <strong>{ship.predictedFailures}</strong>
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  GTE Count: <strong>{ship.gteCount}</strong>
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  Maintenance Level: <strong>{ship.maintenanceLevel}</strong>
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Last Update: {ship.lastUpdate.toLocaleTimeString()}
-                </Typography>
-              </Box>
-            </Popup>
-          </Marker>
-        );
-      })}
-
-      {/* Supply Routes */}
-      {showSupplyRoutes &&
-        supplyRoutes.map((route) => {
-          const coordinates = supplyRouteCoordinates[route.id];
-          if (!coordinates) return null;
-
-          const getRouteColor = (priority: SupplyRoute["priority"]) => {
-            switch (priority) {
-              case "casrep":
-                return "#f44336";
-              case "priority":
-                return "#ff9800";
-              case "routine":
-                return "#4caf50";
-              default:
-                return "#757575";
-            }
-          };
+        {/* Ship Markers */}
+        {filteredShips.map((ship) => {
+          const icon = createShipIcon(ship.status, ship.healthScore);
+          if (!icon) return null;
 
           return (
-            <Polyline
-              key={route.id}
-              positions={coordinates}
-              color={getRouteColor(route.priority)}
-              weight={3}
-              opacity={0.7}
-              dashArray={route.status === "in-transit" ? "10, 10" : undefined}
-            />
+            <Marker
+              key={ship.id}
+              position={[ship.latitude, ship.longitude]}
+              icon={icon}
+              eventHandlers={{
+                click: () => handleShipSelect(ship),
+              }}
+            >
+              <Popup>
+                <Box sx={{ minWidth: 200 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                    {ship.name}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
+                    {ship.designation} • {ship.homeport}
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mb: 1,
+                    }}
+                  >
+                    {getStatusIcon(ship.status)}
+                    <Chip
+                      label={ship.status}
+                      size="small"
+                      color={getStatusColor(ship.status)}
+                      variant="outlined"
+                    />
+                  </Box>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    Health Score: <strong>{ship.healthScore}%</strong>
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    Anomalies: <strong>{ship.anomalies}</strong>
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    Predicted Failures:{" "}
+                    <strong>{ship.predictedFailures}</strong>
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    GTE Count: <strong>{ship.gteCount}</strong>
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    Maintenance Level: <strong>{ship.maintenanceLevel}</strong>
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Last Update: {ship.lastUpdate.toLocaleTimeString()}
+                  </Typography>
+                </Box>
+              </Popup>
+            </Marker>
           );
         })}
 
-      <MapEventHandler
-        selectedShip={selectedShip}
-        onShipSelect={handleShipSelect}
-      />
-    </MapContainer>
-  );
-});
+        {/* Supply Routes */}
+        {showSupplyRoutes &&
+          supplyRoutes.map((route) => {
+            const coordinates = supplyRouteCoordinates[route.id];
+            if (!coordinates) return null;
 
-ClientOnlyMap.displayName = 'ClientOnlyMap';
+            const getRouteColor = (priority: SupplyRoute["priority"]) => {
+              switch (priority) {
+                case "casrep":
+                  return "#f44336";
+                case "priority":
+                  return "#ff9800";
+                case "routine":
+                  return "#4caf50";
+                default:
+                  return "#757575";
+              }
+            };
+
+            return (
+              <Polyline
+                key={route.id}
+                positions={coordinates}
+                color={getRouteColor(route.priority)}
+                weight={3}
+                opacity={0.7}
+                dashArray={route.status === "in-transit" ? "10, 10" : undefined}
+              />
+            );
+          })}
+
+        <MapEventHandler
+          selectedShip={selectedShip}
+          onShipSelect={handleShipSelect}
+        />
+      </MapContainer>
+    );
+  },
+);
+
+ClientOnlyMap.displayName = "ClientOnlyMap";
 
 export default function FleetMap() {
   const [ships, setShips] = useState<Ship[]>(mockShips);
-  const [supplyRoutes] =
-    useState<SupplyRoute[]>(mockSupplyRoutes);
+  const [supplyRoutes] = useState<SupplyRoute[]>(mockSupplyRoutes);
   const [selectedShip, setSelectedShip] = useState<Ship | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -521,20 +525,20 @@ export default function FleetMap() {
             0,
             Math.min(100, ship.healthScore + randomChange),
           );
-          
+
           // Only update anomalies occasionally to reduce unnecessary re-renders
           const shouldUpdateAnomalies = Math.random() > 0.98; // Reduced from 0.95
-          
+
           return {
             ...ship,
             healthScore: newHealthScore,
             lastUpdate: new Date(),
-            anomalies: shouldUpdateAnomalies 
+            anomalies: shouldUpdateAnomalies
               ? Math.max(0, ship.anomalies + (Math.random() > 0.5 ? 1 : -1))
               : ship.anomalies,
           };
         });
-        
+
         return updatedShips;
       });
     }, 10000); // Increased interval from 5s to 10s
@@ -542,16 +546,19 @@ export default function FleetMap() {
     return () => clearInterval(interval);
   }, [autoRefresh]);
 
-  const filteredShips = useMemo(() => 
-    ships.filter(
-      (ship) => filterStatus === "all" || ship.status === filterStatus,
-    ), [ships, filterStatus]
+  const filteredShips = useMemo(
+    () =>
+      ships.filter(
+        (ship) => filterStatus === "all" || ship.status === filterStatus,
+      ),
+    [ships, filterStatus],
   );
 
   // Virtual rendering: only show markers when zoomed in enough
   const shouldShowMarkers = mapZoom >= 3;
-  const visibleShips = useMemo(() => 
-    shouldShowMarkers ? filteredShips : [], [shouldShowMarkers, filteredShips]
+  const visibleShips = useMemo(
+    () => (shouldShowMarkers ? filteredShips : []),
+    [shouldShowMarkers, filteredShips],
   );
 
   // Add coordinates for supply routes (simplified for demo)
@@ -574,24 +581,28 @@ export default function FleetMap() {
   }, []);
 
   // Debounced ship selection to prevent rapid state changes
-  const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(null);
-  
-  const handleShipSelect = useCallback((ship: Ship) => {
-    // Clear existing timeout
-    if (debounceTimeout) {
-      clearTimeout(debounceTimeout);
-    }
-    
-    // Set new timeout for debounced execution
-    const timeout = setTimeout(() => {
-      setSelectedShip(ship);
-      setMapCenter([ship.latitude, ship.longitude]);
-      setMapZoom(8);
-    }, 150); // 150ms debounce
-    
-    setDebounceTimeout(timeout);
-  }, [debounceTimeout]);
+  const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(
+    null,
+  );
 
+  const handleShipSelect = useCallback(
+    (ship: Ship) => {
+      // Clear existing timeout
+      if (debounceTimeout) {
+        clearTimeout(debounceTimeout);
+      }
+
+      // Set new timeout for debounced execution
+      const timeout = setTimeout(() => {
+        setSelectedShip(ship);
+        setMapCenter([ship.latitude, ship.longitude]);
+        setMapZoom(8);
+      }, 150); // 150ms debounce
+
+      setDebounceTimeout(timeout);
+    },
+    [debounceTimeout],
+  );
 
   // Cleanup debounce timeout on unmount
   useEffect(() => {
@@ -602,21 +613,24 @@ export default function FleetMap() {
     };
   }, [debounceTimeout]);
 
-  const fleetStats = useMemo(() => ({
-    total: ships.length,
-    operational: ships.filter((s) => s.status === "operational").length,
-    maintenance: ships.filter((s) => s.status === "maintenance").length,
-    casrep: ships.filter((s) => s.status === "casrep").length,
-    deployed: ships.filter((s) => s.status === "deployed").length,
-    avgHealthScore: Math.round(
-      ships.reduce((sum, ship) => sum + ship.healthScore, 0) / ships.length,
-    ),
-    totalAnomalies: ships.reduce((sum, ship) => sum + ship.anomalies, 0),
-    totalPredictedFailures: ships.reduce(
-      (sum, ship) => sum + ship.predictedFailures,
-      0,
-    ),
-  }), [ships]);
+  const fleetStats = useMemo(
+    () => ({
+      total: ships.length,
+      operational: ships.filter((s) => s.status === "operational").length,
+      maintenance: ships.filter((s) => s.status === "maintenance").length,
+      casrep: ships.filter((s) => s.status === "casrep").length,
+      deployed: ships.filter((s) => s.status === "deployed").length,
+      avgHealthScore: Math.round(
+        ships.reduce((sum, ship) => sum + ship.healthScore, 0) / ships.length,
+      ),
+      totalAnomalies: ships.reduce((sum, ship) => sum + ship.anomalies, 0),
+      totalPredictedFailures: ships.reduce(
+        (sum, ship) => sum + ship.predictedFailures,
+        0,
+      ),
+    }),
+    [ships],
+  );
 
   return (
     <Box sx={{ width: "100%", height: "100vh", p: 2 }}>
@@ -973,16 +987,16 @@ export default function FleetMap() {
                   border: "2px solid rgba(255,255,255,0.1)",
                 }}
               >
-        <ClientOnlyMap
-          mapCenter={mapCenter}
-          mapZoom={mapZoom}
-          filteredShips={visibleShips}
-          showSupplyRoutes={showSupplyRoutes}
-          supplyRoutes={supplyRoutes}
-          supplyRouteCoordinates={supplyRouteCoordinates}
-          selectedShip={selectedShip}
-          handleShipSelect={handleShipSelect}
-        />
+                <ClientOnlyMap
+                  mapCenter={mapCenter}
+                  mapZoom={mapZoom}
+                  filteredShips={visibleShips}
+                  showSupplyRoutes={showSupplyRoutes}
+                  supplyRoutes={supplyRoutes}
+                  supplyRouteCoordinates={supplyRouteCoordinates}
+                  selectedShip={selectedShip}
+                  handleShipSelect={handleShipSelect}
+                />
 
                 {/* Map Controls */}
                 <Box

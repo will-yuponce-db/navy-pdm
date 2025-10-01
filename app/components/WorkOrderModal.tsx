@@ -92,24 +92,26 @@ export default function WorkOrderModal(props: WorkOrderModalProps) {
         partsRequired: partsRequired,
         slaCategory: slaCategory,
       }),
-    ).then(() => {
-      // Reset form only on success
-      setShip("");
-      setHomeport("");
-      setGte("");
-      setFm("");
-      setPriority("Routine");
-      setEta("");
-      setSymptoms("");
-      setRecommendedAction("");
-      setPartsRequired("");
-      setSlaCategory("");
-      setErrors({});
-      props.handleModalClose();
-      showError("Work order created successfully!", "success");
-    }).catch(() => {
-      showError("Failed to create work order. Please try again.", "error");
-    });
+    )
+      .then(() => {
+        // Reset form only on success
+        setShip("");
+        setHomeport("");
+        setGte("");
+        setFm("");
+        setPriority("Routine");
+        setEta("");
+        setSymptoms("");
+        setRecommendedAction("");
+        setPartsRequired("");
+        setSlaCategory("");
+        setErrors({});
+        props.handleModalClose();
+        showError("Work order created successfully!", "success");
+      })
+      .catch(() => {
+        showError("Failed to create work order. Please try again.", "error");
+      });
   };
 
   // Focus management for modal

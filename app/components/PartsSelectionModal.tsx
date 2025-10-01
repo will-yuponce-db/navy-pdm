@@ -30,7 +30,11 @@ import {
   Error,
 } from "@mui/icons-material";
 import { useSelector } from "react-redux";
-import { selectFilteredParts, setFilters, clearFilters } from "../redux/services/partsSlice";
+import {
+  selectFilteredParts,
+  setFilters,
+  clearFilters,
+} from "../redux/services/partsSlice";
 import { useAppDispatch } from "../redux/hooks";
 import type { Part, StockStatus } from "../types";
 import { getStockStatus } from "../redux/services/partsSlice";
@@ -52,7 +56,8 @@ const PartsSelectionModal: React.FC<PartsSelectionModalProps> = ({
 }) => {
   const dispatch = useAppDispatch();
   const parts = useSelector(selectFilteredParts);
-  const [localSelectedParts, setLocalSelectedParts] = useState<Part[]>(selectedParts);
+  const [localSelectedParts, setLocalSelectedParts] =
+    useState<Part[]>(selectedParts);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Update local state when selectedParts prop changes
@@ -61,10 +66,10 @@ const PartsSelectionModal: React.FC<PartsSelectionModalProps> = ({
   }, [selectedParts]);
 
   const handlePartToggle = (part: Part) => {
-    setLocalSelectedParts(prev => {
-      const isSelected = prev.some(p => p.id === part.id);
+    setLocalSelectedParts((prev) => {
+      const isSelected = prev.some((p) => p.id === part.id);
       if (isSelected) {
-        return prev.filter(p => p.id !== part.id);
+        return prev.filter((p) => p.id !== part.id);
       } else {
         return [...prev, part];
       }
@@ -131,8 +136,10 @@ const PartsSelectionModal: React.FC<PartsSelectionModalProps> = ({
     }
   };
 
-  const isAllSelected = parts.length > 0 && localSelectedParts.length === parts.length;
-  const isIndeterminate = localSelectedParts.length > 0 && localSelectedParts.length < parts.length;
+  const isAllSelected =
+    parts.length > 0 && localSelectedParts.length === parts.length;
+  const isIndeterminate =
+    localSelectedParts.length > 0 && localSelectedParts.length < parts.length;
 
   return (
     <Dialog
@@ -141,13 +148,19 @@ const PartsSelectionModal: React.FC<PartsSelectionModalProps> = ({
       maxWidth="lg"
       fullWidth
       PaperProps={{
-        sx: { height: '80vh' }
+        sx: { height: "80vh" },
       }}
     >
       <DialogTitle>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <Typography variant="h6">{title}</Typography>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
             <Typography variant="body2" color="text.secondary">
               {localSelectedParts.length} selected
             </Typography>
@@ -209,7 +222,9 @@ const PartsSelectionModal: React.FC<PartsSelectionModalProps> = ({
               <InputLabel>Stock Status</InputLabel>
               <Select
                 value=""
-                onChange={(e) => handleFilterChange("stockStatus", e.target.value)}
+                onChange={(e) =>
+                  handleFilterChange("stockStatus", e.target.value)
+                }
                 label="Stock Status"
               >
                 <MenuItem value="">All Status</MenuItem>
@@ -261,15 +276,17 @@ const PartsSelectionModal: React.FC<PartsSelectionModalProps> = ({
                   part.minStock,
                   part.maxStock,
                 );
-                const isSelected = localSelectedParts.some(p => p.id === part.id);
-                
+                const isSelected = localSelectedParts.some(
+                  (p) => p.id === part.id,
+                );
+
                 return (
-                  <TableRow 
-                    key={part.id} 
+                  <TableRow
+                    key={part.id}
                     hover
                     selected={isSelected}
                     onClick={() => handlePartToggle(part)}
-                    sx={{ cursor: 'pointer' }}
+                    sx={{ cursor: "pointer" }}
                   >
                     <TableCell padding="checkbox">
                       <Checkbox
@@ -317,7 +334,7 @@ const PartsSelectionModal: React.FC<PartsSelectionModalProps> = ({
             <Typography variant="subtitle2" gutterBottom>
               Selected Parts:
             </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
               {localSelectedParts.map((part) => (
                 <Chip
                   key={part.id}
@@ -336,13 +353,14 @@ const PartsSelectionModal: React.FC<PartsSelectionModalProps> = ({
         <Button onClick={onClose} color="secondary">
           Cancel
         </Button>
-        <Button 
-          onClick={handleConfirm} 
-          variant="contained" 
+        <Button
+          onClick={handleConfirm}
+          variant="contained"
           color="primary"
           disabled={localSelectedParts.length === 0}
         >
-          Select {localSelectedParts.length} Part{localSelectedParts.length !== 1 ? 's' : ''}
+          Select {localSelectedParts.length} Part
+          {localSelectedParts.length !== 1 ? "s" : ""}
         </Button>
       </DialogActions>
     </Dialog>

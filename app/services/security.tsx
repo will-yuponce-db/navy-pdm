@@ -1,4 +1,4 @@
-import type { SecurityEvent, AuditLog } from '../types';
+import type { SecurityEvent, AuditLog } from "../types";
 
 // Security validation rules
 export interface ValidationRule {
@@ -16,14 +16,14 @@ export interface ValidationSchema {
 
 // Security event types
 export enum SecurityEventType {
-  LOGIN_SUCCESS = 'login_success',
-  LOGIN_FAILURE = 'login_failure',
-  LOGOUT = 'logout',
-  PERMISSION_DENIED = 'permission_denied',
-  SUSPICIOUS_ACTIVITY = 'suspicious_activity',
-  DATA_BREACH_ATTEMPT = 'data_breach_attempt',
-  UNAUTHORIZED_ACCESS = 'unauthorized_access',
-  RATE_LIMIT_EXCEEDED = 'rate_limit_exceeded',
+  LOGIN_SUCCESS = "login_success",
+  LOGIN_FAILURE = "login_failure",
+  LOGOUT = "logout",
+  PERMISSION_DENIED = "permission_denied",
+  SUSPICIOUS_ACTIVITY = "suspicious_activity",
+  DATA_BREACH_ATTEMPT = "data_breach_attempt",
+  UNAUTHORIZED_ACCESS = "unauthorized_access",
+  RATE_LIMIT_EXCEEDED = "rate_limit_exceeded",
 }
 
 // Input sanitization utilities
@@ -31,28 +31,31 @@ export class InputSanitizer {
   static sanitizeString(input: string): string {
     return input
       .trim()
-      .replace(/[<>]/g, '') // Remove potential HTML tags
-      .replace(/['"]/g, '') // Remove quotes
-      .replace(/[;]/g, '') // Remove semicolons
+      .replace(/[<>]/g, "") // Remove potential HTML tags
+      .replace(/['"]/g, "") // Remove quotes
+      .replace(/[;]/g, "") // Remove semicolons
       .substring(0, 1000); // Limit length
   }
 
   static sanitizeEmail(email: string): string {
-    return email.toLowerCase().trim().replace(/[^a-zA-Z0-9@._-]/g, '');
+    return email
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-zA-Z0-9@._-]/g, "");
   }
 
   static sanitizeNumber(input: string | number): number | null {
-    const num = typeof input === 'string' ? parseFloat(input) : input;
+    const num = typeof input === "string" ? parseFloat(input) : input;
     return isNaN(num) ? null : num;
   }
 
   static sanitizeObject(obj: unknown): unknown {
-    if (typeof obj !== 'object' || obj === null) {
+    if (typeof obj !== "object" || obj === null) {
       return obj;
     }
 
     if (Array.isArray(obj)) {
-      return obj.map(item => this.sanitizeObject(item));
+      return obj.map((item) => this.sanitizeObject(item));
     }
 
     const sanitized: Record<string, unknown> = {};
@@ -66,7 +69,10 @@ export class InputSanitizer {
 
 // Input validation utilities
 export class InputValidator {
-  static validate(schema: ValidationSchema, data: unknown): {
+  static validate(
+    schema: ValidationSchema,
+    data: unknown,
+  ): {
     isValid: boolean;
     errors: Record<string, string>;
   } {
@@ -75,7 +81,7 @@ export class InputValidator {
     for (const [field, rules] of Object.entries(schema)) {
       const value = data[field];
       const error = this.validateField(value, rules, field);
-      
+
       if (error) {
         errors[field] = error;
       }
@@ -87,26 +93,42 @@ export class InputValidator {
     };
   }
 
-  private static validateField(value: unknown, rules: ValidationRule, fieldName: string): string | null {
+  private static validateField(
+    value: unknown,
+    rules: ValidationRule,
+    fieldName: string,
+  ): string | null {
     // Required validation
-    if (rules.required && (value === undefined || value === null || value === '')) {
+    if (
+      rules.required &&
+      (value === undefined || value === null || value === "")
+    ) {
       return rules.message || `${fieldName} is required`;
     }
 
     // Skip other validations if value is empty and not required
-    if (!rules.required && (value === undefined || value === null || value === '')) {
+    if (
+      !rules.required &&
+      (value === undefined || value === null || value === "")
+    ) {
       return null;
     }
 
     // Type-specific validations
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       // Length validations
       if (rules.minLength && value.length < rules.minLength) {
-        return rules.message || `${fieldName} must be at least ${rules.minLength} characters`;
+        return (
+          rules.message ||
+          `${fieldName} must be at least ${rules.minLength} characters`
+        );
       }
-      
+
       if (rules.maxLength && value.length > rules.maxLength) {
-        return rules.message || `${fieldName} must be no more than ${rules.maxLength} characters`;
+        return (
+          rules.message ||
+          `${fieldName} must be no more than ${rules.maxLength} characters`
+        );
       }
 
       // Pattern validation
@@ -119,7 +141,7 @@ export class InputValidator {
     if (rules.custom) {
       const result = rules.custom(value);
       if (result !== true) {
-        return typeof result === 'string' ? result : `${fieldName} is invalid`;
+        return typeof result === "string" ? result : `${fieldName} is invalid`;
       }
     }
 
@@ -132,7 +154,7 @@ export class InputValidator {
       email: {
         required: true,
         pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-        message: 'Please enter a valid email address',
+        message: "Please enter a valid email address",
       },
     };
   }
@@ -143,8 +165,10 @@ export class InputValidator {
         required: true,
         minLength: 8,
         maxLength: 128,
-        pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-        message: 'Password must contain at least 8 characters with uppercase, lowercase, number, and special character',
+        pattern:
+          /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+        message:
+          "Password must contain at least 8 characters with uppercase, lowercase, number, and special character",
       },
     };
   }
@@ -156,19 +180,19 @@ export class InputValidator {
         minLength: 1,
         maxLength: 100,
         pattern: /^[A-Za-z0-9\s-()]+$/,
-        message: 'Ship name contains invalid characters',
+        message: "Ship name contains invalid characters",
       },
       homeport: {
         required: true,
         minLength: 1,
         maxLength: 50,
         pattern: /^[A-Za-z0-9\s-]+$/,
-        message: 'Homeport contains invalid characters',
+        message: "Homeport contains invalid characters",
       },
       priority: {
         required: true,
-        custom: (value) => ['Routine', 'Urgent', 'CASREP'].includes(value),
-        message: 'Priority must be Routine, Urgent, or CASREP',
+        custom: (value) => ["Routine", "Urgent", "CASREP"].includes(value),
+        message: "Priority must be Routine, Urgent, or CASREP",
       },
       eta: {
         required: true,
@@ -176,7 +200,7 @@ export class InputValidator {
           const num = parseFloat(value);
           return !isNaN(num) && num >= 0 && num <= 365;
         },
-        message: 'ETA must be a number between 0 and 365 days',
+        message: "ETA must be a number between 0 and 365 days",
       },
     };
   }
@@ -191,7 +215,7 @@ export class SecurityLogger {
     const securityEvent: SecurityEvent = {
       id: this.generateEventId(),
       type: event.type || SecurityEventType.SUSPICIOUS_ACTIVITY,
-      userId: event.userId || 'anonymous',
+      userId: event.userId || "anonymous",
       ipAddress: this.getClientIP(),
       userAgent: navigator.userAgent,
       timestamp: new Date(),
@@ -210,7 +234,7 @@ export class SecurityLogger {
 
     // Log suspicious activities
     if (this.isSuspiciousActivity(securityEvent)) {
-      console.warn('Suspicious activity detected:', securityEvent);
+      console.warn("Suspicious activity detected:", securityEvent);
     }
   }
 
@@ -220,29 +244,31 @@ export class SecurityLogger {
 
   private getClientIP(): string {
     // In a real application, this would come from the server
-    return 'client_ip_placeholder';
+    return "client_ip_placeholder";
   }
 
   private isSuspiciousActivity(event: SecurityEvent): boolean {
     // Check for multiple failed login attempts
     if (event.type === SecurityEventType.LOGIN_FAILURE) {
       const recentFailures = this.events.filter(
-        e => e.userId === event.userId && 
-        e.type === SecurityEventType.LOGIN_FAILURE &&
-        Date.now() - e.timestamp.getTime() < 300000 // 5 minutes
+        (e) =>
+          e.userId === event.userId &&
+          e.type === SecurityEventType.LOGIN_FAILURE &&
+          Date.now() - e.timestamp.getTime() < 300000, // 5 minutes
       );
-      
+
       return recentFailures.length >= 5;
     }
 
     // Check for permission denied patterns
     if (event.type === SecurityEventType.PERMISSION_DENIED) {
       const recentDenials = this.events.filter(
-        e => e.userId === event.userId &&
-        e.type === SecurityEventType.PERMISSION_DENIED &&
-        Date.now() - e.timestamp.getTime() < 600000 // 10 minutes
+        (e) =>
+          e.userId === event.userId &&
+          e.type === SecurityEventType.PERMISSION_DENIED &&
+          Date.now() - e.timestamp.getTime() < 600000, // 10 minutes
       );
-      
+
       return recentDenials.length >= 10;
     }
 
@@ -250,17 +276,17 @@ export class SecurityLogger {
   }
 
   private async sendToSecurityService(event: SecurityEvent): Promise<void> {
-    if (import.meta.env.VITE_SECURITY_MONITORING_ENABLED === 'true') {
+    if (import.meta.env.VITE_SECURITY_MONITORING_ENABLED === "true") {
       try {
-        await fetch('/api/security-events', {
-          method: 'POST',
+        await fetch("/api/security-events", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(event),
         });
       } catch (error) {
-        console.warn('Failed to send security event:', error);
+        console.warn("Failed to send security event:", error);
       }
     }
   }
@@ -281,12 +307,12 @@ export class SecurityLogger {
     };
 
     // Initialize counters
-    Object.values(SecurityEventType).forEach(type => {
+    Object.values(SecurityEventType).forEach((type) => {
       stats.byType[type] = 0;
     });
 
     // Count events
-    this.events.forEach(event => {
+    this.events.forEach((event) => {
       stats.byType[event.type]++;
       if (this.isSuspiciousActivity(event)) {
         stats.suspiciousCount++;
@@ -302,7 +328,12 @@ export class AuditLogger {
   private logs: AuditLog[] = [];
   private maxLogs = 50000;
 
-  logAction(action: string, resource: string, resourceId: string, changes?: Record<string, { old: unknown; new: unknown }>): void {
+  logAction(
+    action: string,
+    resource: string,
+    resourceId: string,
+    changes?: Record<string, { old: unknown; new: unknown }>,
+  ): void {
     const auditLog: AuditLog = {
       id: this.generateLogId(),
       userId: this.getCurrentUserId(),
@@ -331,25 +362,25 @@ export class AuditLogger {
 
   private getCurrentUserId(): string {
     // In a real application, this would come from the auth context
-    return 'current_user_id';
+    return "current_user_id";
   }
 
   private getClientIP(): string {
-    return 'client_ip_placeholder';
+    return "client_ip_placeholder";
   }
 
   private async sendToAuditService(log: AuditLog): Promise<void> {
-    if (import.meta.env.VITE_AUDIT_LOGGING_ENABLED === 'true') {
+    if (import.meta.env.VITE_AUDIT_LOGGING_ENABLED === "true") {
       try {
-        await fetch('/api/audit-logs', {
-          method: 'POST',
+        await fetch("/api/audit-logs", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(log),
         });
       } catch (error) {
-        console.warn('Failed to send audit log:', error);
+        console.warn("Failed to send audit log:", error);
       }
     }
   }
@@ -359,13 +390,14 @@ export class AuditLogger {
   }
 
   getLogsByUser(userId: string): AuditLog[] {
-    return this.logs.filter(log => log.userId === userId);
+    return this.logs.filter((log) => log.userId === userId);
   }
 
   getLogsByResource(resource: string, resourceId?: string): AuditLog[] {
-    return this.logs.filter(log => 
-      log.resource === resource && 
-      (!resourceId || log.resourceId === resourceId)
+    return this.logs.filter(
+      (log) =>
+        log.resource === resource &&
+        (!resourceId || log.resourceId === resourceId),
     );
   }
 }
@@ -385,10 +417,12 @@ export class RateLimiter {
 
     const now = Date.now();
     const requests = this.requests.get(key) || [];
-    
+
     // Remove old requests outside the window
-    const validRequests = requests.filter(time => now - time < limit.windowMs);
-    
+    const validRequests = requests.filter(
+      (time) => now - time < limit.windowMs,
+    );
+
     if (validRequests.length >= limit.maxRequests) {
       return false;
     }
@@ -396,7 +430,7 @@ export class RateLimiter {
     // Add current request
     validRequests.push(now);
     this.requests.set(key, validRequests);
-    
+
     return true;
   }
 
@@ -406,8 +440,10 @@ export class RateLimiter {
 
     const now = Date.now();
     const requests = this.requests.get(key) || [];
-    const validRequests = requests.filter(time => now - time < limit.windowMs);
-    
+    const validRequests = requests.filter(
+      (time) => now - time < limit.windowMs,
+    );
+
     return Math.max(0, limit.maxRequests - validRequests.length);
   }
 
@@ -431,17 +467,17 @@ export class CSPHelper {
       "form-action 'self'",
     ];
 
-    return policies.join('; ');
+    return policies.join("; ");
   }
 
   static getSecurityHeaders(): Record<string, string> {
     return {
-      'Content-Security-Policy': this.generateCSP(),
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-      'X-XSS-Protection': '1; mode=block',
-      'Referrer-Policy': 'strict-origin-when-cross-origin',
-      'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
+      "Content-Security-Policy": this.generateCSP(),
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "X-XSS-Protection": "1; mode=block",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
     };
   }
 }
@@ -449,19 +485,19 @@ export class CSPHelper {
 // XSS protection
 export class XSSProtection {
   static sanitizeHTML(input: string): string {
-    const div = document.createElement('div');
+    const div = document.createElement("div");
     div.textContent = input;
     return div.innerHTML;
   }
 
   static escapeHTML(input: string): string {
     return input
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#x27;')
-      .replace(/\//g, '&#x2F;');
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#x27;")
+      .replace(/\//g, "&#x2F;");
   }
 
   static validateHTML(input: string): boolean {
@@ -475,7 +511,7 @@ export class XSSProtection {
       /<embed/i,
     ];
 
-    return !dangerousPatterns.some(pattern => pattern.test(input));
+    return !dangerousPatterns.some((pattern) => pattern.test(input));
   }
 }
 

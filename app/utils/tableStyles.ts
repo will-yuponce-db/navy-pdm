@@ -60,13 +60,13 @@ export const tablePatterns = {
     minWidth: 1200,
     ...standardTableStyles,
   },
-  
+
   // For compact tables with fewer columns
   compactTable: {
     minWidth: 600,
     ...standardTableStyles,
   },
-  
+
   // For tables that need to be responsive
   responsiveTable: {
     minWidth: 750,
@@ -91,7 +91,7 @@ export const tableHeaderStyles = {
     borderBottom: "2px solid",
     borderBottomColor: "primary.main",
   },
-  
+
   // Secondary headers (sub-tables or nested tables)
   secondary: {
     backgroundColor: "grey.100",
@@ -101,7 +101,7 @@ export const tableHeaderStyles = {
     borderBottom: "1px solid",
     borderBottomColor: "divider",
   },
-  
+
   // Accent headers (for special sections)
   accent: {
     backgroundColor: "primary.light",
@@ -123,7 +123,7 @@ export const tableRowStyles = {
       backgroundColor: "action.hover",
     },
   },
-  
+
   // Selected row styling
   selected: {
     backgroundColor: "primary.light",
@@ -131,7 +131,7 @@ export const tableRowStyles = {
       backgroundColor: "primary.main",
     },
   },
-  
+
   // Alternating row colors
   striped: {
     "&:nth-of-type(even)": {
@@ -141,7 +141,7 @@ export const tableRowStyles = {
       backgroundColor: "action.hover",
     },
   },
-  
+
   // Critical/urgent row styling
   critical: {
     backgroundColor: "error.light",
@@ -160,7 +160,7 @@ export const tableCellContentStyles = {
     lineHeight: 1.4,
     whiteSpace: "pre-line" as const,
   },
-  
+
   // For cells with long text that should truncate
   truncate: {
     maxWidth: 200,
@@ -168,7 +168,7 @@ export const tableCellContentStyles = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap" as const,
   },
-  
+
   // For cells with centered content
   centered: {
     textAlign: "center",
@@ -176,7 +176,7 @@ export const tableCellContentStyles = {
     alignItems: "center",
     justifyContent: "center",
   },
-  
+
   // For cells with action buttons
   actions: {
     display: "flex",

@@ -16,15 +16,23 @@ describe("WorkflowShortcuts", () => {
   it("displays quick action buttons", () => {
     render(<WorkflowShortcuts />);
 
-    expect(screen.getByRole("button", { name: "Create Work Order" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "View Analytics" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Manage Parts" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create Work Order" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "View Analytics" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Manage Parts" }),
+    ).toBeInTheDocument();
   });
 
   it("handles create work order shortcut", async () => {
     render(<WorkflowShortcuts />);
 
-    const createButton = screen.getByRole("button", { name: "Create Work Order" });
+    const createButton = screen.getByRole("button", {
+      name: "Create Work Order",
+    });
     fireEvent.click(createButton);
 
     // Should trigger work order creation
@@ -36,7 +44,9 @@ describe("WorkflowShortcuts", () => {
   it("handles view analytics shortcut", async () => {
     render(<WorkflowShortcuts />);
 
-    const analyticsButton = screen.getByRole("button", { name: "View Analytics" });
+    const analyticsButton = screen.getByRole("button", {
+      name: "View Analytics",
+    });
     fireEvent.click(analyticsButton);
 
     // Should navigate to analytics
@@ -81,7 +91,9 @@ describe("WorkflowShortcuts", () => {
     fireEvent.keyDown(document, { key: "n", ctrlKey: true });
 
     // Should trigger create work order action
-    expect(screen.getByRole("button", { name: "Create Work Order" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create Work Order" }),
+    ).toBeInTheDocument();
   });
 
   it("displays recent actions", () => {
@@ -182,7 +194,9 @@ describe("WorkflowShortcuts", () => {
   it("handles category filtering", () => {
     render(<WorkflowShortcuts />);
 
-    const maintenanceFilter = screen.getByRole("button", { name: "Maintenance" });
+    const maintenanceFilter = screen.getByRole("button", {
+      name: "Maintenance",
+    });
     fireEvent.click(maintenanceFilter);
 
     expect(maintenanceFilter).toBeInTheDocument();

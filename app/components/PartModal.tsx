@@ -135,9 +135,16 @@ const PartModal: React.FC<PartModalProps> = ({ open, onClose, part, mode }) => {
     }
 
     if (mode === "add") {
-      dispatch(addPartWithNotification({ ...formData, id: formData.partNumber }));
+      dispatch(
+        addPartWithNotification({ ...formData, id: formData.partNumber }),
+      );
     } else if (mode === "edit" && part) {
-      dispatch(updatePartWithNotification({ id: part.id, updates: { ...formData, id: formData.partNumber } }));
+      dispatch(
+        updatePartWithNotification({
+          id: part.id,
+          updates: { ...formData, id: formData.partNumber },
+        }),
+      );
     }
 
     onClose();
@@ -175,7 +182,13 @@ const PartModal: React.FC<PartModalProps> = ({ open, onClose, part, mode }) => {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth onKeyDown={handleKeyDown}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      onKeyDown={handleKeyDown}
+    >
       <DialogTitle>{mode === "add" ? "Add New Part" : "Edit Part"}</DialogTitle>
       <DialogContent>
         <Box sx={{ pt: 2 }}>

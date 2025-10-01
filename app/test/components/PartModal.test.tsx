@@ -21,7 +21,10 @@ const createTestStore = () => {
   });
 };
 
-const renderWithProviders = (component: React.ReactElement, store = createTestStore()) => {
+const renderWithProviders = (
+  component: React.ReactElement,
+  store = createTestStore(),
+) => {
   return render(<Provider store={store}>{component}</Provider>);
 };
 
@@ -79,7 +82,9 @@ describe("PartModal", () => {
 
     fireEvent.change(partNumberInput, { target: { value: "P001" } });
     fireEvent.change(partNameInput, { target: { value: "Test Part" } });
-    fireEvent.change(descriptionInput, { target: { value: "Test Description" } });
+    fireEvent.change(descriptionInput, {
+      target: { value: "Test Description" },
+    });
 
     fireEvent.click(submitButton);
 
@@ -167,7 +172,9 @@ describe("PartModal", () => {
     const submitButton = screen.getByRole("button", { name: "Add Part" });
     fireEvent.click(submitButton);
 
-    expect(screen.getByText("Stock level cannot be negative")).toBeInTheDocument();
+    expect(
+      screen.getByText("Stock level cannot be negative"),
+    ).toBeInTheDocument();
   });
 
   it("handles unit cost input validation", () => {
@@ -243,7 +250,9 @@ describe("PartModal", () => {
 
     fireEvent.change(partNumberInput, { target: { value: "P001" } });
     fireEvent.change(partNameInput, { target: { value: "Test Part" } });
-    fireEvent.change(descriptionInput, { target: { value: "Test Description" } });
+    fireEvent.change(descriptionInput, {
+      target: { value: "Test Description" },
+    });
     fireEvent.change(systemInput, { target: { value: "Engine" } });
     fireEvent.change(locationInput, { target: { value: "Warehouse A" } });
     fireEvent.change(leadTimeInput, { target: { value: "30 days" } });
@@ -270,7 +279,9 @@ describe("PartModal", () => {
 
     fireEvent.change(partNumberInput, { target: { value: "P001" } });
     fireEvent.change(partNameInput, { target: { value: "Test Part" } });
-    fireEvent.change(descriptionInput, { target: { value: "Test Description" } });
+    fireEvent.change(descriptionInput, {
+      target: { value: "Test Description" },
+    });
     fireEvent.change(systemInput, { target: { value: "Engine" } });
     fireEvent.change(locationInput, { target: { value: "Warehouse A" } });
     fireEvent.change(leadTimeInput, { target: { value: "30 days" } });
