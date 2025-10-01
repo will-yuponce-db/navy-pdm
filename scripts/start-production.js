@@ -90,42 +90,55 @@ async function installPythonDependencies() {
   console.log('Installing Python dependencies...');
   
   try {
+    // First, check if packages are already available
+    try {
+      await runCommand('python3', ['-c', 'import flask, flask_cors, flask_sqlalchemy, flask_migrate'], { silent: true });
+      console.log('✓ Python dependencies appear to be pre-installed');
+      return true;
+    } catch (err) {
+      console.log('Python dependencies not found, attempting installation...');
+    }
+
     // Try multiple pip methods for different environments
     const pipMethods = [
-      ['pip3', ['install', '-r', 'backend/requirements.txt', '--quiet', '--break-system-packages']],
-      ['pip3', ['install', '-r', 'backend/requirements.txt', '--quiet']],
-      ['python3', ['-m', 'pip', 'install', '-r', 'backend/requirements.txt', '--quiet', '--break-system-packages']],
-      ['python3', ['-m', 'pip', 'install', '-r', 'backend/requirements.txt', '--quiet']],
+      ['python3', ['-m', 'pip', 'install', '-r', 'backend/requirements.txt', '--break-system-packages']],
+      ['python3', ['-m', 'pip', 'install', '-r', 'backend/requirements.txt']],
+      ['pip3', ['install', '-r', 'backend/requirements.txt', '--break-system-packages']],
+      ['pip3', ['install', '-r', 'backend/requirements.txt']],
     ];
 
     let installed = false;
     for (const [command, args] of pipMethods) {
       try {
-        await runCommand(command, args, { silent: true });
+        console.log(`Trying: ${command} ${args.join(' ')}`);
+        await runCommand(command, args, { silent: false }); // Show output for debugging
         console.log(`✓ Python dependencies installed via ${command}`);
         installed = true;
         break;
       } catch (err) {
+        console.log(`✗ Failed with ${command}: ${err.message || err.stderr || 'Unknown error'}`);
         // Try next method
         continue;
       }
     }
 
     if (!installed) {
-      // Check if packages are already available
-      try {
-        await runCommand('python3', ['-c', 'import flask, flask_cors, flask_sqlalchemy, flask_migrate'], { silent: true });
-        console.log('✓ Python dependencies appear to be pre-installed');
-        installed = true;
-      } catch (err) {
-        console.error('✗ Python dependencies missing and pip unavailable');
-        console.error('Tried: pip3, python3 -m pip');
-        console.error('Please ensure the environment has Python packages or pip available');
-        throw new Error('Failed to install Python dependencies');
-      }
+      console.error('✗ All pip installation methods failed');
+      console.error('Please ensure the environment has Python packages or pip available');
+      throw new Error('Failed to install Python dependencies');
     }
 
-    return installed;
+    // Verify installation worked by testing imports
+    try {
+      await runCommand('python3', ['-c', 'import flask, flask_cors, flask_sqlalchemy, flask_migrate'], { silent: true });
+      console.log('✓ Python dependencies verified after installation');
+      return true;
+    } catch (err) {
+      console.error('✗ Python dependencies installation failed verification');
+      console.error('Flask modules are still not available after installation');
+      throw new Error('Python dependencies installation verification failed');
+    }
+
   } catch (error) {
     console.error('Failed to install Python dependencies:', error.message);
     throw error;
