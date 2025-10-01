@@ -100,9 +100,21 @@ async function installPythonDependencies() {
       console.log('Could not check for virtual environment, continuing...');
     }
 
+    // Get the system Python path for consistent usage
+    let pythonPath = 'python3';
+    try {
+      const whichResult = await runCommand('which', ['python3'], { silent: true });
+      if (whichResult.stdout && whichResult.stdout.trim()) {
+        pythonPath = whichResult.stdout.trim();
+        console.log(`Using Python: ${pythonPath}`);
+      }
+    } catch (err) {
+      console.log('Could not determine Python path, using default python3');
+    }
+
     // First, check if packages are already available
     try {
-      await runCommand('python3', ['-c', 'import flask, flask_cors, flask_sqlalchemy, flask_migrate'], { silent: true });
+      await runCommand(pythonPath, ['-c', 'import flask, flask_cors, flask_sqlalchemy, flask_migrate'], { silent: true });
       console.log('✓ Python dependencies appear to be pre-installed');
       return true;
     } catch (err) {
@@ -111,6 +123,10 @@ async function installPythonDependencies() {
 
     // Try multiple pip methods for different environments - prioritize system Python
     const pipMethods = [
+      [pythonPath, ['-m', 'pip', 'install', '-r', 'backend/requirements.txt', '--break-system-packages', '--user']],
+      [pythonPath, ['-m', 'pip', 'install', '-r', 'backend/requirements.txt', '--break-system-packages']],
+      [pythonPath, ['-m', 'pip', 'install', '-r', 'backend/requirements.txt', '--user']],
+      [pythonPath, ['-m', 'pip', 'install', '-r', 'backend/requirements.txt']],
       ['python3', ['-m', 'pip', 'install', '-r', 'backend/requirements.txt', '--break-system-packages', '--user']],
       ['python3', ['-m', 'pip', 'install', '-r', 'backend/requirements.txt', '--break-system-packages']],
       ['python3', ['-m', 'pip', 'install', '-r', 'backend/requirements.txt', '--user']],
@@ -144,12 +160,13 @@ async function installPythonDependencies() {
 
     // Verify installation worked by testing imports
     try {
-      await runCommand('python3', ['-c', 'import flask, flask_cors, flask_sqlalchemy, flask_migrate'], { silent: true });
+      await runCommand(pythonPath, ['-c', 'import flask, flask_cors, flask_sqlalchemy, flask_migrate'], { silent: true });
       console.log('✓ Python dependencies verified after installation');
       return true;
     } catch (err) {
       console.error('✗ Python dependencies installation failed verification');
       console.error('Flask modules are still not available after installation');
+      console.error(`Verification failed with Python: ${pythonPath}`);
       throw new Error('Python dependencies installation verification failed');
     }
 
