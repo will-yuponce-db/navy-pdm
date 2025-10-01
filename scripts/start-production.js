@@ -160,13 +160,15 @@ async function installPythonDependencies() {
 
     // Verify installation worked by testing imports
     try {
-      await runCommand(pythonPath, ['-c', 'import flask, flask_cors, flask_sqlalchemy, flask_migrate'], { silent: true });
+      const verifyResult = await runCommand(pythonPath, ['-c', 'import flask, flask_cors, flask_sqlalchemy, flask_migrate'], { silent: true });
       console.log('✓ Python dependencies verified after installation');
       return true;
     } catch (err) {
       console.error('✗ Python dependencies installation failed verification');
       console.error('Flask modules are still not available after installation');
       console.error(`Verification failed with Python: ${pythonPath}`);
+      console.error('Error details:', err.message || err.stderr || err.toString());
+      console.error('Exit code:', err.code);
       throw new Error('Python dependencies installation verification failed');
     }
 
