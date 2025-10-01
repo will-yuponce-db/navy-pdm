@@ -23,6 +23,7 @@ import {
   markAsRead,
   addNotification,
 } from "./redux/services/notificationSlice";
+import { useWebSocket } from "./hooks/useWebSocket";
 
 // Theme Context
 const ThemeContext = createContext({
@@ -293,6 +294,9 @@ function AppContent() {
   const dispatch = useAppDispatch();
   const { error, clearError } = useErrorHandler();
   const [isClient, setIsClient] = useState(false);
+  
+  // Initialize WebSocket connection
+  const { isConnected, markAsRead: wsMarkAsRead, dismiss: wsDismiss } = useWebSocket();
 
   // Track client-side hydration
   useEffect(() => {
@@ -337,10 +341,16 @@ function AppContent() {
   }, [dispatch, isClient]); // Only run after client hydration
 
   const handleDismissNotification = (id: string) => {
+    // Use WebSocket to notify server and other clients
+    wsDismiss(id);
+    // Also update local state immediately for better UX
     dispatch(dismissNotification(id));
   };
 
   const handleMarkAsRead = (id: string) => {
+    // Use WebSocket to notify server and other clients
+    wsMarkAsRead(id);
+    // Also update local state immediately for better UX
     dispatch(markAsRead(id));
   };
 
@@ -348,14 +358,32 @@ function AppContent() {
     <>
       <ErrorSnackbar error={error} onClose={clearError} />
       {isClient && (
-        <NotificationCenter
-          notifications={notifications.map(n => ({
-            ...n,
-            timestamp: typeof n.timestamp === 'string' ? n.timestamp : (n.timestamp as Date).toISOString()
-          }))}
-          onDismiss={handleDismissNotification}
-          onMarkAsRead={handleMarkAsRead}
-        />
+        <>
+          <NotificationCenter
+            notifications={notifications.map(n => ({
+              ...n,
+              timestamp: typeof n.timestamp === 'string' ? n.timestamp : (n.timestamp as Date).toISOString()
+            }))}
+            onDismiss={handleDismissNotification}
+            onMarkAsRead={handleMarkAsRead}
+          />
+          {/* WebSocket connection status indicator */}
+          <div
+            style={{
+              position: 'fixed',
+              top: 10,
+              right: 10,
+              width: 12,
+              height: 12,
+              borderRadius: '50%',
+              backgroundColor: isConnected ? '#4caf50' : '#f44336',
+              zIndex: 9999,
+              border: '2px solid white',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            }}
+            title={isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
+          />
+        </>
       )}
     </>
   );

@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import Database from 'better-sqlite3';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -8,7 +10,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
+const server = createServer(app);
 const PORT = process.env.PORT || 3000;
+
+// Socket.IO setup
+const io = new Server(server, {
+  cors: {
+    origin: process.env.DATABRICKS_APP_URL ? [
+      process.env.DATABRICKS_APP_URL,
+      'http://localhost:3000',
+      'http://localhost:5173'
+    ] : ['http://localhost:3000', 'http://localhost:5173'],
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
 
 // Database setup
 const dbPath = process.env.DATABASE_URL || join(__dirname, 'backend', 'instance', 'navy_pdm.db');
@@ -101,6 +117,55 @@ function initializeDatabase() {
 
 // Initialize database on startup
 initializeDatabase();
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+
+  // Join notification room for real-time updates
+  socket.join('notifications');
+
+  // Handle notification read events
+  socket.on('notification:read', (data) => {
+    try {
+      const { notificationId } = data;
+      const result = db.prepare('UPDATE notifications SET read = 1 WHERE id = ?').run(notificationId);
+      
+      if (result.changes > 0) {
+        // Broadcast to all clients that this notification was read
+        io.to('notifications').emit('notification:read', { notificationId });
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      socket.emit('error', { message: 'Failed to mark notification as read' });
+    }
+  });
+
+  // Handle notification dismiss events
+  socket.on('notification:dismiss', (data) => {
+    try {
+      const { notificationId } = data;
+      const result = db.prepare('DELETE FROM notifications WHERE id = ?').run(notificationId);
+      
+      if (result.changes > 0) {
+        // Broadcast to all clients that this notification was dismissed
+        io.to('notifications').emit('notification:dismissed', { notificationId });
+      }
+    } catch (error) {
+      console.error('Error dismissing notification:', error);
+      socket.emit('error', { message: 'Failed to dismiss notification' });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
+// Helper function to broadcast notifications to all connected clients
+function broadcastNotification(notification) {
+  io.to('notifications').emit('notification:new', notification);
+}
 
 // API Routes
 // Work Orders routes
@@ -659,6 +724,51 @@ app.patch('/api/parts/:part_id/stock', (req, res) => {
 });
 
 // Notifications routes
+app.post('/api/notifications', (req, res) => {
+  try {
+    const data = req.body;
+    
+    const stmt = db.prepare(`
+      INSERT INTO notifications (id, type, title, message, priority, category, work_order_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    stmt.run(
+      notificationId,
+      data.type,
+      data.title,
+      data.message,
+      data.priority,
+      data.category,
+      data.workOrderId || null
+    );
+
+    const notification = db.prepare('SELECT * FROM notifications WHERE id = ?').get(notificationId);
+    
+    const notificationData = {
+      id: notification.id,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      timestamp: notification.timestamp,
+      priority: notification.priority,
+      category: notification.category,
+      read: Boolean(notification.read),
+      workOrderId: notification.work_order_id
+    };
+    
+    // Broadcast to all connected clients
+    broadcastNotification(notificationData);
+    
+    res.status(201).json(notificationData);
+  } catch (error) {
+    console.error('Error creating notification:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/api/notifications', (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -728,6 +838,9 @@ app.patch('/api/notifications/:notif_id/read', (req, res) => {
     
     const notification = db.prepare('SELECT * FROM notifications WHERE id = ?').get(req.params.notif_id);
     
+    // Broadcast to all connected clients
+    io.to('notifications').emit('notification:read', { notificationId: req.params.notif_id });
+    
     res.json({
       id: notification.id,
       type: notification.type,
@@ -748,6 +861,10 @@ app.patch('/api/notifications/:notif_id/read', (req, res) => {
 app.patch('/api/notifications/read-all', (req, res) => {
   try {
     db.prepare('UPDATE notifications SET read = 1').run();
+    
+    // Broadcast to all connected clients
+    io.to('notifications').emit('notifications:all-read');
+    
     res.json({ message: 'All notifications marked as read' });
   } catch (error) {
     console.error('Error marking all notifications as read:', error);
@@ -762,6 +879,9 @@ app.delete('/api/notifications/:notif_id', (req, res) => {
     if (result.changes === 0) {
       return res.status(404).json({ message: 'Notification not found' });
     }
+    
+    // Broadcast to all connected clients
+    io.to('notifications').emit('notification:dismissed', { notificationId: req.params.notif_id });
     
     res.json({ message: 'Notification deleted successfully' });
   } catch (error) {
@@ -896,9 +1016,9 @@ try {
 // Handle all other requests with React Router
 app.all('*', reactRouterServer);
 
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Using integrated Node.js API server`);
+  console.log(`Using integrated Node.js API server with WebSocket support`);
   console.log(`React Router SSR server loaded`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
