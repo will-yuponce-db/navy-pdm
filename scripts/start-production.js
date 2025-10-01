@@ -92,25 +92,45 @@ async function installPythonDependencies() {
   console.log('Installing Python dependencies...');
   
   try {
-    // Check for virtual environment and warn if found
+    // Check for virtual environment and prevent usage
     try {
-      const venvCheck = await runCommand('python3', ['-c', 'import sys; print("VIRTUAL_ENV" in sys.modules or hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix))'], { silent: true, useShell: false });
+      const venvCheck = await runCommand('python3', ['-c', 'import sys, os; print("VIRTUAL_ENV" in os.environ or "VIRTUAL_ENV" in sys.modules or hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix))'], { silent: true, useShell: false });
       if (venvCheck.stdout && venvCheck.stdout.trim() === 'True') {
-        console.log('⚠️  Warning: Virtual environment detected. Using system Python instead.');
+        console.log('⚠️  WARNING: Virtual environment detected!');
+        console.log('   This script requires system Python, not virtual environment.');
+        console.log('   Please deactivate your virtual environment and try again.');
+        console.log('   Run: deactivate');
+        throw new Error('Virtual environment detected - system Python required');
       }
-    } catch {
+    } catch (err) {
+      if (err.message && err.message.includes('Virtual environment detected')) {
+        throw err;
+      }
       console.log('Could not check for virtual environment, continuing...');
     }
 
-    // Get the system Python path for consistent usage
+    // Get the system Python path for consistent usage - ensure it's not in a virtual environment
     let pythonPath = 'python3';
     try {
       const whichResult = await runCommand('which', ['python3'], { silent: true });
       if (whichResult.stdout && whichResult.stdout.trim()) {
         pythonPath = whichResult.stdout.trim();
-        console.log(`Using Python: ${pythonPath}`);
+        
+        // Double-check that this Python is not in a virtual environment
+        const pathCheck = await runCommand(pythonPath, ['-c', 'import sys, os; print("VIRTUAL_ENV" in os.environ or "VIRTUAL_ENV" in sys.modules or hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix))'], { silent: true, useShell: false });
+        if (pathCheck.stdout && pathCheck.stdout.trim() === 'True') {
+          console.log('⚠️  WARNING: Detected Python path is in virtual environment!');
+          console.log('   This script requires system Python, not virtual environment.');
+          console.log('   Please deactivate your virtual environment and try again.');
+          throw new Error('Python path is in virtual environment - system Python required');
+        }
+        
+        console.log(`Using system Python: ${pythonPath}`);
       }
-    } catch {
+    } catch (err) {
+      if (err.message && err.message.includes('virtual environment')) {
+        throw err;
+      }
       console.log('Could not determine Python path, using default python3');
     }
 
@@ -196,6 +216,13 @@ async function startBackend() {
       // Ensure we use system Python, not virtual environment
       VIRTUAL_ENV: undefined,
       PYTHONPATH: undefined,
+      // Additional environment variables to prevent virtual environment usage
+      CONDA_DEFAULT_ENV: undefined,
+      CONDA_PREFIX: undefined,
+      PIPENV_ACTIVE: undefined,
+      POETRY_ACTIVE: undefined,
+      VENV: undefined,
+      ENV: undefined,
     };
 
     // Use absolute path to system python3 to avoid virtual environment

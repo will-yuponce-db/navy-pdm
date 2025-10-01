@@ -9,6 +9,15 @@ echo "Navy PdM Production Startup"
 echo "=========================================="
 echo ""
 
+# Check for virtual environment and prevent usage
+if [ -n "$VIRTUAL_ENV" ] || [ -n "$CONDA_DEFAULT_ENV" ] || [ -n "$CONDA_PREFIX" ] || [ -n "$PIPENV_ACTIVE" ] || [ -n "$POETRY_ACTIVE" ]; then
+    echo "⚠️  ERROR: Virtual environment detected!"
+    echo "   This production script requires system Python, not virtual environment."
+    echo "   Please deactivate your virtual environment and try again."
+    echo "   Run: deactivate"
+    exit 1
+fi
+
 # Detect environment
 if [ -n "$DATABRICKS_APP_URL" ]; then
   ENV_TYPE="Databricks Apps"
@@ -29,6 +38,15 @@ export FLASK_RUN_HOST=${FLASK_RUN_HOST:-0.0.0.0}
 export BACKEND_PORT=${FLASK_RUN_PORT}
 export GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-120}
 export GUNICORN_WORKERS=${GUNICORN_WORKERS:-2}
+
+# Ensure virtual environment variables are unset
+unset VIRTUAL_ENV
+unset CONDA_DEFAULT_ENV
+unset CONDA_PREFIX
+unset PIPENV_ACTIVE
+unset POETRY_ACTIVE
+unset VENV
+unset ENV
 
 echo "Configuration:"
 echo "  Frontend Port: $PORT"

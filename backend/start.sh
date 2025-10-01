@@ -4,6 +4,15 @@
 
 echo "Starting Navy PdM Flask Backend..."
 
+# Check for virtual environment and prevent usage
+if [ -n "$VIRTUAL_ENV" ] || [ -n "$CONDA_DEFAULT_ENV" ] || [ -n "$CONDA_PREFIX" ] || [ -n "$PIPENV_ACTIVE" ] || [ -n "$POETRY_ACTIVE" ]; then
+    echo "⚠️  ERROR: Virtual environment detected!"
+    echo "   This script requires system Python, not virtual environment."
+    echo "   Please deactivate your virtual environment and try again."
+    echo "   Run: deactivate"
+    exit 1
+fi
+
 # Check if Python is installed
 if ! command -v python3 &> /dev/null; then
     echo "Python 3 is not installed. Please install Python 3 first."
