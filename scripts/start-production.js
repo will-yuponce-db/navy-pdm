@@ -182,7 +182,7 @@ async function installPythonDependencies() {
 
 // Start backend server
 async function startBackend() {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     console.log('');
     console.log(`Starting Flask backend on port ${config.backendPort}...`);
     
