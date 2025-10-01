@@ -11,7 +11,7 @@ const DATABRICKS_CONFIG = {
   clientId: process.env.DATABRICKS_CLIENT_ID,
   clientSecret: process.env.DATABRICKS_CLIENT_SECRET,
   serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME || process.env.DATABRICKS_HOST,
-  httpPath: process.env.DATABRICKS_HTTP_PATH || `/sql/1.0/warehouses/${process.env.DATABRICKS_WAREHOUSE_ID || 'default'}`
+  httpPath: process.env.DATABRICKS_HTTP_PATH || `/sql/1.0/warehouses/8baced1ff014912d`
 };
 
 // Databricks SQL Client instance
