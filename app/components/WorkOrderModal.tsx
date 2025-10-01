@@ -11,7 +11,7 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
-import type { WorkOrderModalProps, Priority } from "../types";
+import type { WorkOrderModalProps, Priority, WorkOrderCreationSource } from "../types";
 import { useErrorHandler } from "./ErrorHandling";
 import PartsRequired from "./PartsRequired";
 
@@ -42,6 +42,7 @@ export default function WorkOrderModal(props: WorkOrderModalProps) {
   const [recommendedAction, setRecommendedAction] = useState("");
   const [partsRequired, setPartsRequired] = useState("");
   const [slaCategory, setSlaCategory] = useState("");
+  const [creationSource] = useState<WorkOrderCreationSource>("manual");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const modalRef = useRef<HTMLDivElement>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -79,12 +80,13 @@ export default function WorkOrderModal(props: WorkOrderModalProps) {
         assignedTo: assignedTo || undefined,
         fm: fm,
         priority: priority,
-        status: "Submitted",
+        status: "Submitted", // Manual work orders always start with Submitted status
         eta: parseInt(eta) || 0,
         symptoms: symptoms,
         recommendedAction: recommendedAction,
         partsRequired: partsRequired,
         slaCategory: slaCategory,
+        creationSource: creationSource,
       }),
     )
       .then(() => {
@@ -326,7 +328,7 @@ export default function WorkOrderModal(props: WorkOrderModalProps) {
                     aria-describedby="priority-description"
                   >
                     <MenuItem value="Routine">Routine</MenuItem>
-                    <MenuItem value="Priority">Priority</MenuItem>
+                    <MenuItem value="Urgent">Urgent</MenuItem>
                     <MenuItem value="CASREP">CASREP</MenuItem>
                   </Select>
                   <Typography
@@ -384,6 +386,7 @@ export default function WorkOrderModal(props: WorkOrderModalProps) {
                 )}
               </Box>
             </Box>
+
 
             {/* Details */}
             <Box>

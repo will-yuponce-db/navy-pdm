@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router";
 import SensorAnalyzer from "~/components/SensorAnalyzer";
 import { Box } from "@mui/material";
+import { useSelector } from "react-redux";
+import { selectAllWorkOrders } from "~/redux/services/workOrderSlice";
 
 export function meta() {
   return [
@@ -13,6 +15,7 @@ export function meta() {
 export default function SensorAnalyzerRoute() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const workOrders = useSelector(selectAllWorkOrders);
 
   const workOrderId = searchParams.get("workOrderId");
   const systemId = searchParams.get("systemId");
@@ -30,6 +33,21 @@ export default function SensorAnalyzerRoute() {
   // Redirect if no work order ID is provided
   if (!workOrderId) {
     navigate("/work-order");
+    return null;
+  }
+
+  // Find the work order and check if it's AI-generated
+  const workOrder = workOrders.find(wo => wo.wo === workOrderId);
+  
+  // Redirect if work order is manual (not AI-generated)
+  useEffect(() => {
+    if (workOrder && workOrder.creationSource !== 'ai') {
+      navigate(`/work-order?highlight=${workOrderId}`);
+    }
+  }, [workOrder, workOrderId, navigate]);
+
+  // Don't render if work order is manual
+  if (workOrder && workOrder.creationSource !== 'ai') {
     return null;
   }
 

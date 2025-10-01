@@ -13,6 +13,8 @@ export interface WorkOrder {
   recommendedAction?: string;
   partsRequired?: string;
   slaCategory?: string;
+  creationSource: WorkOrderCreationSource; // Manual or AI created
+  sensorData?: SensorData[]; // Sensor readings for AI-created work orders
   readonly createdAt?: Date | string;
   readonly updatedAt?: Date | string;
   // Populated fields for display
@@ -23,8 +25,10 @@ export interface WorkOrder {
 }
 
 export type Priority = "Routine" | "Urgent" | "CASREP";
+export type WorkOrderCreationSource = "manual" | "ai";
 export type WorkOrderStatus =
   | "Submitted"
+  | "Pending approval"
   | "In Progress"
   | "Completed"
   | "Cancelled"
@@ -194,6 +198,8 @@ export interface CreateWorkOrderForm {
   recommendedAction?: string;
   partsRequired?: string;
   slaCategory?: string;
+  creationSource: WorkOrderCreationSource;
+  sensorData?: SensorData[];
 }
 
 // API Response Types (for future backend integration)

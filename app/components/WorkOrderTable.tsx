@@ -102,6 +102,12 @@ const headCells = [
     label: "Status",
   },
   {
+    id: "creationSource",
+    numeric: true,
+    disablePadding: false,
+    label: "Source",
+  },
+  {
     id: "eta",
     numeric: true,
     disablePadding: false,
@@ -280,6 +286,7 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
   const [priorityFilter, setPriorityFilter] = useState<string>(
     props.initialFilter || "All",
   );
+  const [sourceFilter, setSourceFilter] = useState<string>("All");
 
   // Fetch work orders on component mount
   useEffect(() => {
@@ -336,9 +343,11 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
     setSelected(newSelected);
   };
 
-  const handleRowDoubleClick = (workOrderId: string) => {
-    // Navigate to sensor analyzer with work order context
-    navigate(`/sensor-analyzer?workOrderId=${workOrderId}`);
+  const handleRowDoubleClick = (workOrderId: string, creationSource: string) => {
+    // Only navigate to sensor analyzer for AI work orders
+    if (creationSource === 'ai') {
+      navigate(`/sensor-analyzer?workOrderId=${workOrderId}`);
+    }
   };
 
   const handleSensorAnalyzerClick = (event: React.MouseEvent, workOrderId: string) => {
@@ -392,6 +401,8 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
     switch (status) {
       case "Submitted":
         return "default";
+      case "Pending approval":
+        return "warning";
       case "In Progress":
         return "primary";
       case "Completed":
@@ -434,10 +445,12 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
         statusFilter === "All" || workOrder.status === statusFilter;
       const matchesPriority =
         priorityFilter === "All" || workOrder.priority === priorityFilter;
+      const matchesSource =
+        sourceFilter === "All" || workOrder.creationSource === sourceFilter;
 
-      return matchesSearch && matchesStatus && matchesPriority;
+      return matchesSearch && matchesStatus && matchesPriority && matchesSource;
     });
-  }, [workOrders, searchTerm, statusFilter, priorityFilter]);
+  }, [workOrders, searchTerm, statusFilter, priorityFilter, sourceFilter]);
 
   // Removed emptyRows calculation to eliminate extra spacing
 
@@ -521,6 +534,9 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
                 <MenuItemComponent value="Submitted">
                   Submitted
                 </MenuItemComponent>
+                <MenuItemComponent value="Pending approval">
+                  Pending approval
+                </MenuItemComponent>
                 <MenuItemComponent value="In Progress">
                   In Progress
                 </MenuItemComponent>
@@ -550,6 +566,24 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
                 <MenuItemComponent value="Routine">Routine</MenuItemComponent>
                 <MenuItemComponent value="Urgent">Urgent</MenuItemComponent>
                 <MenuItemComponent value="CASREP">CASREP</MenuItemComponent>
+              </Select>
+            </FormControl>
+
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: 120,
+              }}
+            >
+              <InputLabel>Source</InputLabel>
+              <Select
+                value={sourceFilter}
+                label="Source"
+                onChange={(e) => setSourceFilter(e.target.value)}
+              >
+                <MenuItemComponent value="All">All</MenuItemComponent>
+                <MenuItemComponent value="manual">Manual</MenuItemComponent>
+                <MenuItemComponent value="ai">AI</MenuItemComponent>
               </Select>
             </FormControl>
 
@@ -620,7 +654,7 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
                     key={row.wo}
                     hover
                     onClick={(event) => handleClick(event, row.wo.toString())}
-                    onDoubleClick={() => handleRowDoubleClick(row.wo.toString())}
+                    onDoubleClick={() => handleRowDoubleClick(row.wo.toString(), row.creationSource)}
                     role="checkbox"
                     aria-checked={isItemSelected}
                     tabIndex={-1}
@@ -707,6 +741,18 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
                         }}
                       />
                     </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={row.creationSource === 'ai' ? 'AI' : 'Manual'}
+                        color={row.creationSource === 'ai' ? 'warning' : 'default'}
+                        variant="outlined"
+                        size="small"
+                        sx={{
+                          fontWeight: 'bold',
+                          textTransform: 'uppercase'
+                        }}
+                      />
+                    </TableCell>
                     <TableCell>{row.eta} days</TableCell>
                     <TableCell>
                       {row.partsRequired ? (
@@ -731,16 +777,18 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Tooltip title="Open Sensor Analyzer">
-                        <IconButton
-                          size="small"
-                          onClick={(event) => handleSensorAnalyzerClick(event, row.wo.toString())}
-                          color="primary"
-                          aria-label={`Open sensor analyzer for work order ${row.wo}`}
-                        >
-                          <Analytics />
-                        </IconButton>
-                      </Tooltip>
+                      {row.creationSource === 'ai' && (
+                        <Tooltip title="Open Sensor Analyzer">
+                          <IconButton
+                            size="small"
+                            onClick={(event) => handleSensorAnalyzerClick(event, row.wo.toString())}
+                            color="primary"
+                            aria-label={`Open sensor analyzer for work order ${row.wo}`}
+                          >
+                            <Analytics />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </TableCell>
                   </TableRow>
                 );

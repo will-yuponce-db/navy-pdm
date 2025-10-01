@@ -43,6 +43,8 @@ import {
 } from "chart.js";
 import type { SensorAnalyzerProps, SensorData, SensorSystem, SensorAnalytics, SensorStatus } from "../types";
 import { sensorDataService } from "../services/sensorData";
+import { createAIWorkOrder } from "../utils/aiWorkOrderGenerator";
+import { useAppDispatch } from "../redux/hooks";
 
 // Register Chart.js components
 ChartJS.register(
@@ -62,6 +64,7 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
   sensorId,
   onClose,
 }) => {
+  const dispatch = useAppDispatch();
   const [sensorData, setSensorData] = useState<SensorData[]>([]);
   const [systems, setSystems] = useState<SensorSystem[]>([]);
   const [selectedSystem, setSelectedSystem] = useState<string>(systemId || "");
@@ -160,6 +163,21 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
       setSensorData(systemSensors);
     }
   }, [selectedSystem]);
+
+  const handleCreateAIWorkOrder = useCallback(async () => {
+    try {
+      // Use mock ship ID for demonstration
+      const shipId = "SHIP_001";
+      const gteSystemId = selectedSystem || "GTE_001";
+      
+      await createAIWorkOrder(dispatch, shipId, gteSystemId);
+      
+      // Show success message
+      console.log("AI work order created successfully!");
+    } catch (error) {
+      console.error("Failed to create AI work order:", error);
+    }
+  }, [dispatch, selectedSystem]);
 
   const getStatusColor = (status: SensorStatus) => {
     switch (status) {
@@ -304,6 +322,11 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
           <Tooltip title="Refresh Data">
             <IconButton onClick={handleRefresh} color="primary">
               <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Create AI Work Order">
+            <IconButton onClick={handleCreateAIWorkOrder} color="warning">
+              <BuildIcon />
             </IconButton>
           </Tooltip>
           {onClose && (

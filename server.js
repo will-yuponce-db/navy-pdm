@@ -302,6 +302,8 @@ function initializeDatabase() {
       recommended_action TEXT,
       parts_required TEXT,
       sla_category TEXT,
+      creation_source TEXT NOT NULL DEFAULT 'manual',
+      sensor_data TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (ship_id) REFERENCES ships(id),
@@ -627,6 +629,8 @@ app.get('/api/work-orders', (req, res) => {
         recommendedAction: wo.recommended_action,
         partsRequired: wo.parts_required,
         slaCategory: wo.sla_category,
+        creationSource: wo.creation_source,
+        sensorData: wo.sensor_data ? JSON.parse(wo.sensor_data) : null,
         createdAt: wo.created_at,
         updatedAt: wo.updated_at,
         // Populated fields
@@ -693,13 +697,19 @@ app.get('/api/work-orders/:wo_id', (req, res) => {
   }
 });
 
-app.post('/api/work-orders', (req, res) => {
+// AI Work Order Creation Endpoint
+app.post('/api/work-orders/ai', (req, res) => {
   try {
     const data = req.body;
     
+    // Validate required fields for AI work orders
+    if (!data.shipId || !data.fm || !data.sensorData) {
+      return res.status(400).json({ error: 'Ship ID, failure mode, and sensor data are required for AI work orders' });
+    }
+    
     const stmt = db.prepare(`
-      INSERT INTO work_orders (wo, ship_id, gte_system_id, assigned_to, created_by, fm, priority, status, eta, symptoms, recommended_action, parts_required, sla_category)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO work_orders (wo, ship_id, gte_system_id, assigned_to, created_by, fm, priority, status, eta, symptoms, recommended_action, parts_required, sla_category, creation_source, sensor_data)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     stmt.run(
@@ -709,13 +719,15 @@ app.post('/api/work-orders', (req, res) => {
       data.assignedTo || null,
       data.createdBy || null,
       data.fm,
-      data.priority,
-      data.status,
-      data.eta,
+      data.priority || 'Routine',
+      'Pending approval', // AI work orders always start with pending approval
+      data.eta || 7, // Default ETA of 7 days
       data.symptoms || null,
       data.recommendedAction || null,
       data.partsRequired || null,
-      data.slaCategory || null
+      data.slaCategory || null,
+      'ai',
+      JSON.stringify(data.sensorData)
     );
 
     // Get the created work order with populated relationships
@@ -752,6 +764,101 @@ app.post('/api/work-orders', (req, res) => {
       recommendedAction: workOrder.recommended_action,
       partsRequired: workOrder.parts_required,
       slaCategory: workOrder.sla_category,
+      creationSource: workOrder.creation_source,
+      sensorData: workOrder.sensor_data ? JSON.parse(workOrder.sensor_data) : null,
+      createdAt: workOrder.created_at,
+      updatedAt: workOrder.updated_at,
+      // Populated fields
+      ship: workOrder.ship_name ? {
+        id: workOrder.ship_id,
+        name: workOrder.ship_name,
+        homeport: workOrder.ship_homeport
+      } : null,
+      gteSystem: workOrder.gte_model ? {
+        id: workOrder.gte_system_id,
+        model: workOrder.gte_model,
+        serialNumber: workOrder.gte_serial
+      } : null,
+      assignedUser: workOrder.assigned_first_name ? {
+        id: workOrder.assigned_to,
+        firstName: workOrder.assigned_first_name,
+        lastName: workOrder.assigned_last_name
+      } : null,
+      createdByUser: workOrder.created_first_name ? {
+        id: workOrder.created_by,
+        firstName: workOrder.created_first_name,
+        lastName: workOrder.created_last_name
+      } : null
+    });
+  } catch (error) {
+    console.error('Error creating AI work order:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/work-orders', (req, res) => {
+  try {
+    const data = req.body;
+    
+    const stmt = db.prepare(`
+      INSERT INTO work_orders (wo, ship_id, gte_system_id, assigned_to, created_by, fm, priority, status, eta, symptoms, recommended_action, parts_required, sla_category, creation_source, sensor_data)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    stmt.run(
+      data.wo,
+      data.shipId,
+      data.gteSystemId || null,
+      data.assignedTo || null,
+      data.createdBy || null,
+      data.fm,
+      data.priority,
+      data.status,
+      data.eta,
+      data.symptoms || null,
+      data.recommendedAction || null,
+      data.partsRequired || null,
+      data.slaCategory || null,
+      data.creationSource || 'manual',
+      data.sensorData ? JSON.stringify(data.sensorData) : null
+    );
+
+    // Get the created work order with populated relationships
+    const workOrder = db.prepare(`
+      SELECT 
+        wo.*,
+        s.name as ship_name,
+        s.homeport as ship_homeport,
+        gs.model as gte_model,
+        gs.serial_number as gte_serial,
+        ua.first_name as assigned_first_name,
+        ua.last_name as assigned_last_name,
+        uc.first_name as created_first_name,
+        uc.last_name as created_last_name
+      FROM work_orders wo
+      LEFT JOIN ships s ON wo.ship_id = s.id
+      LEFT JOIN gte_systems gs ON wo.gte_system_id = gs.id
+      LEFT JOIN users ua ON wo.assigned_to = ua.id
+      LEFT JOIN users uc ON wo.created_by = uc.id
+      WHERE wo.wo = ?
+    `).get(data.wo);
+    
+    res.status(201).json({
+      wo: workOrder.wo,
+      shipId: workOrder.ship_id,
+      gteSystemId: workOrder.gte_system_id,
+      assignedTo: workOrder.assigned_to,
+      createdBy: workOrder.created_by,
+      fm: workOrder.fm,
+      priority: workOrder.priority,
+      status: workOrder.status,
+      eta: workOrder.eta,
+      symptoms: workOrder.symptoms,
+      recommendedAction: workOrder.recommended_action,
+      partsRequired: workOrder.parts_required,
+      slaCategory: workOrder.sla_category,
+      creationSource: workOrder.creation_source,
+      sensorData: workOrder.sensor_data ? JSON.parse(workOrder.sensor_data) : null,
       createdAt: workOrder.created_at,
       updatedAt: workOrder.updated_at,
       // Populated fields
@@ -1543,27 +1650,42 @@ app.get('/api/analytics/predictive-insights', (req, res) => {
   }
 });
 
-// Health check
-app.get('/api/health', (req, res) => {
+// Enhanced health check with Databricks status
+app.get('/api/health', async (req, res) => {
   try {
-    res.json({
+    const healthStatus = {
       status: 'healthy',
-      timestamp: new Date().toISOString()
-    });
+      timestamp: new Date().toISOString(),
+      services: {
+        api: 'healthy',
+        database: 'healthy'
+      }
+    };
+
+    // Check Databricks health if available
+    try {
+      const userToken = req.headers['x-forwarded-access-token'];
+      const databricksHealth = await databricksHealthCheck(userToken);
+      healthStatus.services.databricks = databricksHealth.status;
+      healthStatus.databricks = databricksHealth;
+      
+      // Update overall status if Databricks is unhealthy
+      if (databricksHealth.status === 'unhealthy') {
+        healthStatus.status = 'degraded';
+      }
+    } catch (databricksError) {
+      console.warn('Databricks health check failed:', databricksError.message);
+      healthStatus.services.databricks = 'unavailable';
+      healthStatus.databricks = {
+        status: 'unavailable',
+        error: databricksError.message
+      };
+    }
+
+    const httpStatus = healthStatus.status === 'healthy' ? 200 : 503;
+    res.status(httpStatus).json(healthStatus);
   } catch (error) {
     console.error('Error in health check:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Databricks SQL API routes
-app.get('/api/databricks/health', async (req, res) => {
-  try {
-    const userToken = req.headers['x-forwarded-access-token'];
-    const healthStatus = await databricksHealthCheck(userToken);
-    res.json(healthStatus);
-  } catch (error) {
-    console.error('Error in Databricks health check:', error);
     res.status(500).json({ 
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
@@ -1572,17 +1694,57 @@ app.get('/api/databricks/health', async (req, res) => {
   }
 });
 
+// Enhanced Databricks SQL API routes with better error handling
+app.get('/api/databricks/health', async (req, res) => {
+  try {
+    const userToken = req.headers['x-forwarded-access-token'];
+    const healthStatus = await databricksHealthCheck(userToken);
+    
+    // Set appropriate HTTP status based on health
+    const httpStatus = healthStatus.status === 'healthy' ? 200 : 503;
+    res.status(httpStatus).json(healthStatus);
+  } catch (error) {
+    console.error('Error in Databricks health check:', error);
+    
+    const errorResponse = {
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: 'Internal server error',
+      diagnostics: {
+        connectionStatus: 'unknown',
+        lastHealthCheck: null,
+        error: error.message || 'Unknown error'
+      },
+      recommendations: ['Check server logs for detailed error information.']
+    };
+    
+    res.status(500).json(errorResponse);
+  }
+});
+
 app.get('/api/databricks/test', async (req, res) => {
   try {
     const userToken = req.headers['x-forwarded-access-token'];
     const testResult = await testDatabricksConnection(userToken);
-    res.json(testResult);
+    
+    // Set appropriate HTTP status based on test result
+    const httpStatus = testResult.success ? 200 : 503;
+    res.status(httpStatus).json(testResult);
   } catch (error) {
     console.error('Error testing Databricks connection:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: `Test failed: ${error.message}` 
-    });
+    
+    const errorResponse = {
+      success: false,
+      message: `Test failed: ${error.message}`,
+      diagnostics: {
+        connectionStatus: 'unknown',
+        lastHealthCheck: null,
+        error: error.message || 'Unknown error'
+      },
+      recommendations: ['Check server logs for detailed error information.']
+    };
+    
+    res.status(500).json(errorResponse);
   }
 });
 
@@ -1592,20 +1754,53 @@ app.post('/api/databricks/query', async (req, res) => {
     const userToken = req.headers['x-forwarded-access-token'];
     
     if (!query) {
-      return res.status(400).json({ error: 'Query is required' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Query is required',
+        recommendations: ['Please provide a valid SQL query in the request body.']
+      });
     }
 
+    const startTime = Date.now();
     const result = await executeDatabricksQuery(query, options, userToken);
+    const duration = Date.now() - startTime;
+    
     res.json({
       success: true,
       data: result,
-      rowCount: result.length
+      rowCount: result.length,
+      diagnostics: {
+        executionTime: duration,
+        queryLength: query.length,
+        timestamp: new Date().toISOString()
+      }
     });
   } catch (error) {
     console.error('Error executing Databricks query:', error);
+    
+    const errorMessage = error.message || 'Unknown error';
+    let recommendations = ['Check server logs for detailed error information.'];
+    
+    // Provide specific recommendations based on error type
+    if (errorMessage.includes('timeout')) {
+      recommendations = ['Query timeout. Try optimizing your query or check Databricks warehouse status.'];
+    } else if (errorMessage.includes('permission') || errorMessage.includes('access')) {
+      recommendations = ['Permission denied. Check that the service principal or user has access to the requested tables.'];
+    } else if (errorMessage.includes('syntax')) {
+      recommendations = ['SQL syntax error. Please check your query syntax and try again.'];
+    } else if (errorMessage.includes('table') || errorMessage.includes('database')) {
+      recommendations = ['Table or database not found. Verify the table names and database exists.'];
+    }
+    
     res.status(500).json({ 
       success: false, 
-      error: `Query execution failed: ${error.message}` 
+      error: `Query execution failed: ${errorMessage}`,
+      diagnostics: {
+        queryLength: req.body.query?.length || 0,
+        timestamp: new Date().toISOString(),
+        error: errorMessage
+      },
+      recommendations
     });
   }
 });
@@ -1663,7 +1858,7 @@ app.get('/api/databricks/databases/:databaseName/tables', async (req, res) => {
   }
 });
 
-// Databricks Parts API
+// Enhanced Databricks Parts API with better error handling
 app.get('/api/databricks/parts', async (req, res) => {
   try {
     const { page = 1, limit = 50, category, condition, search } = req.query;
@@ -1695,7 +1890,9 @@ app.get('/api/databricks/parts', async (req, res) => {
     const offset = (page - 1) * limit;
     query += ` ORDER BY last_updated DESC LIMIT ${limit} OFFSET ${offset}`;
     
+    const startTime = Date.now();
     const result = await executeDatabricksQuery(query, {}, userToken);
+    const duration = Date.now() - startTime;
     
     // Transform snake_case to camelCase for frontend compatibility
     const transformedResult = result.map(part => ({
@@ -1729,7 +1926,13 @@ app.get('/api/databricks/parts', async (req, res) => {
       page: parseInt(page),
       pageSize: parseInt(limit),
       hasNext: (page * limit) < total,
-      hasPrevious: page > 1
+      hasPrevious: page > 1,
+      diagnostics: {
+        executionTime: duration,
+        queryLength: query.length,
+        timestamp: new Date().toISOString(),
+        source: 'databricks'
+      }
     });
   } catch (error) {
     console.error('Error fetching parts from Databricks:', error);
@@ -1787,13 +1990,38 @@ app.get('/api/databricks/parts', async (req, res) => {
         pageSize: parseInt(req.query.limit || 50),
         hasNext: false,
         hasPrevious: false,
-        fallback: true
+        fallback: true,
+        diagnostics: {
+          executionTime: 0,
+          queryLength: localQuery.length,
+          timestamp: new Date().toISOString(),
+          source: 'local_database',
+          fallbackReason: error.message || 'Databricks connection failed'
+        }
       });
     } catch (fallbackError) {
       console.error('Local database fallback also failed:', fallbackError);
+      
+      const errorMessage = error.message || 'Unknown error';
+      let recommendations = ['Check server logs for detailed error information.'];
+      
+      if (errorMessage.includes('timeout')) {
+        recommendations = ['Databricks connection timeout. Check network connectivity and warehouse status.'];
+      } else if (errorMessage.includes('permission') || errorMessage.includes('access')) {
+        recommendations = ['Permission denied. Check service principal access to Databricks tables.'];
+      } else if (errorMessage.includes('table') || errorMessage.includes('database')) {
+        recommendations = ['Table not found. Verify the parts table exists in Databricks.'];
+      }
+      
       res.status(500).json({ 
         success: false, 
-        error: `Failed to fetch parts from both Databricks and local database: ${error.message}` 
+        error: `Failed to fetch parts from both Databricks and local database: ${errorMessage}`,
+        diagnostics: {
+          databricksError: errorMessage,
+          fallbackError: fallbackError.message || 'Local database also failed',
+          timestamp: new Date().toISOString()
+        },
+        recommendations
       });
     }
   }

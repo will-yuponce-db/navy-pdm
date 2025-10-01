@@ -72,10 +72,39 @@ ORDER BY last_updated DESC
 LIMIT 50 OFFSET 0
 ```
 
+## Enhanced Error Handling
+
+The API now includes comprehensive error handling with detailed diagnostics:
+
+### Features
+- **Retry Logic**: Automatic retry with exponential backoff (3 attempts)
+- **Detailed Logging**: Structured error logs with context and timestamps
+- **Health Monitoring**: Connection status tracking and health checks
+- **Diagnostics**: Response times, connection status, and error details
+- **Recommendations**: Actionable suggestions based on error types
+- **Fallback Support**: Automatic fallback to local database when available
+
+### Error Response Format
+```json
+{
+  "success": false,
+  "error": "Connection timeout after 30000ms",
+  "diagnostics": {
+    "connectionStatus": "unhealthy",
+    "lastHealthCheck": "2024-01-15T10:30:00.000Z",
+    "responseTime": 30000,
+    "error": "Connection timeout after 30000ms"
+  },
+  "recommendations": [
+    "Connection timeout detected. Check network connectivity and Databricks service status."
+  ]
+}
+```
+
 ## Troubleshooting
 
 ### Missing Environment Variables
-If you see: `Databricks environment variables not available - using local database fallback`
+If you see: `Missing required Databricks environment variables: DATABRICKS_CLIENT_ID, DATABRICKS_CLIENT_SECRET, DATABRICKS_SERVER_HOSTNAME, DATABRICKS_HTTP_PATH`
 - This is expected behavior when running locally
 - The application will automatically use the local SQLite database
 - In Databricks environment, these variables are provided automatically
@@ -85,12 +114,26 @@ If you see: `Databricks connection failed`
 - Check that you're running in the Databricks environment
 - Verify the service principal has access to the workspace
 - Ensure the SQL warehouse is running
+- Check network connectivity and firewall settings
 
 ### Query Execution Failed
 If you see: `Query execution failed`
 - Verify the table `public_sector.predictive_maintenance_navy.parts` exists
 - Check that the service principal or user has SELECT permissions
 - The application will fall back to local database if Databricks fails
+- Check query syntax and table names
+
+### High Response Times
+If you see: `High response time detected`
+- Check Databricks warehouse status (may be cold or overloaded)
+- Verify network connectivity
+- Consider optimizing queries or increasing warehouse size
+
+### Authentication Errors
+If you see: `Authentication failed`
+- Verify service principal credentials
+- Check that the service principal has workspace access
+- Ensure the OIDC token endpoint is accessible
 
 ## Security Notes
 

@@ -40,8 +40,10 @@ export const addWorkOrderWithNotification = createAsyncThunk(
     const state = getState() as RootState;
     const parts = selectAllParts(state);
 
+    // Manual work orders always have "Submitted" status
     const newWorkOrder = await workOrdersApi.create({
       ...workOrderData,
+      status: "Submitted",
       wo: uuidv4().split("-")[0].toUpperCase(),
     } as WorkOrder);
 
@@ -91,6 +93,81 @@ export const addWorkOrderWithNotification = createAsyncThunk(
             type: "warning",
             title: "Parts Availability Alert",
             message: `Work order ${newWorkOrder.wo} requires parts that are low in stock: ${unavailableParts.map((p) => p.name).join(", ")}`,
+            priority: "high",
+            category: "alert",
+            workOrderId: newWorkOrder.wo,
+          }),
+        );
+      }
+    }
+
+    return newWorkOrder;
+  },
+);
+
+export const addAIWorkOrderWithNotification = createAsyncThunk(
+  "workOrders/addAIWithNotification",
+  async (
+    workOrderData: Omit<WorkOrder, "wo" | "createdAt" | "updatedAt">,
+    { dispatch, getState },
+  ) => {
+    const state = getState() as RootState;
+    const parts = selectAllParts(state);
+
+    // AI work orders always have "Pending approval" status
+    const newWorkOrder = await workOrdersApi.createAI({
+      ...workOrderData,
+      status: "Pending approval",
+      creationSource: "ai",
+      wo: uuidv4().split("-")[0].toUpperCase(),
+    } as WorkOrder);
+
+    // Dispatch notification
+    dispatch(
+      addNotification(
+        createWorkOrderNotifications.workOrderCreated(newWorkOrder),
+      ),
+    );
+
+    // Check for CASREP alerts
+    if (newWorkOrder.priority === "CASREP") {
+      dispatch(
+        addNotification(createWorkOrderNotifications.casrepAlert(newWorkOrder)),
+      );
+    } else if (newWorkOrder.priority === "Urgent") {
+      dispatch(
+        addNotification(
+          createWorkOrderNotifications.urgentWorkOrder(newWorkOrder),
+        ),
+      );
+    }
+
+    // Check parts availability if parts are required
+    if (newWorkOrder.partsRequired && newWorkOrder.partsRequired.trim()) {
+      const requiredParts = newWorkOrder.partsRequired.toLowerCase();
+      const unavailableParts = parts.filter((part) => {
+        const partName = part.name.toLowerCase();
+        const partId = part.id.toLowerCase();
+        const isRequired =
+          requiredParts.includes(partName) || requiredParts.includes(partId);
+
+        if (isRequired) {
+          const stockStatus = getStockStatus(
+            part.stockLevel,
+            part.minStock,
+            part.maxStock,
+          );
+          return stockStatus === "Critical" || stockStatus === "Low";
+        }
+        return false;
+      });
+
+      if (unavailableParts.length > 0) {
+        dispatch(
+          addNotification({
+            type: "warning",
+            title: "Parts Availability Alert",
+            message: `AI work order ${newWorkOrder.wo} requires parts that are low in stock: ${unavailableParts.map((p) => p.name).join(", ")}`,
             priority: "high",
             category: "alert",
             workOrderId: newWorkOrder.wo,
@@ -222,6 +299,19 @@ const workOrderSlice = createSlice({
       .addCase(addWorkOrderWithNotification.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || "Failed to add work order";
+      })
+      // Add AI work order
+      .addCase(addAIWorkOrderWithNotification.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(addAIWorkOrderWithNotification.fulfilled, (state, action) => {
+        state.loading = false;
+        state.workOrders.push(action.payload);
+      })
+      .addCase(addAIWorkOrderWithNotification.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || "Failed to add AI work order";
       })
       // Update work order
       .addCase(updateWorkOrderWithNotification.pending, (state) => {
