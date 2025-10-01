@@ -14,6 +14,7 @@ import {
   Category,
   Warning,
   Speed,
+  Help,
 } from "@mui/icons-material";
 import type { RootState } from "../types";
 
@@ -238,25 +239,49 @@ export default function QuickActions() {
             p: 2,
             backgroundColor: "background.default",
             borderRadius: 1,
+            border: "1px solid",
+            borderColor: "divider",
           }}
         >
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "text.secondary",
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: 0.5,
+              }}
+            >
+              <Help fontSize="small" />
+              Keyboard Shortcuts:
+            </Typography>
+            <Tooltip title="Press Ctrl+? for full user guide">
+              <Button
+                size="small"
+                variant="text"
+                sx={{ minWidth: "auto", p: 0.5 }}
+                onClick={() => {
+                  // This would open the user guide
+                  console.log("Open user guide");
+                }}
+              >
+                <Help fontSize="small" />
+              </Button>
+            </Tooltip>
+          </Box>
           <Typography
             variant="caption"
-            sx={{
-              color: "text.secondary",
-              fontWeight: 600,
-              display: "block",
-              mb: 1,
-            }}
+            sx={{ color: "text.secondary", fontSize: "0.75rem", display: "block" }}
           >
-            Keyboard Shortcuts:
+            Ctrl+1: Work Orders • Ctrl+2: Assets • Ctrl+3: Parts • Ctrl+R: Refresh
           </Typography>
           <Typography
             variant="caption"
-            sx={{ color: "text.secondary", fontSize: "0.75rem" }}
+            sx={{ color: "text.secondary", fontSize: "0.75rem", display: "block", mt: 0.5 }}
           >
-            Ctrl+1: Work Orders • Ctrl+2: Assets • Ctrl+3: Parts • Ctrl+R:
-            Refresh
+            Ctrl+N: New Work Order • Ctrl+?: User Guide
           </Typography>
         </Box>
       </CardContent>

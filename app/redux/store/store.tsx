@@ -4,6 +4,7 @@ import workOrderReducer from "../services/workOrderSlice";
 import notificationReducer from "../services/notificationSlice";
 import partsReducer from "../services/partsSlice";
 import authReducer from "../services/authSlice";
+import assetReducer from "../services/assetSlice";
 
 export const store = configureStore({
   reducer: {
@@ -11,6 +12,7 @@ export const store = configureStore({
     notifications: notificationReducer,
     parts: partsReducer,
     auth: authReducer,
+    assets: assetReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -30,7 +32,11 @@ export const store = configureStore({
         ],
       },
     }),
-  devTools: process.env.NODE_ENV !== "production",
+  devTools: process.env.NODE_ENV !== "production" ? {
+    name: "Navy PdM Store",
+    trace: true,
+    traceLimit: 25,
+  } : false,
 });
 
 // Setup listeners for refetchOnFocus/refetchOnReconnect behaviors

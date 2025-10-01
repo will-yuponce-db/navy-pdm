@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useMemo,
   useCallback,
+  useRef,
 } from "react";
 import {
   isRouteErrorResponse,
@@ -21,7 +22,7 @@ import "./app.css";
 import NavComponent from "./components/NavComponent";
 import { store } from "../app/redux/store/store";
 import { ErrorSnackbar, useErrorHandler } from "./components/ErrorHandling";
-import { NotificationCenter } from "./components/NotificationSystem";
+import { EnhancedErrorBoundary } from "./components/EnhancedErrorBoundary";
 import { useAppDispatch } from "./redux/hooks";
 import type { RootState } from "./types";
 import {
@@ -254,55 +255,22 @@ function AppContent() {
   }, []);
 
   // Initialize sample notifications on client side only after hydration
+  // Use a ref to track if we've already initialized to prevent re-adding after clearing
+  const hasInitialized = useRef(false);
+  
   useEffect(() => {
-    if (isClient && notifications.length === 0) {
+    if (isClient && notifications.length === 0 && !hasInitialized.current) {
       SAMPLE_NOTIFICATIONS.forEach((notification) => {
         dispatch(addNotification(notification));
       });
+      hasInitialized.current = true;
     }
   }, [dispatch, isClient, notifications.length]);
-
-  const handleDismissNotification = useCallback(
-    (id: string) => {
-      wsDismiss(id);
-      dispatch(dismissNotification(id));
-    },
-    [wsDismiss, dispatch],
-  );
-
-  const handleMarkAsRead = useCallback(
-    (id: string) => {
-      wsMarkAsRead(id);
-      dispatch(markAsRead(id));
-    },
-    [wsMarkAsRead, dispatch],
-  );
-
-  const processedNotifications = useMemo(
-    () =>
-      notifications.map((n) => ({
-        ...n,
-        timestamp:
-          typeof n.timestamp === "string"
-            ? n.timestamp
-            : (n.timestamp as Date).toISOString(),
-      })),
-    [notifications],
-  );
 
   return (
     <>
       <ErrorSnackbar error={error} onClose={clearError} />
-      {isClient && (
-        <>
-          <NotificationCenter
-            notifications={processedNotifications}
-            onDismiss={handleDismissNotification}
-            onMarkAsRead={handleMarkAsRead}
-          />
-          <WebSocketStatusIndicator isConnected={isConnected} />
-        </>
-      )}
+      {isClient && <WebSocketStatusIndicator isConnected={isConnected} />}
     </>
   );
 }
@@ -353,14 +321,16 @@ export default function App() {
   );
 
   return (
-    <ThemeContext.Provider value={themeContextValue}>
-      <ThemeProvider theme={theme}>
-        <Provider store={store}>
-          <NavComponent />
-          <AppContent />
-        </Provider>
-      </ThemeProvider>
-    </ThemeContext.Provider>
+    <EnhancedErrorBoundary>
+      <ThemeContext.Provider value={themeContextValue}>
+        <ThemeProvider theme={theme}>
+          <Provider store={store}>
+            <NavComponent />
+            <AppContent />
+          </Provider>
+        </ThemeProvider>
+      </ThemeContext.Provider>
+    </EnhancedErrorBoundary>
   );
 }
 

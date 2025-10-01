@@ -76,6 +76,9 @@ const notificationSlice = createSlice({
     markAllNotificationsAsReadRealTime: (state) => {
       state.notifications.forEach((n) => (n.read = true));
     },
+    clearAllNotificationsRealTime: (state) => {
+      state.notifications = [];
+    },
   },
 });
 
@@ -89,6 +92,7 @@ export const {
   markNotificationAsReadRealTime,
   removeNotificationRealTime,
   markAllNotificationsAsReadRealTime,
+  clearAllNotificationsRealTime,
 } = notificationSlice.actions;
 
 // Export notification creators

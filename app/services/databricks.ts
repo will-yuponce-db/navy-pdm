@@ -53,7 +53,7 @@ export async function initializeDatabricks(): Promise<DBSQLClient> {
     return client;
   } catch (error) {
     console.error('Failed to connect to Databricks SQL:', error);
-    throw new Error(`Databricks connection failed: ${error.message}`);
+    throw new Error(`Databricks connection failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -75,7 +75,7 @@ export async function executeDatabricksQuery(query: string, options: any = {}): 
     return result;
   } catch (error) {
     console.error('Databricks query execution failed:', error);
-    throw new Error(`Query execution failed: ${error.message}`);
+    throw new Error(`Query execution failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -91,7 +91,7 @@ export async function testDatabricksConnection(): Promise<{ success: boolean; me
   } catch (error) {
     return {
       success: false,
-      message: `Connection test failed: ${error.message}`
+      message: `Connection test failed: ${error instanceof Error ? error.message : String(error)}`
     };
   }
 }
@@ -155,7 +155,7 @@ export async function databricksHealthCheck(): Promise<{ status: string; timesta
     return {
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
-      details: { error: error.message }
+      details: { error: error instanceof Error ? error.message : String(error) }
     };
   }
 }

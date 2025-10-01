@@ -421,7 +421,14 @@ export const UserManagement: React.FC = () => {
           }}
         >
           <Typography variant="h6">User Management</Typography>
-          <Button startIcon={<Add />} variant="contained">
+          <Button 
+            startIcon={<Add />} 
+            variant="contained"
+            onClick={() => {
+              console.log("Add User clicked");
+              // TODO: Implement add user functionality
+            }}
+          >
             Add User
           </Button>
         </Box>
@@ -469,11 +476,19 @@ export const UserManagement: React.FC = () => {
                       }
                       sx={{ mr: 1 }}
                     />
-                    <IconButton onClick={() => handleEditUser(user)}>
+                    <IconButton 
+                      onClick={() => {
+                        handleEditUser(user);
+                        console.log("Edit user clicked for:", user.id);
+                      }}
+                    >
                       <Edit />
                     </IconButton>
                     <IconButton
-                      onClick={() => handleDeleteUser(user.id)}
+                      onClick={() => {
+                        handleDeleteUser(user.id);
+                        console.log("Delete user clicked for:", user.id);
+                      }}
                       color="error"
                     >
                       <Delete />
@@ -543,8 +558,24 @@ export const UserManagement: React.FC = () => {
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-            <Button variant="contained">Save</Button>
+            <Button 
+              onClick={() => {
+                setIsEditDialogOpen(false);
+                console.log("Cancel edit user dialog");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="contained"
+              onClick={() => {
+                console.log("Save user changes");
+                setIsEditDialogOpen(false);
+                // TODO: Implement save user functionality
+              }}
+            >
+              Save
+            </Button>
           </DialogActions>
         </Dialog>
       </CardContent>

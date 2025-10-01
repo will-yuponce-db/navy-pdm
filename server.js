@@ -196,14 +196,83 @@ app.use(express.json());
 
 // Database initialization
 function initializeDatabase() {
-  // Create WorkOrder table
+  // Create Ships table first (referenced by other tables)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ships (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      designation TEXT NOT NULL,
+      class TEXT NOT NULL,
+      homeport TEXT NOT NULL,
+      status TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Create Users table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      first_name TEXT NOT NULL,
+      last_name TEXT NOT NULL,
+      role TEXT NOT NULL,
+      homeport TEXT,
+      department TEXT,
+      is_active BOOLEAN DEFAULT 1,
+      last_login DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Create GTE Systems table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS gte_systems (
+      id TEXT PRIMARY KEY,
+      model TEXT NOT NULL,
+      serial_number TEXT NOT NULL,
+      install_date DATE NOT NULL,
+      status TEXT NOT NULL,
+      hours_operation INTEGER DEFAULT 0,
+      last_maintenance DATE,
+      next_maintenance DATE,
+      ship_id TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (ship_id) REFERENCES ships(id)
+    )
+  `);
+
+  // Create Assets table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS assets (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      status TEXT NOT NULL,
+      location TEXT NOT NULL,
+      serial_number TEXT,
+      install_date DATE,
+      last_inspection DATE,
+      next_inspection DATE,
+      ship_id TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (ship_id) REFERENCES ships(id)
+    )
+  `);
+
+  // Create WorkOrder table with proper foreign keys
   db.exec(`
     CREATE TABLE IF NOT EXISTS work_orders (
       wo TEXT PRIMARY KEY,
-      ship TEXT NOT NULL,
-      homeport TEXT NOT NULL,
+      ship_id TEXT NOT NULL,
+      gte_system_id TEXT,
+      assigned_to TEXT,
+      created_by TEXT,
       fm TEXT NOT NULL,
-      gte TEXT NOT NULL,
       priority TEXT NOT NULL,
       status TEXT NOT NULL,
       eta INTEGER NOT NULL,
@@ -212,7 +281,11 @@ function initializeDatabase() {
       parts_required TEXT,
       sla_category TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (ship_id) REFERENCES ships(id),
+      FOREIGN KEY (gte_system_id) REFERENCES gte_systems(id),
+      FOREIGN KEY (assigned_to) REFERENCES users(id),
+      FOREIGN KEY (created_by) REFERENCES users(id)
     )
   `);
 
@@ -235,7 +308,7 @@ function initializeDatabase() {
     )
   `);
 
-  // Create Notification table
+  // Create Notification table with foreign key
   db.exec(`
     CREATE TABLE IF NOT EXISTS notifications (
       id TEXT PRIMARY KEY,
@@ -246,7 +319,130 @@ function initializeDatabase() {
       priority TEXT NOT NULL,
       category TEXT NOT NULL,
       read BOOLEAN DEFAULT 0,
-      work_order_id TEXT
+      work_order_id TEXT,
+      FOREIGN KEY (work_order_id) REFERENCES work_orders(wo)
+    )
+  `);
+
+  // Create Maintenance Schedules table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS maintenance_schedules (
+      id TEXT PRIMARY KEY,
+      asset_id TEXT NOT NULL,
+      assigned_to TEXT,
+      created_by TEXT,
+      maintenance_type TEXT NOT NULL,
+      scheduled_date DATE NOT NULL,
+      status TEXT NOT NULL,
+      description TEXT,
+      estimated_hours INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (asset_id) REFERENCES assets(id),
+      FOREIGN KEY (assigned_to) REFERENCES users(id),
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    )
+  `);
+
+  // Create Performance Metrics table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS performance_metrics (
+      id TEXT PRIMARY KEY,
+      asset_id TEXT NOT NULL,
+      metric_type TEXT NOT NULL,
+      value REAL NOT NULL,
+      unit TEXT NOT NULL,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      status TEXT NOT NULL,
+      FOREIGN KEY (asset_id) REFERENCES assets(id)
+    )
+  `);
+
+  // Create Sensor Systems table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sensor_systems (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      location TEXT NOT NULL,
+      status TEXT NOT NULL,
+      last_maintenance DATE,
+      next_maintenance DATE,
+      gte_system_id TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (gte_system_id) REFERENCES gte_systems(id)
+    )
+  `);
+
+  // Create Sensor Data table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sensor_data (
+      id TEXT PRIMARY KEY,
+      sensor_id TEXT NOT NULL,
+      sensor_name TEXT NOT NULL,
+      sensor_type TEXT NOT NULL,
+      value REAL NOT NULL,
+      unit TEXT NOT NULL,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      status TEXT NOT NULL,
+      location TEXT NOT NULL,
+      system_id TEXT NOT NULL,
+      FOREIGN KEY (system_id) REFERENCES sensor_systems(id)
+    )
+  `);
+
+  // Create Sensor Analytics table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sensor_analytics (
+      sensor_id TEXT PRIMARY KEY,
+      time_range TEXT NOT NULL,
+      average_value REAL NOT NULL,
+      min_value REAL NOT NULL,
+      max_value REAL NOT NULL,
+      trend TEXT NOT NULL,
+      anomalies INTEGER DEFAULT 0,
+      efficiency REAL NOT NULL,
+      FOREIGN KEY (sensor_id) REFERENCES sensor_data(sensor_id)
+    )
+  `);
+
+  // Create Audit Logs table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      resource TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      changes TEXT,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      ip_address TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
+  // Create Security Events table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS security_events (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      user_id TEXT,
+      ip_address TEXT,
+      user_agent TEXT,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      details TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
+  // Create User Permissions table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_permissions (
+      user_id TEXT NOT NULL,
+      permission TEXT NOT NULL,
+      PRIMARY KEY (user_id, permission),
+      FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `);
 
@@ -304,6 +500,21 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle clear all notifications events
+  socket.on('notifications:clear-all', () => {
+    try {
+      const result = db.prepare('DELETE FROM notifications').run();
+      
+      // Broadcast to all clients that all notifications were cleared
+      io.to('notifications').emit('notifications:all-cleared');
+      
+      console.log(`Cleared ${result.changes} notifications via WebSocket`);
+    } catch (error) {
+      console.error('Error clearing all notifications:', error);
+      socket.emit('error', { message: 'Failed to clear all notifications' });
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });
@@ -338,27 +549,55 @@ app.get('/api/work-orders', (req, res) => {
     }
 
     if (search) {
-      const searchCondition = ' (ship LIKE ? OR fm LIKE ? OR wo LIKE ?)';
+      const searchCondition = ' (s.name LIKE ? OR wo.fm LIKE ? OR wo.wo LIKE ?)';
       whereClause += whereClause ? ' AND' + searchCondition : ' WHERE' + searchCondition;
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    // Get total count
-    const countQuery = `SELECT COUNT(*) as total FROM work_orders${whereClause}`;
+    // Get total count with proper joins
+    const countQuery = `
+      SELECT COUNT(*) as total 
+      FROM work_orders wo
+      LEFT JOIN ships s ON wo.ship_id = s.id
+      LEFT JOIN gte_systems gs ON wo.gte_system_id = gs.id
+      LEFT JOIN users ua ON wo.assigned_to = ua.id
+      LEFT JOIN users uc ON wo.created_by = uc.id
+      ${whereClause}
+    `;
     const total = db.prepare(countQuery).get(...params).total;
 
-    // Get paginated results
+    // Get paginated results with populated relationships
     const offset = (page - 1) * limit;
-    const query = `SELECT * FROM work_orders${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+    const query = `
+      SELECT 
+        wo.*,
+        s.name as ship_name,
+        s.homeport as ship_homeport,
+        gs.model as gte_model,
+        gs.serial_number as gte_serial,
+        ua.first_name as assigned_first_name,
+        ua.last_name as assigned_last_name,
+        uc.first_name as created_first_name,
+        uc.last_name as created_last_name
+      FROM work_orders wo
+      LEFT JOIN ships s ON wo.ship_id = s.id
+      LEFT JOIN gte_systems gs ON wo.gte_system_id = gs.id
+      LEFT JOIN users ua ON wo.assigned_to = ua.id
+      LEFT JOIN users uc ON wo.created_by = uc.id
+      ${whereClause} 
+      ORDER BY wo.created_at DESC 
+      LIMIT ? OFFSET ?
+    `;
     const workOrders = db.prepare(query).all(...params, limit, offset);
 
     res.json({
       items: workOrders.map(wo => ({
         wo: wo.wo,
-        ship: wo.ship,
-        homeport: wo.homeport,
+        shipId: wo.ship_id,
+        gteSystemId: wo.gte_system_id,
+        assignedTo: wo.assigned_to,
+        createdBy: wo.created_by,
         fm: wo.fm,
-        gte: wo.gte,
         priority: wo.priority,
         status: wo.status,
         eta: wo.eta,
@@ -367,7 +606,28 @@ app.get('/api/work-orders', (req, res) => {
         partsRequired: wo.parts_required,
         slaCategory: wo.sla_category,
         createdAt: wo.created_at,
-        updatedAt: wo.updated_at
+        updatedAt: wo.updated_at,
+        // Populated fields
+        ship: wo.ship_name ? {
+          id: wo.ship_id,
+          name: wo.ship_name,
+          homeport: wo.ship_homeport
+        } : null,
+        gteSystem: wo.gte_model ? {
+          id: wo.gte_system_id,
+          model: wo.gte_model,
+          serialNumber: wo.gte_serial
+        } : null,
+        assignedUser: wo.assigned_first_name ? {
+          id: wo.assigned_to,
+          firstName: wo.assigned_first_name,
+          lastName: wo.assigned_last_name
+        } : null,
+        createdByUser: wo.created_first_name ? {
+          id: wo.created_by,
+          firstName: wo.created_first_name,
+          lastName: wo.created_last_name
+        } : null
       })),
       total,
       page,
@@ -416,16 +676,17 @@ app.post('/api/work-orders', (req, res) => {
     const data = req.body;
     
     const stmt = db.prepare(`
-      INSERT INTO work_orders (wo, ship, homeport, fm, gte, priority, status, eta, symptoms, recommended_action, parts_required, sla_category)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO work_orders (wo, ship_id, gte_system_id, assigned_to, created_by, fm, priority, status, eta, symptoms, recommended_action, parts_required, sla_category)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     stmt.run(
       data.wo,
-      data.ship,
-      data.homeport,
+      data.shipId,
+      data.gteSystemId || null,
+      data.assignedTo || null,
+      data.createdBy || null,
       data.fm,
-      data.gte,
       data.priority,
       data.status,
       data.eta,
@@ -435,14 +696,33 @@ app.post('/api/work-orders', (req, res) => {
       data.slaCategory || null
     );
 
-    const workOrder = db.prepare('SELECT * FROM work_orders WHERE wo = ?').get(data.wo);
+    // Get the created work order with populated relationships
+    const workOrder = db.prepare(`
+      SELECT 
+        wo.*,
+        s.name as ship_name,
+        s.homeport as ship_homeport,
+        gs.model as gte_model,
+        gs.serial_number as gte_serial,
+        ua.first_name as assigned_first_name,
+        ua.last_name as assigned_last_name,
+        uc.first_name as created_first_name,
+        uc.last_name as created_last_name
+      FROM work_orders wo
+      LEFT JOIN ships s ON wo.ship_id = s.id
+      LEFT JOIN gte_systems gs ON wo.gte_system_id = gs.id
+      LEFT JOIN users ua ON wo.assigned_to = ua.id
+      LEFT JOIN users uc ON wo.created_by = uc.id
+      WHERE wo.wo = ?
+    `).get(data.wo);
     
     res.status(201).json({
       wo: workOrder.wo,
-      ship: workOrder.ship,
-      homeport: workOrder.homeport,
+      shipId: workOrder.ship_id,
+      gteSystemId: workOrder.gte_system_id,
+      assignedTo: workOrder.assigned_to,
+      createdBy: workOrder.created_by,
       fm: workOrder.fm,
-      gte: workOrder.gte,
       priority: workOrder.priority,
       status: workOrder.status,
       eta: workOrder.eta,
@@ -451,7 +731,28 @@ app.post('/api/work-orders', (req, res) => {
       partsRequired: workOrder.parts_required,
       slaCategory: workOrder.sla_category,
       createdAt: workOrder.created_at,
-      updatedAt: workOrder.updated_at
+      updatedAt: workOrder.updated_at,
+      // Populated fields
+      ship: workOrder.ship_name ? {
+        id: workOrder.ship_id,
+        name: workOrder.ship_name,
+        homeport: workOrder.ship_homeport
+      } : null,
+      gteSystem: workOrder.gte_model ? {
+        id: workOrder.gte_system_id,
+        model: workOrder.gte_model,
+        serialNumber: workOrder.gte_serial
+      } : null,
+      assignedUser: workOrder.assigned_first_name ? {
+        id: workOrder.assigned_to,
+        firstName: workOrder.assigned_first_name,
+        lastName: workOrder.assigned_last_name
+      } : null,
+      createdByUser: workOrder.created_first_name ? {
+        id: workOrder.created_by,
+        firstName: workOrder.created_first_name,
+        lastName: workOrder.created_last_name
+      } : null
     });
   } catch (error) {
     console.error('Error creating work order:', error);
@@ -1118,6 +1419,20 @@ app.delete('/api/notifications/:notif_id', (req, res) => {
     res.json({ message: 'Notification deleted successfully' });
   } catch (error) {
     console.error('Error deleting notification:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/notifications', (req, res) => {
+  try {
+    const result = db.prepare('DELETE FROM notifications').run();
+    
+    // Broadcast to all connected clients
+    io.to('notifications').emit('notifications:all-cleared');
+    
+    res.json({ message: 'All notifications cleared successfully', deletedCount: result.changes });
+  } catch (error) {
+    console.error('Error clearing all notifications:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

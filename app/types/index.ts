@@ -1,10 +1,11 @@
 // Core Work Order Types
 export interface WorkOrder {
   readonly wo: string;
-  ship: string;
-  homeport: string;
+  shipId: string; // Foreign key to ships table
+  gteSystemId?: string; // Foreign key to gte_systems table
+  assignedTo?: string; // Foreign key to users table
+  createdBy?: string; // Foreign key to users table
   fm: string; // Failure Mode
-  gte: string; // Gas Turbine Engine
   priority: Priority;
   status: WorkOrderStatus;
   eta: number; // Estimated Time of Arrival in days
@@ -14,6 +15,11 @@ export interface WorkOrder {
   slaCategory?: string;
   readonly createdAt?: Date | string;
   readonly updatedAt?: Date | string;
+  // Populated fields for display
+  ship?: Ship;
+  gteSystem?: GTESystem;
+  assignedUser?: User;
+  createdByUser?: User;
 }
 
 export type Priority = "Routine" | "Urgent" | "CASREP";
@@ -178,9 +184,9 @@ export interface EnhancedTableHeadProps {
 
 // Form Types
 export interface CreateWorkOrderForm {
-  ship: string;
-  homeport: string;
-  gte: string;
+  shipId: string;
+  gteSystemId?: string;
+  assignedTo?: string;
   fm: string;
   priority: Priority;
   eta: string;
@@ -215,7 +221,12 @@ export interface Ship {
   class: string;
   homeport: string;
   status: ShipStatus;
-  gteSystems: readonly GTESystem[];
+  readonly createdAt?: Date | string;
+  readonly updatedAt?: Date | string;
+  // Populated fields
+  gteSystems?: readonly GTESystem[];
+  assets?: readonly Asset[];
+  workOrders?: readonly WorkOrder[];
 }
 
 export type ShipStatus = "Active" | "In Port" | "Maintenance" | "Deployed";
@@ -227,8 +238,15 @@ export interface GTESystem {
   installDate: Date;
   status: GTEStatus;
   hoursOperation: number;
-  lastMaintenance: Date;
-  nextMaintenance: Date;
+  lastMaintenance?: Date;
+  nextMaintenance?: Date;
+  shipId: string; // Foreign key to ships table
+  readonly createdAt?: Date | string;
+  readonly updatedAt?: Date | string;
+  // Populated fields
+  ship?: Ship;
+  sensorSystems?: readonly SensorSystem[];
+  workOrders?: readonly WorkOrder[];
 }
 
 export type GTEStatus =
@@ -236,6 +254,112 @@ export type GTEStatus =
   | "Maintenance Required"
   | "Down"
   | "CASREP";
+
+// Asset Types
+export interface Asset {
+  readonly id: string;
+  name: string;
+  type: string;
+  status: AssetStatus;
+  location: string;
+  serialNumber?: string;
+  installDate?: Date;
+  lastInspection?: Date;
+  nextInspection?: Date;
+  shipId: string; // Foreign key to ships table
+  readonly createdAt?: Date | string;
+  readonly updatedAt?: Date | string;
+  // Populated fields
+  ship?: Ship;
+  maintenanceSchedules?: readonly MaintenanceSchedule[];
+  performanceMetrics?: readonly PerformanceMetric[];
+}
+
+export type AssetStatus = "Operational" | "Maintenance Required" | "Down" | "Retired";
+
+// Maintenance Schedule Types
+export interface MaintenanceSchedule {
+  readonly id: string;
+  assetId: string; // Foreign key to assets table
+  assignedTo?: string; // Foreign key to users table
+  createdBy?: string; // Foreign key to users table
+  maintenanceType: string;
+  scheduledDate: Date;
+  status: ScheduleStatus;
+  description?: string;
+  estimatedHours?: number;
+  readonly createdAt?: Date | string;
+  readonly updatedAt?: Date | string;
+  // Populated fields
+  asset?: Asset;
+  assignedUser?: User;
+  createdByUser?: User;
+}
+
+export type ScheduleStatus = "Scheduled" | "In Progress" | "Completed" | "Cancelled" | "Overdue";
+
+// Performance Metric Types
+export interface PerformanceMetric {
+  readonly id: string;
+  assetId: string; // Foreign key to assets table
+  metricType: string;
+  value: number;
+  unit: string;
+  timestamp: Date;
+  status: string;
+  // Populated fields
+  asset?: Asset;
+}
+
+// Sensor Types
+export interface SensorSystem {
+  readonly id: string;
+  name: string;
+  type: string;
+  location: string;
+  status: SystemStatus;
+  lastMaintenance?: Date;
+  nextMaintenance?: Date;
+  gteSystemId: string; // Foreign key to gte_systems table
+  readonly createdAt?: Date | string;
+  readonly updatedAt?: Date | string;
+  // Populated fields
+  gteSystem?: GTESystem;
+  sensorData?: readonly SensorData[];
+}
+
+export interface SensorData {
+  readonly id: string;
+  sensorId: string;
+  sensorName: string;
+  sensorType: SensorType;
+  value: number;
+  unit: string;
+  timestamp: Date;
+  status: SensorStatus;
+  location: string;
+  systemId: string; // Foreign key to sensor_systems table
+  // Populated fields
+  system?: SensorSystem;
+  analytics?: SensorAnalytics;
+}
+
+export interface SensorAnalytics {
+  sensorId: string; // Primary key, foreign key to sensor_data
+  timeRange: string;
+  averageValue: number;
+  minValue: number;
+  maxValue: number;
+  trend: string;
+  anomalies: number;
+  efficiency: number;
+  // Populated fields
+  sensorData?: SensorData;
+}
+
+export type SensorType = "temperature" | "pressure" | "vibration" | "rpm" | "oil_level" | "fuel_flow" | "voltage" | "current";
+export type SensorStatus = "normal" | "warning" | "critical" | "maintenance" | "offline";
+export type SystemStatus = "operational" | "degraded" | "critical" | "offline";
 
 // Chart and Analytics Types
 export interface ChartData {
@@ -270,6 +394,11 @@ export interface User {
   lastLogin?: Date;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+  // Populated fields
+  workOrders?: readonly WorkOrder[];
+  maintenanceSchedules?: readonly MaintenanceSchedule[];
+  auditLogs?: readonly AuditLog[];
+  securityEvents?: readonly SecurityEvent[];
 }
 
 export type UserRole =
@@ -336,25 +465,29 @@ export interface PerformanceMetrics {
 
 // Security Types
 export interface SecurityEvent {
-  id: string;
+  readonly id: string;
   type: string;
-  userId: string;
+  userId?: string; // Foreign key to users table
   ipAddress: string;
   userAgent: string;
   timestamp: Date;
   details?: Record<string, unknown>;
+  // Populated fields
+  user?: User;
 }
 
 // Audit Types
 export interface AuditLog {
-  id: string;
-  userId: string;
+  readonly id: string;
+  userId: string; // Foreign key to users table
   action: string;
   resource: string;
   resourceId: string;
   changes?: Record<string, { old: unknown; new: unknown }>;
   timestamp: Date;
   ipAddress: string;
+  // Populated fields
+  user?: User;
 }
 
 // Cache Types

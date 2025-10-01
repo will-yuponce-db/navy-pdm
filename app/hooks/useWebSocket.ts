@@ -6,6 +6,7 @@ import {
   markNotificationAsReadRealTime,
   removeNotificationRealTime,
   markAllNotificationsAsReadRealTime,
+  clearAllNotificationsRealTime,
 } from "../redux/services/notificationSlice";
 import { updateWorkOrder } from "../redux/services/workOrderSlice";
 import type { Notification } from "../types";
@@ -44,6 +45,11 @@ export const useWebSocket = () => {
       dispatch(markAllNotificationsAsReadRealTime());
     });
 
+    webSocketService.onNotificationsAllCleared(() => {
+      console.log("All notifications cleared");
+      dispatch(clearAllNotificationsRealTime());
+    });
+
     // Handle work order updates
     webSocketService.onWorkOrderUpdated((data) => {
       console.log("Work order updated via WebSocket:", data);
@@ -66,5 +72,6 @@ export const useWebSocket = () => {
     socketId: webSocketService.getSocketId(),
     markAsRead: webSocketService.markNotificationAsRead.bind(webSocketService),
     dismiss: webSocketService.dismissNotification.bind(webSocketService),
+    clearAll: webSocketService.clearAllNotifications.bind(webSocketService),
   };
 };

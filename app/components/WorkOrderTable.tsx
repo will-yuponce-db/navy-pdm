@@ -51,10 +51,12 @@ import {
   CheckCircle,
   Cancel,
   Search,
+  Analytics,
 } from "@mui/icons-material";
 import { useErrorHandler } from "./ErrorHandling";
 import { tableStyles } from "../utils/tableStyles";
-import LoadingSpinner from "./LoadingSpinner";
+import SkeletonLoader from "./SkeletonLoader";
+import { useNavigate } from "react-router";
 
 const headCells = [
   {
@@ -67,7 +69,7 @@ const headCells = [
     id: "ship",
     numeric: true,
     disablePadding: false,
-    label: "Ship (Designator)",
+    label: "Ship",
   },
   {
     id: "homeport",
@@ -76,10 +78,10 @@ const headCells = [
     label: "Homeport",
   },
   {
-    id: "gte",
+    id: "gteSystem",
     numeric: true,
     disablePadding: false,
-    label: "GTE / System",
+    label: "GTE System",
   },
   {
     id: "fm",
@@ -110,6 +112,12 @@ const headCells = [
     numeric: false,
     disablePadding: false,
     label: "Parts Required",
+  },
+  {
+    id: "actions",
+    numeric: false,
+    disablePadding: false,
+    label: "Actions",
   },
 ];
 
@@ -233,7 +241,13 @@ function EnhancedTableToolbar(props: EnhancedTableToolbarProps) {
       ) : (
         <Tooltip title="Add Work Order">
           <IconButton
-            onClick={props.openWorkOrderModal || (() => {})}
+            onClick={() => {
+              if (props.openWorkOrderModal) {
+                props.openWorkOrderModal();
+              } else {
+                console.log("Add Work Order clicked - no handler provided");
+              }
+            }}
             size="small"
             aria-label="Add new work order"
           >
@@ -249,6 +263,7 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
   const loading = useSelector(selectWorkOrdersLoading);
   const dispatch = useAppDispatch();
   const { showError } = useErrorHandler();
+  const navigate = useNavigate();
   const [order, setOrder] = useState<"asc" | "desc">("asc");
   const [orderBy, setOrderBy] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -319,6 +334,16 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
       );
     }
     setSelected(newSelected);
+  };
+
+  const handleRowDoubleClick = (workOrderId: string) => {
+    // Navigate to sensor analyzer with work order context
+    navigate(`/sensor-analyzer?workOrderId=${workOrderId}`);
+  };
+
+  const handleSensorAnalyzerClick = (event: React.MouseEvent, workOrderId: string) => {
+    event.stopPropagation();
+    navigate(`/sensor-analyzer?workOrderId=${workOrderId}`);
   };
 
   const handleChangePage = (event: unknown, newPage: number) => {
@@ -567,13 +592,10 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
           </Typography>
         </Box>
         <TableContainer sx={tableStyles.containerWithLoading}>
-          <LoadingSpinner
-            loading={loading}
-            message="Loading work orders..."
-            overlay={true}
-            size={50}
-          />
-          <Table
+          {loading ? (
+            <SkeletonLoader variant="table" rows={5} columns={10} />
+          ) : (
+            <Table
             sx={tableStyles.patterns.responsiveTable}
             aria-labelledby="tableTitle"
             aria-describedby="table-description"
@@ -598,6 +620,7 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
                     key={row.wo}
                     hover
                     onClick={(event) => handleClick(event, row.wo.toString())}
+                    onDoubleClick={() => handleRowDoubleClick(row.wo.toString())}
                     role="checkbox"
                     aria-checked={isItemSelected}
                     tabIndex={-1}
@@ -621,9 +644,9 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
                     >
                       {row.wo}
                     </TableCell>
-                    <TableCell>{row.ship}</TableCell>
-                    <TableCell>{row.homeport}</TableCell>
-                    <TableCell>{row.gte}</TableCell>
+                    <TableCell>{row.ship?.name || 'N/A'}</TableCell>
+                    <TableCell>{row.ship?.homeport || 'N/A'}</TableCell>
+                    <TableCell>{row.gteSystem?.model || 'N/A'}</TableCell>
                     <TableCell>{row.fm}</TableCell>
                     <TableCell>
                       <Chip
@@ -707,11 +730,24 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
                         </Typography>
                       )}
                     </TableCell>
+                    <TableCell>
+                      <Tooltip title="Open Sensor Analyzer">
+                        <IconButton
+                          size="small"
+                          onClick={(event) => handleSensorAnalyzerClick(event, row.wo.toString())}
+                          color="primary"
+                          aria-label={`Open sensor analyzer for work order ${row.wo}`}
+                        >
+                          <Analytics />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
+          )}
         </TableContainer>
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}

@@ -20,6 +20,9 @@ import { Outlet } from "react-router";
 import Icon from "@mui/material/Icon";
 import { useNavigate } from "react-router";
 import { navItems } from "../constants/navItems";
+import { Help, Keyboard } from "@mui/icons-material";
+import { useUserGuide, UserGuide } from "./UserGuide";
+import { NotificationButton } from "./NotificationButton";
 
 const drawerWidth = 240;
 
@@ -82,6 +85,7 @@ const NavComponent = memo(() => {
   const [open, setOpen] = useState(false);
   const [appHeader, setAppHeader] = useState("Navy PdM");
   const navigate = useNavigate();
+  const { isOpen: guideOpen, openGuide, closeGuide } = useUserGuide();
 
   const handleDrawerOpen = useCallback(() => {
     setOpen(true);
@@ -103,13 +107,20 @@ const NavComponent = memo(() => {
         handleDrawerClose();
         return;
       }
+      
+      // Open user guide with Ctrl+? or Cmd+?
+      if ((event.ctrlKey || event.metaKey) && event.key === "?") {
+        event.preventDefault();
+        openGuide();
+        return;
+      }
     };
 
     if (typeof window !== "undefined" && window.document) {
       document.addEventListener("keydown", handleKeyDown);
       return () => document.removeEventListener("keydown", handleKeyDown);
     }
-  }, [open]);
+  }, [open, openGuide]);
 
   return (
     <Box
@@ -141,6 +152,30 @@ const NavComponent = memo(() => {
           <Typography variant="h6" noWrap component="h1" sx={{ flexGrow: 1 }}>
             {appHeader}
           </Typography>
+          
+          {/* Notifications, Help and Keyboard Shortcuts */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <NotificationButton />
+            <IconButton
+              color="inherit"
+              onClick={openGuide}
+              aria-label="Open user guide"
+              size="small"
+            >
+              <Help />
+            </IconButton>
+            <IconButton
+              color="inherit"
+              onClick={() => {
+                // Show keyboard shortcuts help
+                alert("Keyboard Shortcuts:\n\nCtrl+1: Work Orders\nCtrl+2: Assets\nCtrl+3: Parts\nCtrl+4: Readiness\nCtrl+N: New Work Order\nCtrl+R: Refresh\nCtrl+H: Home\nCtrl+?: User Guide");
+              }}
+              aria-label="Show keyboard shortcuts"
+              size="small"
+            >
+              <Keyboard />
+            </IconButton>
+          </Box>
         </Toolbar>
       </AppBar>
       <Drawer
@@ -231,6 +266,9 @@ const NavComponent = memo(() => {
         >
           <Outlet />
         </Box>
+        
+        {/* User Guide */}
+        <UserGuide open={guideOpen} onClose={closeGuide} />
       </Main>
     </Box>
   );

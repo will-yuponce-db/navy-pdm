@@ -32,9 +32,9 @@ const modalStyle = {
 export default function WorkOrderModal(props: WorkOrderModalProps) {
   const dispatch = useAppDispatch();
   const { showError } = useErrorHandler();
-  const [ship, setShip] = useState("");
-  const [homeport, setHomeport] = useState("");
-  const [gte, setGte] = useState("");
+  const [shipId, setShipId] = useState("");
+  const [gteSystemId, setGteSystemId] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
   const [fm, setFm] = useState("");
   const [priority, setPriority] = useState<Priority>("Routine");
   const [eta, setEta] = useState("");
@@ -53,14 +53,8 @@ export default function WorkOrderModal(props: WorkOrderModalProps) {
     // Basic validation
     const newErrors: Record<string, string> = {};
 
-    if (!ship.trim()) {
-      newErrors.ship = "Ship is required";
-    }
-    if (!homeport.trim()) {
-      newErrors.homeport = "Homeport is required";
-    }
-    if (!gte.trim()) {
-      newErrors.gte = "GTE/System is required";
+    if (!shipId.trim()) {
+      newErrors.shipId = "Ship is required";
     }
     if (!fm.trim()) {
       newErrors.fm = "Failure Mode is required";
@@ -80,10 +74,10 @@ export default function WorkOrderModal(props: WorkOrderModalProps) {
     // Dispatch the action and handle the promise
     dispatch(
       addWorkOrderWithNotification({
-        ship: ship,
-        homeport: homeport,
+        shipId: shipId,
+        gteSystemId: gteSystemId || undefined,
+        assignedTo: assignedTo || undefined,
         fm: fm,
-        gte: gte,
         priority: priority,
         status: "Submitted",
         eta: parseInt(eta) || 0,
@@ -95,9 +89,9 @@ export default function WorkOrderModal(props: WorkOrderModalProps) {
     )
       .then(() => {
         // Reset form only on success
-        setShip("");
-        setHomeport("");
-        setGte("");
+        setShipId("");
+        setGteSystemId("");
+        setAssignedTo("");
         setFm("");
         setPriority("Routine");
         setEta("");
@@ -213,68 +207,45 @@ export default function WorkOrderModal(props: WorkOrderModalProps) {
                 <TextField
                   ref={firstInputRef}
                   fullWidth
-                  value={ship}
+                  value={shipId}
                   onChange={(e) => {
-                    setShip(e.target.value);
-                    if (errors.ship) {
-                      setErrors((prev) => ({ ...prev, ship: "" }));
+                    setShipId(e.target.value);
+                    if (errors.shipId) {
+                      setErrors((prev) => ({ ...prev, shipId: "" }));
                     }
                   }}
-                  label="Ship"
+                  label="Ship ID"
                   variant="outlined"
                   required
-                  error={!!errors.ship}
-                  helperText={errors.ship}
-                  aria-describedby={errors.ship ? "ship-error" : undefined}
+                  error={!!errors.shipId}
+                  helperText={errors.shipId}
+                  aria-describedby={errors.shipId ? "shipId-error" : undefined}
                   inputProps={{
                     "aria-required": "true",
-                    "aria-invalid": !!errors.ship,
+                    "aria-invalid": !!errors.shipId,
                   }}
                 />
-                {errors.ship && (
+                {errors.shipId && (
                   <Typography
-                    id="ship-error"
+                    id="shipId-error"
                     variant="caption"
                     color="error"
                     sx={{ mt: 0.5, display: "block" }}
                   >
-                    {errors.ship}
+                    {errors.shipId}
                   </Typography>
                 )}
               </Box>
               <Box sx={{ flex: 1 }}>
                 <TextField
                   fullWidth
-                  value={homeport}
+                  value={gteSystemId}
                   onChange={(e) => {
-                    setHomeport(e.target.value);
-                    if (errors.homeport) {
-                      setErrors((prev) => ({ ...prev, homeport: "" }));
-                    }
+                    setGteSystemId(e.target.value);
                   }}
-                  label="Homeport"
+                  label="GTE System ID (Optional)"
                   variant="outlined"
-                  required
-                  error={!!errors.homeport}
-                  helperText={errors.homeport}
-                  aria-describedby={
-                    errors.homeport ? "homeport-error" : undefined
-                  }
-                  inputProps={{
-                    "aria-required": "true",
-                    "aria-invalid": !!errors.homeport,
-                  }}
                 />
-                {errors.homeport && (
-                  <Typography
-                    id="homeport-error"
-                    variant="caption"
-                    color="error"
-                    sx={{ mt: 0.5, display: "block" }}
-                  >
-                    {errors.homeport}
-                  </Typography>
-                )}
               </Box>
             </Box>
 
@@ -288,34 +259,13 @@ export default function WorkOrderModal(props: WorkOrderModalProps) {
               <Box sx={{ flex: 1 }}>
                 <TextField
                   fullWidth
-                  value={gte}
+                  value={assignedTo}
                   onChange={(e) => {
-                    setGte(e.target.value);
-                    if (errors.gte) {
-                      setErrors((prev) => ({ ...prev, gte: "" }));
-                    }
+                    setAssignedTo(e.target.value);
                   }}
-                  label="GTE / System"
+                  label="Assigned To (Optional)"
                   variant="outlined"
-                  required
-                  error={!!errors.gte}
-                  helperText={errors.gte}
-                  aria-describedby={errors.gte ? "gte-error" : undefined}
-                  inputProps={{
-                    "aria-required": "true",
-                    "aria-invalid": !!errors.gte,
-                  }}
                 />
-                {errors.gte && (
-                  <Typography
-                    id="gte-error"
-                    variant="caption"
-                    color="error"
-                    sx={{ mt: 0.5, display: "block" }}
-                  >
-                    {errors.gte}
-                  </Typography>
-                )}
               </Box>
               <Box sx={{ flex: 1 }}>
                 <TextField

@@ -255,7 +255,10 @@ const PartsTable: React.FC<PartsTableProps> = ({ onEditPart, onAddPart }) => {
           <Button
             variant="contained"
             startIcon={<Add />}
-            onClick={onAddPart}
+            onClick={() => {
+              onAddPart();
+              console.log("Add Part clicked");
+            }}
             size="small"
             sx={{ ml: "auto" }}
           >
@@ -328,7 +331,10 @@ const PartsTable: React.FC<PartsTableProps> = ({ onEditPart, onAddPart }) => {
                       <Tooltip title="Edit Part">
                         <IconButton
                           size="small"
-                          onClick={() => onEditPart(part)}
+                          onClick={() => {
+                            onEditPart(part);
+                            console.log("Edit Part clicked for:", part.id);
+                          }}
                         >
                           <Edit />
                         </IconButton>
@@ -336,7 +342,10 @@ const PartsTable: React.FC<PartsTableProps> = ({ onEditPart, onAddPart }) => {
                       <Tooltip title="Delete Part">
                         <IconButton
                           size="small"
-                          onClick={() => handleDeleteClick(part)}
+                          onClick={() => {
+                            handleDeleteClick(part);
+                            console.log("Delete Part clicked for:", part.id);
+                          }}
                           color="error"
                         >
                           <Delete />
@@ -348,7 +357,10 @@ const PartsTable: React.FC<PartsTableProps> = ({ onEditPart, onAddPart }) => {
                           <Button
                             size="small"
                             variant="outlined"
-                            onClick={() => handleReorderClick(part)}
+                            onClick={() => {
+                              handleReorderClick(part);
+                              console.log("Reorder Part clicked for:", part.id);
+                            }}
                             color="warning"
                           >
                             Reorder
@@ -377,9 +389,19 @@ const PartsTable: React.FC<PartsTableProps> = ({ onEditPart, onAddPart }) => {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={() => {
+              setDeleteDialogOpen(false);
+              console.log("Cancel delete part");
+            }}
+          >
+            Cancel
+          </Button>
           <Button
-            onClick={handleDeleteConfirm}
+            onClick={() => {
+              handleDeleteConfirm();
+              console.log("Confirm delete part");
+            }}
             color="error"
             variant="contained"
           >

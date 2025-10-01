@@ -114,6 +114,12 @@ class WebSocketService {
     }
   }
 
+  onNotificationsAllCleared(callback: () => void): void {
+    if (this.socket) {
+      this.socket.on("notifications:all-cleared", callback);
+    }
+  }
+
   // Work order event handlers
   onWorkOrderUpdated(
     callback: (data: { workOrder: any; changes: any }) => void,
@@ -136,6 +142,12 @@ class WebSocketService {
     }
   }
 
+  clearAllNotifications(): void {
+    if (this.socket?.connected) {
+      this.socket.emit("notifications:clear-all");
+    }
+  }
+
   // Remove event listeners
   removeAllListeners(): void {
     if (this.socket) {
@@ -149,6 +161,7 @@ class WebSocketService {
       this.socket.off("notification:read");
       this.socket.off("notification:dismissed");
       this.socket.off("notifications:all-read");
+      this.socket.off("notifications:all-cleared");
       this.socket.off("workorder:updated");
     }
   }
