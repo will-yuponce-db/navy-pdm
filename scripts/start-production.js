@@ -55,7 +55,7 @@ function runCommand(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const proc = spawn(command, args, {
       stdio: options.silent ? 'pipe' : 'inherit',
-      shell: true,
+      shell: options.useShell !== false, // Allow disabling shell
       ...options,
     });
 
@@ -92,7 +92,7 @@ async function installPythonDependencies() {
   try {
     // Check for virtual environment and warn if found
     try {
-      const venvCheck = await runCommand('python3', ['-c', 'import sys; print("VIRTUAL_ENV" in sys.modules or hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix))'], { silent: true });
+      const venvCheck = await runCommand('python3', ['-c', 'import sys; print("VIRTUAL_ENV" in sys.modules or hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix))'], { silent: true, useShell: false });
       if (venvCheck.stdout && venvCheck.stdout.trim() === 'True') {
         console.log('⚠️  Warning: Virtual environment detected. Using system Python instead.');
       }
@@ -114,7 +114,7 @@ async function installPythonDependencies() {
 
     // First, check if packages are already available
     try {
-      await runCommand(pythonPath, ['-c', 'import flask; import flask_cors; import flask_sqlalchemy; import flask_migrate'], { silent: true });
+      await runCommand(pythonPath, ['-c', 'import flask; import flask_cors; import flask_sqlalchemy; import flask_migrate; print("All modules imported successfully")'], { silent: true, useShell: false });
       console.log('✓ Python dependencies appear to be pre-installed');
       return true;
     } catch (err) {
@@ -160,7 +160,7 @@ async function installPythonDependencies() {
 
     // Verify installation worked by testing imports
     try {
-      const verifyResult = await runCommand(pythonPath, ['-c', 'import flask; import flask_cors; import flask_sqlalchemy; import flask_migrate'], { silent: true });
+      const verifyResult = await runCommand(pythonPath, ['-c', 'import flask; import flask_cors; import flask_sqlalchemy; import flask_migrate; print("All modules imported successfully")'], { silent: true, useShell: false });
       console.log('✓ Python dependencies verified after installation');
       return true;
     } catch (err) {
