@@ -6,13 +6,8 @@ import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-// Databricks SQL Configuration - uses environment variables provided by Databricks
-const DATABRICKS_CONFIG = {
-  clientId: process.env.DATABRICKS_CLIENT_ID,
-  clientSecret: process.env.DATABRICKS_CLIENT_SECRET,
-  serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME || process.env.DATABRICKS_HOST,
-  httpPath: process.env.DATABRICKS_HTTP_PATH || `/sql/1.0/warehouses/8baced1ff014912d`
-};
+// Import Databricks configuration
+import { databricksConfig } from './app/config/databricks.js';
 
 // Databricks SQL Client instance
 let databricksClient = null;
@@ -43,16 +38,12 @@ async function initializeDatabricks(userToken = null) {
     return databricksClient;
   }
 
-  // Validate required environment variables for service principal
-  if (!DATABRICKS_CONFIG.clientId || !DATABRICKS_CONFIG.clientSecret || !DATABRICKS_CONFIG.serverHostname || !DATABRICKS_CONFIG.httpPath) {
-    console.warn('Databricks environment variables not available, falling back to local database');
-    console.warn('Available env vars:', {
-      clientId: !!DATABRICKS_CONFIG.clientId,
-      clientSecret: !!DATABRICKS_CONFIG.clientSecret,
-      serverHostname: DATABRICKS_CONFIG.serverHostname,
-      httpPath: DATABRICKS_CONFIG.httpPath
-    });
-    throw new Error('Databricks environment variables not available - using local database fallback');
+  // Validate required configuration for service principal
+  const validation = databricksConfig.validate();
+  if (!validation.isValid) {
+    console.warn('Databricks configuration not available, falling back to local database');
+    console.warn('Available config:', databricksConfig.getSafeConfig());
+    throw new Error(`Databricks configuration not available - using local database fallback. Missing: ${validation.missingFields.join(', ')}`);
   }
 
   try {
@@ -60,13 +51,14 @@ async function initializeDatabricks(userToken = null) {
     const client = new DBSQLClient();
     
     // Get access token using service principal credentials
-    const tokenResponse = await fetch(`https://${DATABRICKS_CONFIG.serverHostname}/oidc/v1/token`, {
+    const config = databricksConfig.get();
+    const tokenResponse = await fetch(`https://${config.serverHostname}/oidc/v1/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         grant_type: 'client_credentials',
-        client_id: DATABRICKS_CONFIG.clientId,
-        client_secret: DATABRICKS_CONFIG.clientSecret,
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
         scope: 'all-apis'
       })
     });
@@ -78,8 +70,8 @@ async function initializeDatabricks(userToken = null) {
     
     await client.connect({
       token: tokenData.access_token,
-      host: DATABRICKS_CONFIG.serverHostname,
-      path: DATABRICKS_CONFIG.httpPath
+      host: config.serverHostname,
+      path: config.httpPath
     });
 
     databricksClient = client;

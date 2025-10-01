@@ -291,7 +291,7 @@ export const FormWizard: React.FC<FormWizardProps> = ({
 // Example step component
 export const BasicInfoStep: React.FC<FormStepProps> = ({
   data,
-  onChange,
+  // onChange,
   errors,
 }) => {
   // const handleFieldChange = (field: string, value: unknown) => {

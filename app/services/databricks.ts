@@ -1,12 +1,5 @@
 import { DBSQLClient } from '@databricks/sql';
-
-// Databricks SQL Configuration
-const DATABRICKS_CONFIG = {
-  clientId: process.env.DATABRICKS_CLIENT_ID,
-  clientSecret: process.env.DATABRICKS_CLIENT_SECRET,
-  serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME || process.env.DATABRICKS_HOST,
-  httpPath: process.env.DATABRICKS_HTTP_PATH || `/sql/1.0/warehouses/8baced1ff014912d`
-};
+import { databricksConfig } from '../config/databricks';
 
 // Connection retry configuration
 const CONNECTION_CONFIG = {
@@ -33,12 +26,7 @@ function logDatabricksError(operation: string, error: unknown, context?: Record<
       stack: error.stack
     } : String(error),
     context: context || {},
-    config: {
-      serverHostname: DATABRICKS_CONFIG.serverHostname,
-      hasClientId: !!DATABRICKS_CONFIG.clientId,
-      hasClientSecret: !!DATABRICKS_CONFIG.clientSecret,
-      hasHttpPath: !!DATABRICKS_CONFIG.httpPath
-    }
+    config: databricksConfig.getSafeConfig()
   };
   
   console.error(`[DATABRICKS ERROR] ${operation}:`, JSON.stringify(errorDetails, null, 2));
@@ -82,16 +70,11 @@ export async function initializeDatabricks(): Promise<DBSQLClient> {
     return databricksClient;
   }
 
-  // Validate required environment variables with detailed error
-  const missingVars = [];
-  if (!DATABRICKS_CONFIG.clientId) missingVars.push('DATABRICKS_CLIENT_ID');
-  if (!DATABRICKS_CONFIG.clientSecret) missingVars.push('DATABRICKS_CLIENT_SECRET');
-  if (!DATABRICKS_CONFIG.serverHostname) missingVars.push('DATABRICKS_SERVER_HOSTNAME or DATABRICKS_HOST');
-  if (!DATABRICKS_CONFIG.httpPath) missingVars.push('DATABRICKS_HTTP_PATH');
-  
-  if (missingVars.length > 0) {
-    const error = new Error(`Missing required Databricks environment variables: ${missingVars.join(', ')}`);
-    logDatabricksError('Environment validation', error, { missingVars });
+  // Validate required configuration
+  const validation = databricksConfig.validate();
+  if (!validation.isValid) {
+    const error = new Error(`Missing required Databricks configuration: ${validation.missingFields.join(', ')}`);
+    logDatabricksError('Configuration validation', error, { missingFields: validation.missingFields });
     throw error;
   }
 
@@ -103,13 +86,14 @@ export async function initializeDatabricks(): Promise<DBSQLClient> {
     const tokenTimeout = setTimeout(() => tokenController.abort(), CONNECTION_CONFIG.timeout);
     
     try {
-      const tokenResponse = await fetch(`https://${DATABRICKS_CONFIG.serverHostname}/oidc/v1/token`, {
+      const config = databricksConfig.get();
+      const tokenResponse = await fetch(`https://${config.serverHostname}/oidc/v1/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           grant_type: 'client_credentials',
-          client_id: DATABRICKS_CONFIG.clientId!,
-          client_secret: DATABRICKS_CONFIG.clientSecret!,
+          client_id: config.clientId!,
+          client_secret: config.clientSecret!,
           scope: 'all-apis'
         }),
         signal: tokenController.signal
@@ -134,8 +118,8 @@ export async function initializeDatabricks(): Promise<DBSQLClient> {
       try {
         await client.connect({
           token: tokenData.access_token,
-          host: DATABRICKS_CONFIG.serverHostname!,
-          path: DATABRICKS_CONFIG.httpPath!
+          host: config.serverHostname!,
+          path: config.httpPath!
         });
         
         clearTimeout(connectTimeout);
@@ -144,7 +128,7 @@ export async function initializeDatabricks(): Promise<DBSQLClient> {
         connectionStatus = 'healthy';
         lastHealthCheck = new Date();
         
-        console.log(`[DATABRICKS] Connection established successfully to ${DATABRICKS_CONFIG.serverHostname}`);
+        console.log(`[DATABRICKS] Connection established successfully to ${config.serverHostname}`);
         return client;
       } catch (connectError) {
         clearTimeout(connectTimeout);
