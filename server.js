@@ -7,7 +7,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 // Databricks SQL Configuration
 const DATABRICKS_CONFIG = {
-  token: process.env.DATABRICKS_API_TOKEN,
+  clientId: process.env.DATABRICKS_CLIENT_ID,
+  clientSecret: process.env.DATABRICKS_CLIENT_SECRET,
   serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME,
   httpPath: process.env.DATABRICKS_HTTP_PATH
 };
@@ -22,16 +23,33 @@ async function initializeDatabricks() {
   }
 
   // Validate required environment variables
-  if (!DATABRICKS_CONFIG.token || !DATABRICKS_CONFIG.serverHostname || !DATABRICKS_CONFIG.httpPath) {
-    throw new Error('Missing required Databricks environment variables: DATABRICKS_API_TOKEN, DATABRICKS_SERVER_HOSTNAME, DATABRICKS_HTTP_PATH');
+  if (!DATABRICKS_CONFIG.clientId || !DATABRICKS_CONFIG.clientSecret || !DATABRICKS_CONFIG.serverHostname || !DATABRICKS_CONFIG.httpPath) {
+    throw new Error('Missing required Databricks environment variables: DATABRICKS_CLIENT_ID, DATABRICKS_CLIENT_SECRET, DATABRICKS_SERVER_HOSTNAME, DATABRICKS_HTTP_PATH');
   }
 
   try {
     const { DBSQLClient } = await import('@databricks/sql');
     const client = new DBSQLClient();
     
+    // Get access token using service principal credentials
+    const tokenResponse = await fetch(`https://${DATABRICKS_CONFIG.serverHostname}/oidc/v1/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: DATABRICKS_CONFIG.clientId,
+        client_secret: DATABRICKS_CONFIG.clientSecret,
+        scope: 'all-apis'
+      })
+    });
+    
+    const tokenData = await tokenResponse.json();
+    if (!tokenData.access_token) {
+      throw new Error('Failed to obtain access token from Databricks');
+    }
+    
     await client.connect({
-      token: DATABRICKS_CONFIG.token,
+      token: tokenData.access_token,
       host: DATABRICKS_CONFIG.serverHostname,
       path: DATABRICKS_CONFIG.httpPath
     });

@@ -33,6 +33,27 @@ A comprehensive predictive maintenance system for Navy gas turbine engines, buil
 - Node.js 18+ and npm
 - Python 3.8+
 - pip3
+- Databricks workspace access
+
+### Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```bash
+# Databricks SQL Configuration (Service Principal Authentication)
+DATABRICKS_CLIENT_ID=your_service_principal_client_id
+DATABRICKS_CLIENT_SECRET=your_service_principal_client_secret
+DATABRICKS_SERVER_HOSTNAME=your_databricks_workspace_hostname
+DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/your_warehouse_id
+
+# Example:
+# DATABRICKS_CLIENT_ID=abc123def456
+# DATABRICKS_CLIENT_SECRET=xyz789uvw012
+# DATABRICKS_SERVER_HOSTNAME=e2-demo-field-eng.cloud.databricks.com
+# DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/8baced1ff014912d
+```
+
+**Note**: The service principal credentials are automatically provided by Databricks when you create an app. The `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` environment variables are automatically set in your Databricks app environment.
 
 ### Backend Setup
 
