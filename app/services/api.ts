@@ -306,4 +306,24 @@ export const databricksApi = {
   getTables: async (databaseName: string): Promise<{ success: boolean; data: any[]; database: string }> => {
     return apiRequest(`/databricks/databases/${encodeURIComponent(databaseName)}/tables`);
   },
+
+  getParts: async (params?: {
+    page?: number;
+    limit?: number;
+    category?: string;
+    condition?: string;
+    search?: string;
+  }): Promise<PaginatedResponse<Part>> => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+
+    const queryString = queryParams.toString();
+    return apiRequest(`/databricks/parts${queryString ? `?${queryString}` : ""}`);
+  },
 };

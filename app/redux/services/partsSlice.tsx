@@ -10,7 +10,7 @@ import type {
   RootState,
 } from "../../types";
 import { addNotification } from "./notificationSlice";
-import { partsApi } from "../../services/api";
+import { partsApi, databricksApi } from "../../services/api";
 
 export interface PartsState {
   parts: Part[];
@@ -54,8 +54,16 @@ export const fetchParts = createAsyncThunk(
     condition?: string;
     search?: string;
   }) => {
-    const response = await partsApi.getAll(params);
-    return response.items;
+    try {
+      // Try Databricks parts endpoint first
+      const response = await databricksApi.getParts(params);
+      return response.items;
+    } catch (error) {
+      console.warn('Databricks parts API failed, falling back to local API:', error);
+      // Fallback to local API if Databricks is unavailable
+      const response = await partsApi.getAll(params);
+      return response.items;
+    }
   },
 );
 

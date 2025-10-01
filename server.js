@@ -1635,6 +1635,63 @@ app.get('/api/databricks/databases/:databaseName/tables', async (req, res) => {
   }
 });
 
+// Databricks Parts API
+app.get('/api/databricks/parts', async (req, res) => {
+  try {
+    const { page = 1, limit = 50, category, condition, search } = req.query;
+    
+    // Build query with optional filters
+    let query = "SELECT * FROM public_sector.predictive_maintenance_navy.parts";
+    const conditions = [];
+    
+    if (category) {
+      conditions.push(`category = '${category}'`);
+    }
+    
+    if (condition) {
+      conditions.push(`condition = '${condition}'`);
+    }
+    
+    if (search) {
+      conditions.push(`(name LIKE '%${search}%' OR id LIKE '%${search}%' OR supplier LIKE '%${search}%' OR location LIKE '%${search}%')`);
+    }
+    
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
+    }
+    
+    // Add pagination
+    const offset = (page - 1) * limit;
+    query += ` ORDER BY last_updated DESC LIMIT ${limit} OFFSET ${offset}`;
+    
+    const result = await executeDatabricksQuery(query);
+    
+    // Get total count for pagination
+    let countQuery = "SELECT COUNT(*) as total FROM public_sector.predictive_maintenance_navy.parts";
+    if (conditions.length > 0) {
+      countQuery += " WHERE " + conditions.join(" AND ");
+    }
+    
+    const countResult = await executeDatabricksQuery(countQuery);
+    const total = countResult[0]?.total || 0;
+    
+    res.json({
+      items: result,
+      total,
+      page: parseInt(page),
+      pageSize: parseInt(limit),
+      hasNext: (page * limit) < total,
+      hasPrevious: page > 1
+    });
+  } catch (error) {
+    console.error('Error fetching parts from Databricks:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: `Failed to fetch parts: ${error.message}` 
+    });
+  }
+});
+
 // Serve static files from build/client directory
 app.use(express.static(join(__dirname, 'build/client')));
 
