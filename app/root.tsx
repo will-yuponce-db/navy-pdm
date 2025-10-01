@@ -26,8 +26,8 @@ import { EnhancedErrorBoundary } from "./components/EnhancedErrorBoundary";
 import { useAppDispatch } from "./redux/hooks";
 import type { RootState } from "./types";
 import {
-  dismissNotification,
-  markAsRead,
+  // dismissNotification,
+  // markAsRead,
   addNotification,
 } from "./redux/services/notificationSlice";
 import { useWebSocket } from "./hooks/useWebSocket";
@@ -245,8 +245,8 @@ function AppContent() {
   // Initialize WebSocket connection
   const {
     isConnected,
-    markAsRead: wsMarkAsRead,
-    dismiss: wsDismiss,
+    // markAsRead: wsMarkAsRead,
+    // dismiss: wsDismiss,
   } = useWebSocket();
 
   // Track client-side hydration

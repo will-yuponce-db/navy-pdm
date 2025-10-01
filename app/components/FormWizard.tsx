@@ -17,7 +17,6 @@ import {
   ArrowBack,
   ArrowForward,
   Check,
-  Warning,
 } from "@mui/icons-material";
 
 interface FormStep {
@@ -25,13 +24,13 @@ interface FormStep {
   title: string;
   description?: string;
   component: React.ComponentType<FormStepProps>;
-  validation?: (data: any) => { isValid: boolean; errors: string[] };
+  validation?: (data: Record<string, unknown>) => { isValid: boolean; errors: string[] };
   optional?: boolean;
 }
 
 interface FormStepProps {
-  data: any;
-  onChange: (data: any) => void;
+  data: Record<string, unknown>;
+  onChange: (data: Record<string, unknown>) => void;
   errors: string[];
   onNext?: () => void;
   onPrevious?: () => void;
@@ -41,8 +40,8 @@ interface FormStepProps {
 
 interface FormWizardProps {
   steps: FormStep[];
-  initialData?: any;
-  onSubmit: (data: any) => Promise<void> | void;
+  initialData?: Record<string, unknown>;
+  onSubmit: (data: Record<string, unknown>) => Promise<void> | void;
   onCancel?: () => void;
   title?: string;
   submitText?: string;
@@ -61,7 +60,7 @@ export const FormWizard: React.FC<FormWizardProps> = ({
   showProgress = true,
 }) => {
   const [activeStep, setActiveStep] = useState(0);
-  const [formData, setFormData] = useState(initialData);
+  const [formData, setFormData] = useState<Record<string, unknown>>(initialData);
   const [stepErrors, setStepErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -70,7 +69,7 @@ export const FormWizard: React.FC<FormWizardProps> = ({
   const isFirstStep = activeStep === 0;
   const isLastStep = activeStep === steps.length - 1;
 
-  const updateFormData = useCallback((newData: any) => {
+  const updateFormData = useCallback((newData: Record<string, unknown>) => {
     setFormData((prev) => ({ ...prev, ...newData }));
   }, []);
 
@@ -133,11 +132,11 @@ export const FormWizard: React.FC<FormWizardProps> = ({
     }
   }, [formData, onSubmit, validateCurrentStep]);
 
-  const getStepStatus = (stepIndex: number) => {
-    if (stepIndex < activeStep) return "completed";
-    if (stepIndex === activeStep) return "active";
-    return "pending";
-  };
+  // const getStepStatus = (stepIndex: number) => {
+  //   if (stepIndex < activeStep) return "completed";
+  //   if (stepIndex === activeStep) return "active";
+  //   return "pending";
+  // };
 
   const progress = ((activeStep + 1) / steps.length) * 100;
 
@@ -186,10 +185,9 @@ export const FormWizard: React.FC<FormWizardProps> = ({
                   ) : undefined
                 }
                 error={stepErrors[step.id] && stepErrors[step.id].length > 0}
-                StepIconComponent={({ active, completed, error }) => {
-                  if (error) return <Warning color="error" />;
-                  if (completed) return <Check color="success" />;
-                  return undefined;
+                StepIconProps={{
+                  completed: index < activeStep,
+                  error: stepErrors[step.id] && stepErrors[step.id].length > 0
                 }}
               >
                 <Typography variant="subtitle2">{step.title}</Typography>
@@ -295,13 +293,10 @@ export const BasicInfoStep: React.FC<FormStepProps> = ({
   data,
   onChange,
   errors,
-  onNext,
-  isFirstStep,
-  isLastStep,
 }) => {
-  const handleFieldChange = (field: string, value: any) => {
-    onChange({ [field]: value });
-  };
+  // const handleFieldChange = (field: string, value: unknown) => {
+  //   onChange({ [field]: value });
+  // };
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>

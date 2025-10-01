@@ -10,8 +10,8 @@ import { dirname, join } from 'path';
 const DATABRICKS_CONFIG = {
   clientId: process.env.DATABRICKS_CLIENT_ID,
   clientSecret: process.env.DATABRICKS_CLIENT_SECRET,
-  serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME,
-  httpPath: process.env.DATABRICKS_HTTP_PATH
+  serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME || process.env.DATABRICKS_HOST,
+  httpPath: process.env.DATABRICKS_HTTP_PATH || `/sql/1.0/warehouses/${process.env.DATABRICKS_WAREHOUSE_ID || 'default'}`
 };
 
 // Databricks SQL Client instance
@@ -46,6 +46,12 @@ async function initializeDatabricks(userToken = null) {
   // Validate required environment variables for service principal
   if (!DATABRICKS_CONFIG.clientId || !DATABRICKS_CONFIG.clientSecret || !DATABRICKS_CONFIG.serverHostname || !DATABRICKS_CONFIG.httpPath) {
     console.warn('Databricks environment variables not available, falling back to local database');
+    console.warn('Available env vars:', {
+      clientId: !!DATABRICKS_CONFIG.clientId,
+      clientSecret: !!DATABRICKS_CONFIG.clientSecret,
+      serverHostname: DATABRICKS_CONFIG.serverHostname,
+      httpPath: DATABRICKS_CONFIG.httpPath
+    });
     throw new Error('Databricks environment variables not available - using local database fallback');
   }
 

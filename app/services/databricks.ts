@@ -4,8 +4,8 @@ import { DBSQLClient } from '@databricks/sql';
 const DATABRICKS_CONFIG = {
   clientId: process.env.DATABRICKS_CLIENT_ID,
   clientSecret: process.env.DATABRICKS_CLIENT_SECRET,
-  serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME,
-  httpPath: process.env.DATABRICKS_HTTP_PATH
+  serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME || process.env.DATABRICKS_HOST,
+  httpPath: process.env.DATABRICKS_HTTP_PATH || `/sql/1.0/warehouses/${process.env.DATABRICKS_WAREHOUSE_ID || 'default'}`
 };
 
 // Connection retry configuration
@@ -86,7 +86,7 @@ export async function initializeDatabricks(): Promise<DBSQLClient> {
   const missingVars = [];
   if (!DATABRICKS_CONFIG.clientId) missingVars.push('DATABRICKS_CLIENT_ID');
   if (!DATABRICKS_CONFIG.clientSecret) missingVars.push('DATABRICKS_CLIENT_SECRET');
-  if (!DATABRICKS_CONFIG.serverHostname) missingVars.push('DATABRICKS_SERVER_HOSTNAME');
+  if (!DATABRICKS_CONFIG.serverHostname) missingVars.push('DATABRICKS_SERVER_HOSTNAME or DATABRICKS_HOST');
   if (!DATABRICKS_CONFIG.httpPath) missingVars.push('DATABRICKS_HTTP_PATH');
   
   if (missingVars.length > 0) {

@@ -73,7 +73,7 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
   const [analytics, setAnalytics] = useState<SensorAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [workOrderInfo, setWorkOrderInfo] = useState<any>(null);
+  const [workOrderInfo, setWorkOrderInfo] = useState<Record<string, unknown> | null>(null);
 
   // Load initial data
   useEffect(() => {
