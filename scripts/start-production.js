@@ -114,7 +114,7 @@ async function installPythonDependencies() {
 
     // First, check if packages are already available
     try {
-      await runCommand(pythonPath, ['-c', 'import flask, flask_cors, flask_sqlalchemy, flask_migrate'], { silent: true });
+      await runCommand(pythonPath, ['-c', 'import flask; import flask_cors; import flask_sqlalchemy; import flask_migrate'], { silent: true });
       console.log('✓ Python dependencies appear to be pre-installed');
       return true;
     } catch (err) {
@@ -160,7 +160,7 @@ async function installPythonDependencies() {
 
     // Verify installation worked by testing imports
     try {
-      const verifyResult = await runCommand(pythonPath, ['-c', 'import flask, flask_cors, flask_sqlalchemy, flask_migrate'], { silent: true });
+      const verifyResult = await runCommand(pythonPath, ['-c', 'import flask; import flask_cors; import flask_sqlalchemy; import flask_migrate'], { silent: true });
       console.log('✓ Python dependencies verified after installation');
       return true;
     } catch (err) {

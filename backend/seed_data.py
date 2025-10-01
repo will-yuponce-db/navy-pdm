@@ -5,7 +5,6 @@ Seed script to populate the SQLite database with data from Redux state
 
 from app import app, db, WorkOrder, Part, Notification
 from datetime import datetime
-import json
 
 
 def seed_database():
@@ -350,7 +349,9 @@ def seed_database():
                 "id": "notif_001",
                 "type": "info",
                 "title": "System Initialized",
-                "message": "Navy PdM system has been successfully initialized with seed data",
+                "message": (
+                    "Navy PdM system has been successfully initialized with seed data"
+                ),
                 "timestamp": datetime.utcnow(),
                 "priority": "medium",
                 "category": "system",
@@ -360,7 +361,9 @@ def seed_database():
                 "id": "notif_002",
                 "type": "warning",
                 "title": "Low Stock Alert",
-                "message": "Temperature Sensor (LM2500-SEN-004) is at critical stock level: 1 units",
+                "message": (
+                    "Temperature Sensor (LM2500-SEN-004) is at critical stock: 1 units"
+                ),
                 "timestamp": datetime.utcnow(),
                 "priority": "high",
                 "category": "alert",

@@ -22,17 +22,19 @@ def check_health(port=8001, max_retries=5):
             response = requests.get(url, timeout=5)
             if response.status_code == 200:
                 data = response.json()
-                print(f"✓ Backend is healthy!")
+                print("✓ Backend is healthy!")
                 print(f"  Status: {data.get('status')}")
                 print(f"  Timestamp: {data.get('timestamp')}")
                 return True
             else:
                 print(
-                    f"✗ Attempt {attempt}/{max_retries}: Got status code {response.status_code}"
+                    f"✗ Attempt {attempt}/{max_retries}: "
+                    f"Got status code {response.status_code}"
                 )
         except requests.exceptions.ConnectionError:
             print(
-                f"✗ Attempt {attempt}/{max_retries}: Connection refused - backend may not be running"
+                f"✗ Attempt {attempt}/{max_retries}: "
+                f"Connection refused - backend may not be running"
             )
         except requests.exceptions.Timeout:
             print(f"✗ Attempt {attempt}/{max_retries}: Request timed out")
@@ -40,7 +42,7 @@ def check_health(port=8001, max_retries=5):
             print(f"✗ Attempt {attempt}/{max_retries}: {str(e)}")
 
         if attempt < max_retries:
-            print(f"  Waiting 2 seconds before retry...")
+            print("  Waiting 2 seconds before retry...")
             sleep(2)
 
     print(f"\n✗ Backend health check failed after {max_retries} attempts")
@@ -57,7 +59,7 @@ def check_work_orders(port=8001):
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json()
-            print(f"✓ Work orders endpoint is working!")
+            print("✓ Work orders endpoint is working!")
             print(f"  Total work orders: {data.get('total', 0)}")
             print(f"  Page size: {data.get('pageSize', 0)}")
             return True
@@ -93,7 +95,8 @@ def main():
         print("   → Check backend logs for errors")
         print("4. Database initialization failed")
         print(
-            "   → Run: cd backend && python3 -c 'from app import app, db; app.app_context().push(); db.create_all()'"
+            "   → Run: cd backend && python3 -c "
+            "'from app import app, db; app.app_context().push(); db.create_all()'"
         )
         sys.exit(1)
 
@@ -111,11 +114,4 @@ def main():
 
 
 if __name__ == "__main__":
-    try:
-        import requests
-    except ImportError:
-        print("Error: 'requests' library is required")
-        print("Install with: pip install requests")
-        sys.exit(1)
-
     main()
