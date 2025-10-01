@@ -277,3 +277,33 @@ export const partsApi = {
     });
   },
 };
+
+// Databricks SQL API
+export const databricksApi = {
+  health: async (): Promise<{ status: string; timestamp: string; details?: any }> => {
+    return apiRequest("/databricks/health");
+  },
+
+  test: async (): Promise<{ success: boolean; message: string; data?: any }> => {
+    return apiRequest("/databricks/test");
+  },
+
+  query: async (query: string, options?: any): Promise<{ success: boolean; data: any[]; rowCount: number }> => {
+    return apiRequest("/databricks/query", {
+      method: "POST",
+      body: JSON.stringify({ query, options }),
+    });
+  },
+
+  getWarehouses: async (): Promise<{ success: boolean; data: any[] }> => {
+    return apiRequest("/databricks/warehouses");
+  },
+
+  getDatabases: async (): Promise<{ success: boolean; data: any[] }> => {
+    return apiRequest("/databricks/databases");
+  },
+
+  getTables: async (databaseName: string): Promise<{ success: boolean; data: any[]; database: string }> => {
+    return apiRequest(`/databricks/databases/${encodeURIComponent(databaseName)}/tables`);
+  },
+};

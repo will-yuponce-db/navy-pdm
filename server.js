@@ -5,6 +5,135 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+// Databricks SQL Configuration
+const DATABRICKS_CONFIG = {
+  token: process.env.DATABRICKS_API_TOKEN,
+  serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME,
+  httpPath: process.env.DATABRICKS_HTTP_PATH
+};
+
+// Databricks SQL Client instance
+let databricksClient = null;
+
+// Initialize Databricks connection
+async function initializeDatabricks() {
+  if (databricksClient) {
+    return databricksClient;
+  }
+
+  // Validate required environment variables
+  if (!DATABRICKS_CONFIG.token || !DATABRICKS_CONFIG.serverHostname || !DATABRICKS_CONFIG.httpPath) {
+    throw new Error('Missing required Databricks environment variables: DATABRICKS_API_TOKEN, DATABRICKS_SERVER_HOSTNAME, DATABRICKS_HTTP_PATH');
+  }
+
+  try {
+    const { DBSQLClient } = await import('@databricks/sql');
+    const client = new DBSQLClient();
+    
+    await client.connect({
+      token: DATABRICKS_CONFIG.token,
+      host: DATABRICKS_CONFIG.serverHostname,
+      path: DATABRICKS_CONFIG.httpPath
+    });
+
+    databricksClient = client;
+    console.log('Databricks SQL connection established successfully');
+    return client;
+  } catch (error) {
+    console.error('Failed to connect to Databricks SQL:', error);
+    throw new Error(`Databricks connection failed: ${error.message}`);
+  }
+}
+
+// Execute a SQL query
+async function executeDatabricksQuery(query, options = {}) {
+  try {
+    const client = await initializeDatabricks();
+    const session = await client.openSession();
+
+    const queryOperation = await session.executeStatement(query, {
+      runAsync: true,
+      ...options
+    });
+
+    const result = await queryOperation.fetchAll();
+    await queryOperation.close();
+    await session.close();
+
+    return result;
+  } catch (error) {
+    console.error('Databricks query execution failed:', error);
+    throw new Error(`Query execution failed: ${error.message}`);
+  }
+}
+
+// Test connection
+async function testDatabricksConnection() {
+  try {
+    const result = await executeDatabricksQuery("SELECT 1 as test_value");
+    return {
+      success: true,
+      message: 'Databricks connection successful',
+      data: result
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: `Connection test failed: ${error.message}`
+    };
+  }
+}
+
+// Get warehouse information
+async function getWarehouseInfo() {
+  try {
+    const result = await executeDatabricksQuery("SHOW WAREHOUSES");
+    return result;
+  } catch (error) {
+    console.error('Failed to get warehouse info:', error);
+    throw error;
+  }
+}
+
+// Get database information
+async function getDatabaseInfo() {
+  try {
+    const result = await executeDatabricksQuery("SHOW DATABASES");
+    return result;
+  } catch (error) {
+    console.error('Failed to get database info:', error);
+    throw error;
+  }
+}
+
+// Get table information for a specific database
+async function getTableInfo(databaseName) {
+  try {
+    const result = await executeDatabricksQuery(`SHOW TABLES IN ${databaseName}`);
+    return result;
+  } catch (error) {
+    console.error('Failed to get table info:', error);
+    throw error;
+  }
+}
+
+// Health check for Databricks service
+async function databricksHealthCheck() {
+  try {
+    const testResult = await testDatabricksConnection();
+    return {
+      status: testResult.success ? 'healthy' : 'unhealthy',
+      timestamp: new Date().toISOString(),
+      details: testResult
+    };
+  } catch (error) {
+    return {
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      details: { error: error.message }
+    };
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -1072,6 +1201,107 @@ app.get('/api/health', (req, res) => {
   }
 });
 
+// Databricks SQL API routes
+app.get('/api/databricks/health', async (req, res) => {
+  try {
+    const healthStatus = await databricksHealthCheck();
+    res.json(healthStatus);
+  } catch (error) {
+    console.error('Error in Databricks health check:', error);
+    res.status(500).json({ 
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: 'Internal server error' 
+    });
+  }
+});
+
+app.get('/api/databricks/test', async (req, res) => {
+  try {
+    const testResult = await testDatabricksConnection();
+    res.json(testResult);
+  } catch (error) {
+    console.error('Error testing Databricks connection:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: `Test failed: ${error.message}` 
+    });
+  }
+});
+
+app.post('/api/databricks/query', async (req, res) => {
+  try {
+    const { query, options = {} } = req.body;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+
+    const result = await executeDatabricksQuery(query, options);
+    res.json({
+      success: true,
+      data: result,
+      rowCount: result.length
+    });
+  } catch (error) {
+    console.error('Error executing Databricks query:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: `Query execution failed: ${error.message}` 
+    });
+  }
+});
+
+app.get('/api/databricks/warehouses', async (req, res) => {
+  try {
+    const warehouses = await getWarehouseInfo();
+    res.json({
+      success: true,
+      data: warehouses
+    });
+  } catch (error) {
+    console.error('Error fetching warehouse info:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: `Failed to fetch warehouse info: ${error.message}` 
+    });
+  }
+});
+
+app.get('/api/databricks/databases', async (req, res) => {
+  try {
+    const databases = await getDatabaseInfo();
+    res.json({
+      success: true,
+      data: databases
+    });
+  } catch (error) {
+    console.error('Error fetching database info:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: `Failed to fetch database info: ${error.message}` 
+    });
+  }
+});
+
+app.get('/api/databricks/databases/:databaseName/tables', async (req, res) => {
+  try {
+    const { databaseName } = req.params;
+    const tables = await getTableInfo(databaseName);
+    res.json({
+      success: true,
+      data: tables,
+      database: databaseName
+    });
+  } catch (error) {
+    console.error('Error fetching table info:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: `Failed to fetch table info: ${error.message}` 
+    });
+  }
+});
+
 // Serve static files from build/client directory
 app.use(express.static(join(__dirname, 'build/client')));
 
@@ -1098,8 +1328,15 @@ try {
   };
 }
 
-// Handle all other requests with React Router
-app.all('*', reactRouterServer);
+// Handle all other requests with React Router (except API routes)
+app.all('*', (req, res, next) => {
+  // Skip API routes - they should be handled by Express routes above
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
+  // Handle all other routes with React Router
+  reactRouterServer(req, res, next);
+});
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
