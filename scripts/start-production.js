@@ -4,8 +4,10 @@
  * Works for Databricks Apps, Docker, traditional servers, and local production testing
  */
 
+/* eslint-env node */
+
 import { spawn } from 'child_process';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -96,7 +98,7 @@ async function installPythonDependencies() {
       if (venvCheck.stdout && venvCheck.stdout.trim() === 'True') {
         console.log('⚠️  Warning: Virtual environment detected. Using system Python instead.');
       }
-    } catch (venvErr) {
+    } catch {
       console.log('Could not check for virtual environment, continuing...');
     }
 
@@ -108,7 +110,7 @@ async function installPythonDependencies() {
         pythonPath = whichResult.stdout.trim();
         console.log(`Using Python: ${pythonPath}`);
       }
-    } catch (err) {
+    } catch {
       console.log('Could not determine Python path, using default python3');
     }
 
@@ -117,7 +119,7 @@ async function installPythonDependencies() {
       await runCommand(pythonPath, ['-c', 'import flask; import flask_cors; import flask_sqlalchemy; import flask_migrate; print("All modules imported successfully")'], { silent: true, useShell: false });
       console.log('✓ Python dependencies appear to be pre-installed');
       return true;
-    } catch (err) {
+    } catch {
       console.log('Python dependencies not found, attempting installation...');
     }
 
@@ -160,7 +162,7 @@ async function installPythonDependencies() {
 
     // Verify installation worked by testing imports
     try {
-      const verifyResult = await runCommand(pythonPath, ['-c', 'import flask; import flask_cors; import flask_sqlalchemy; import flask_migrate; print("All modules imported successfully")'], { silent: true, useShell: false });
+      await runCommand(pythonPath, ['-c', 'import flask; import flask_cors; import flask_sqlalchemy; import flask_migrate; print("All modules imported successfully")'], { silent: true, useShell: false });
       console.log('✓ Python dependencies verified after installation');
       return true;
     } catch (err) {
@@ -180,11 +182,10 @@ async function installPythonDependencies() {
 
 // Start backend server
 async function startBackend() {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     console.log('');
     console.log(`Starting Flask backend on port ${config.backendPort}...`);
     
-    const backendDir = join(ROOT_DIR, 'backend');
     const backendEnv = {
       ...process.env,
       FLASK_RUN_HOST: config.backendHost,
@@ -235,7 +236,7 @@ async function waitForBackend(maxRetries = 30) {
         console.log('✓ Backend is ready!');
         return true;
       }
-    } catch (err) {
+    } catch {
       // Backend not ready yet
     }
 
@@ -294,7 +295,7 @@ function startFrontend() {
 
 // Graceful shutdown
 function setupGracefulShutdown(backend, frontend) {
-  const cleanup = (signal) => {
+  const cleanup = () => {
     console.log('');
     console.log('==========================================');
     console.log('Shutting down services...');
@@ -316,9 +317,9 @@ function setupGracefulShutdown(backend, frontend) {
     }, 1000);
   };
 
-  process.on('SIGINT', () => cleanup('SIGINT'));
-  process.on('SIGTERM', () => cleanup('SIGTERM'));
-  process.on('exit', () => cleanup('exit'));
+  process.on('SIGINT', () => cleanup());
+  process.on('SIGTERM', () => cleanup());
+  process.on('exit', () => cleanup());
 }
 
 // Main startup sequence
