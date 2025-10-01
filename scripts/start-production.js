@@ -91,9 +91,13 @@ async function installPythonDependencies() {
   
   try {
     // Check for virtual environment and warn if found
-    const venvCheck = await runCommand('python3', ['-c', 'import sys; print("VIRTUAL_ENV" in sys.modules or hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix))'], { silent: true });
-    if (venvCheck.stdout && venvCheck.stdout.trim() === 'True') {
-      console.log('⚠️  Warning: Virtual environment detected. Using system Python instead.');
+    try {
+      const venvCheck = await runCommand('python3', ['-c', 'import sys; print("VIRTUAL_ENV" in sys.modules or hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix))'], { silent: true });
+      if (venvCheck.stdout && venvCheck.stdout.trim() === 'True') {
+        console.log('⚠️  Warning: Virtual environment detected. Using system Python instead.');
+      }
+    } catch (venvErr) {
+      console.log('Could not check for virtual environment, continuing...');
     }
 
     // First, check if packages are already available
@@ -126,7 +130,7 @@ async function installPythonDependencies() {
         installed = true;
         break;
       } catch (err) {
-        console.log(`✗ Failed with ${command}: ${err.message || err.stderr || 'Unknown error'}`);
+        console.log(`✗ Failed with ${command}: ${err.message || err.stderr || err.toString() || 'Unknown error'}`);
         // Try next method
         continue;
       }
@@ -150,7 +154,7 @@ async function installPythonDependencies() {
     }
 
   } catch (error) {
-    console.error('Failed to install Python dependencies:', error.message);
+    console.error('Failed to install Python dependencies:', error.message || error.toString());
     throw error;
   }
 }
