@@ -5,12 +5,13 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-// Databricks SQL Configuration
+
+// Databricks SQL Configuration - uses environment variables provided by Databricks
 const DATABRICKS_CONFIG = {
-  clientId: process.env.DATABRICKS_CLIENT_ID || 'app-40zbx9',
+  clientId: process.env.DATABRICKS_CLIENT_ID,
   clientSecret: process.env.DATABRICKS_CLIENT_SECRET,
   serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME,
-  httpPath: process.env.DATABRICKS_HTTP_PATH || '/sql/1.0/warehouses/your_warehouse_id'
+  httpPath: process.env.DATABRICKS_HTTP_PATH
 };
 
 // Databricks SQL Client instance
@@ -44,7 +45,8 @@ async function initializeDatabricks(userToken = null) {
 
   // Validate required environment variables for service principal
   if (!DATABRICKS_CONFIG.clientId || !DATABRICKS_CONFIG.clientSecret || !DATABRICKS_CONFIG.serverHostname || !DATABRICKS_CONFIG.httpPath) {
-    throw new Error('Missing required Databricks environment variables: DATABRICKS_CLIENT_ID, DATABRICKS_CLIENT_SECRET, DATABRICKS_SERVER_HOSTNAME, DATABRICKS_HTTP_PATH');
+    console.warn('Databricks environment variables not available, falling back to local database');
+    throw new Error('Databricks environment variables not available - using local database fallback');
   }
 
   try {
@@ -1714,10 +1716,52 @@ app.get('/api/databricks/parts', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching parts from Databricks:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: `Failed to fetch parts: ${error.message}` 
-    });
+    
+    // Fallback to local database if Databricks is not available
+    try {
+      console.log('Falling back to local database for parts data');
+      const db = new Database(join(__dirname, 'backend', 'instance', 'navy_pdm.db'));
+      
+      let localQuery = "SELECT * FROM parts";
+      const conditions = [];
+      
+      if (req.query.category) {
+        conditions.push(`category = '${req.query.category}'`);
+      }
+      
+      if (req.query.condition) {
+        conditions.push(`condition = '${req.query.condition}'`);
+      }
+      
+      if (req.query.search) {
+        conditions.push(`(name LIKE '%${req.query.search}%' OR id LIKE '%${req.query.search}%' OR supplier LIKE '%${req.query.search}%' OR location LIKE '%${req.query.search}%')`);
+      }
+      
+      if (conditions.length > 0) {
+        localQuery += " WHERE " + conditions.join(" AND ");
+      }
+      
+      localQuery += " ORDER BY last_updated DESC";
+      
+      const localResult = db.prepare(localQuery).all();
+      db.close();
+      
+      res.json({
+        items: localResult,
+        total: localResult.length,
+        page: parseInt(req.query.page || 1),
+        pageSize: parseInt(req.query.limit || 50),
+        hasNext: false,
+        hasPrevious: false,
+        fallback: true
+      });
+    } catch (fallbackError) {
+      console.error('Local database fallback also failed:', fallbackError);
+      res.status(500).json({ 
+        success: false, 
+        error: `Failed to fetch parts from both Databricks and local database: ${error.message}` 
+      });
+    }
   }
 });
 
