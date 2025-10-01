@@ -7,22 +7,42 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 // Databricks SQL Configuration
 const DATABRICKS_CONFIG = {
-  clientId: process.env.DATABRICKS_CLIENT_ID,
+  clientId: process.env.DATABRICKS_CLIENT_ID || 'app-40zbx9',
   clientSecret: process.env.DATABRICKS_CLIENT_SECRET,
   serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME,
-  httpPath: process.env.DATABRICKS_HTTP_PATH
+  httpPath: process.env.DATABRICKS_HTTP_PATH || '/sql/1.0/warehouses/your_warehouse_id'
 };
 
 // Databricks SQL Client instance
 let databricksClient = null;
 
-// Initialize Databricks connection
-async function initializeDatabricks() {
+// Initialize Databricks connection with user token (preferred) or service principal
+async function initializeDatabricks(userToken = null) {
+  // If we have a user token, use it directly
+  if (userToken) {
+    try {
+      const { DBSQLClient } = await import('@databricks/sql');
+      const client = new DBSQLClient();
+      
+      await client.connect({
+        token: userToken,
+        host: DATABRICKS_CONFIG.serverHostname,
+        path: DATABRICKS_CONFIG.httpPath
+      });
+
+      console.log('Databricks SQL connection established with user token');
+      return client;
+    } catch (error) {
+      console.error('Failed to connect with user token, falling back to service principal:', error);
+    }
+  }
+
+  // Fallback to service principal if no user token or user token failed
   if (databricksClient) {
     return databricksClient;
   }
 
-  // Validate required environment variables
+  // Validate required environment variables for service principal
   if (!DATABRICKS_CONFIG.clientId || !DATABRICKS_CONFIG.clientSecret || !DATABRICKS_CONFIG.serverHostname || !DATABRICKS_CONFIG.httpPath) {
     throw new Error('Missing required Databricks environment variables: DATABRICKS_CLIENT_ID, DATABRICKS_CLIENT_SECRET, DATABRICKS_SERVER_HOSTNAME, DATABRICKS_HTTP_PATH');
   }
@@ -55,7 +75,7 @@ async function initializeDatabricks() {
     });
 
     databricksClient = client;
-    console.log('Databricks SQL connection established successfully');
+    console.log('Databricks SQL connection established with service principal');
     return client;
   } catch (error) {
     console.error('Failed to connect to Databricks SQL:', error);
@@ -64,9 +84,9 @@ async function initializeDatabricks() {
 }
 
 // Execute a SQL query
-async function executeDatabricksQuery(query, options = {}) {
+async function executeDatabricksQuery(query, options = {}, userToken = null) {
   try {
-    const client = await initializeDatabricks();
+    const client = await initializeDatabricks(userToken);
     const session = await client.openSession();
 
     const queryOperation = await session.executeStatement(query, {
@@ -86,9 +106,9 @@ async function executeDatabricksQuery(query, options = {}) {
 }
 
 // Test connection
-async function testDatabricksConnection() {
+async function testDatabricksConnection(userToken = null) {
   try {
-    const result = await executeDatabricksQuery("SELECT 1 as test_value");
+    const result = await executeDatabricksQuery("SELECT 1 as test_value", {}, userToken);
     return {
       success: true,
       message: 'Databricks connection successful',
@@ -103,9 +123,9 @@ async function testDatabricksConnection() {
 }
 
 // Get warehouse information
-async function getWarehouseInfo() {
+async function getWarehouseInfo(userToken = null) {
   try {
-    const result = await executeDatabricksQuery("SHOW WAREHOUSES");
+    const result = await executeDatabricksQuery("SHOW WAREHOUSES", {}, userToken);
     return result;
   } catch (error) {
     console.error('Failed to get warehouse info:', error);
@@ -114,9 +134,9 @@ async function getWarehouseInfo() {
 }
 
 // Get database information
-async function getDatabaseInfo() {
+async function getDatabaseInfo(userToken = null) {
   try {
-    const result = await executeDatabricksQuery("SHOW DATABASES");
+    const result = await executeDatabricksQuery("SHOW DATABASES", {}, userToken);
     return result;
   } catch (error) {
     console.error('Failed to get database info:', error);
@@ -125,9 +145,9 @@ async function getDatabaseInfo() {
 }
 
 // Get table information for a specific database
-async function getTableInfo(databaseName) {
+async function getTableInfo(databaseName, userToken = null) {
   try {
-    const result = await executeDatabricksQuery(`SHOW TABLES IN ${databaseName}`);
+    const result = await executeDatabricksQuery(`SHOW TABLES IN ${databaseName}`, {}, userToken);
     return result;
   } catch (error) {
     console.error('Failed to get table info:', error);
@@ -136,9 +156,9 @@ async function getTableInfo(databaseName) {
 }
 
 // Health check for Databricks service
-async function databricksHealthCheck() {
+async function databricksHealthCheck(userToken = null) {
   try {
-    const testResult = await testDatabricksConnection();
+    const testResult = await testDatabricksConnection(userToken);
     return {
       status: testResult.success ? 'healthy' : 'unhealthy',
       timestamp: new Date().toISOString(),
@@ -1537,7 +1557,8 @@ app.get('/api/health', (req, res) => {
 // Databricks SQL API routes
 app.get('/api/databricks/health', async (req, res) => {
   try {
-    const healthStatus = await databricksHealthCheck();
+    const userToken = req.headers['x-forwarded-access-token'];
+    const healthStatus = await databricksHealthCheck(userToken);
     res.json(healthStatus);
   } catch (error) {
     console.error('Error in Databricks health check:', error);
@@ -1551,7 +1572,8 @@ app.get('/api/databricks/health', async (req, res) => {
 
 app.get('/api/databricks/test', async (req, res) => {
   try {
-    const testResult = await testDatabricksConnection();
+    const userToken = req.headers['x-forwarded-access-token'];
+    const testResult = await testDatabricksConnection(userToken);
     res.json(testResult);
   } catch (error) {
     console.error('Error testing Databricks connection:', error);
@@ -1565,12 +1587,13 @@ app.get('/api/databricks/test', async (req, res) => {
 app.post('/api/databricks/query', async (req, res) => {
   try {
     const { query, options = {} } = req.body;
+    const userToken = req.headers['x-forwarded-access-token'];
     
     if (!query) {
       return res.status(400).json({ error: 'Query is required' });
     }
 
-    const result = await executeDatabricksQuery(query, options);
+    const result = await executeDatabricksQuery(query, options, userToken);
     res.json({
       success: true,
       data: result,
@@ -1587,7 +1610,8 @@ app.post('/api/databricks/query', async (req, res) => {
 
 app.get('/api/databricks/warehouses', async (req, res) => {
   try {
-    const warehouses = await getWarehouseInfo();
+    const userToken = req.headers['x-forwarded-access-token'];
+    const warehouses = await getWarehouseInfo(userToken);
     res.json({
       success: true,
       data: warehouses
@@ -1603,7 +1627,8 @@ app.get('/api/databricks/warehouses', async (req, res) => {
 
 app.get('/api/databricks/databases', async (req, res) => {
   try {
-    const databases = await getDatabaseInfo();
+    const userToken = req.headers['x-forwarded-access-token'];
+    const databases = await getDatabaseInfo(userToken);
     res.json({
       success: true,
       data: databases
@@ -1620,7 +1645,8 @@ app.get('/api/databricks/databases', async (req, res) => {
 app.get('/api/databricks/databases/:databaseName/tables', async (req, res) => {
   try {
     const { databaseName } = req.params;
-    const tables = await getTableInfo(databaseName);
+    const userToken = req.headers['x-forwarded-access-token'];
+    const tables = await getTableInfo(databaseName, userToken);
     res.json({
       success: true,
       data: tables,
@@ -1639,6 +1665,9 @@ app.get('/api/databricks/databases/:databaseName/tables', async (req, res) => {
 app.get('/api/databricks/parts', async (req, res) => {
   try {
     const { page = 1, limit = 50, category, condition, search } = req.query;
+    
+    // Get user token from headers (for Databricks app authorization)
+    const userToken = req.headers['x-forwarded-access-token'];
     
     // Build query with optional filters
     let query = "SELECT * FROM public_sector.predictive_maintenance_navy.parts";
@@ -1664,7 +1693,7 @@ app.get('/api/databricks/parts', async (req, res) => {
     const offset = (page - 1) * limit;
     query += ` ORDER BY last_updated DESC LIMIT ${limit} OFFSET ${offset}`;
     
-    const result = await executeDatabricksQuery(query);
+    const result = await executeDatabricksQuery(query, {}, userToken);
     
     // Get total count for pagination
     let countQuery = "SELECT COUNT(*) as total FROM public_sector.predictive_maintenance_navy.parts";
@@ -1672,7 +1701,7 @@ app.get('/api/databricks/parts', async (req, res) => {
       countQuery += " WHERE " + conditions.join(" AND ");
     }
     
-    const countResult = await executeDatabricksQuery(countQuery);
+    const countResult = await executeDatabricksQuery(countQuery, {}, userToken);
     const total = countResult[0]?.total || 0;
     
     res.json({
