@@ -1697,6 +1697,23 @@ app.get('/api/databricks/parts', async (req, res) => {
     
     const result = await executeDatabricksQuery(query, {}, userToken);
     
+    // Transform snake_case to camelCase for frontend compatibility
+    const transformedResult = result.map(part => ({
+      id: part.id,
+      name: part.name,
+      system: part.system,
+      category: part.category,
+      stockLevel: part.stock_level,
+      minStock: part.min_stock,
+      maxStock: part.max_stock,
+      location: part.location,
+      condition: part.condition,
+      leadTime: part.lead_time,
+      supplier: part.supplier,
+      cost: part.cost,
+      lastUpdated: part.last_updated
+    }));
+    
     // Get total count for pagination
     let countQuery = "SELECT COUNT(*) as total FROM public_sector.predictive_maintenance_navy.parts";
     if (conditions.length > 0) {
@@ -1707,7 +1724,7 @@ app.get('/api/databricks/parts', async (req, res) => {
     const total = countResult[0]?.total || 0;
     
     res.json({
-      items: result,
+      items: transformedResult,
       total,
       page: parseInt(page),
       pageSize: parseInt(limit),
@@ -1746,9 +1763,26 @@ app.get('/api/databricks/parts', async (req, res) => {
       const localResult = db.prepare(localQuery).all();
       db.close();
       
+      // Transform snake_case to camelCase for frontend compatibility
+      const transformedResult = localResult.map(part => ({
+        id: part.id,
+        name: part.name,
+        system: part.system,
+        category: part.category,
+        stockLevel: part.stock_level,
+        minStock: part.min_stock,
+        maxStock: part.max_stock,
+        location: part.location,
+        condition: part.condition,
+        leadTime: part.lead_time,
+        supplier: part.supplier,
+        cost: part.cost,
+        lastUpdated: part.last_updated
+      }));
+      
       res.json({
-        items: localResult,
-        total: localResult.length,
+        items: transformedResult,
+        total: transformedResult.length,
         page: parseInt(req.query.page || 1),
         pageSize: parseInt(req.query.limit || 50),
         hasNext: false,
