@@ -90,6 +90,12 @@ async function installPythonDependencies() {
   console.log('Installing Python dependencies...');
   
   try {
+    // Check for virtual environment and warn if found
+    const venvCheck = await runCommand('python3', ['-c', 'import sys; print("VIRTUAL_ENV" in sys.modules or hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix))'], { silent: true });
+    if (venvCheck.stdout && venvCheck.stdout.trim() === 'True') {
+      console.log('⚠️  Warning: Virtual environment detected. Using system Python instead.');
+    }
+
     // First, check if packages are already available
     try {
       await runCommand('python3', ['-c', 'import flask, flask_cors, flask_sqlalchemy, flask_migrate'], { silent: true });
@@ -99,11 +105,15 @@ async function installPythonDependencies() {
       console.log('Python dependencies not found, attempting installation...');
     }
 
-    // Try multiple pip methods for different environments
+    // Try multiple pip methods for different environments - prioritize system Python
     const pipMethods = [
+      ['python3', ['-m', 'pip', 'install', '-r', 'backend/requirements.txt', '--break-system-packages', '--user']],
       ['python3', ['-m', 'pip', 'install', '-r', 'backend/requirements.txt', '--break-system-packages']],
+      ['python3', ['-m', 'pip', 'install', '-r', 'backend/requirements.txt', '--user']],
       ['python3', ['-m', 'pip', 'install', '-r', 'backend/requirements.txt']],
+      ['pip3', ['install', '-r', 'backend/requirements.txt', '--break-system-packages', '--user']],
       ['pip3', ['install', '-r', 'backend/requirements.txt', '--break-system-packages']],
+      ['pip3', ['install', '-r', 'backend/requirements.txt', '--user']],
       ['pip3', ['install', '-r', 'backend/requirements.txt']],
     ];
 
@@ -146,8 +156,8 @@ async function installPythonDependencies() {
 }
 
 // Start backend server
-function startBackend() {
-  return new Promise((resolve, reject) => {
+async function startBackend() {
+  return new Promise(async (resolve, reject) => {
     console.log('');
     console.log(`Starting Flask backend on port ${config.backendPort}...`);
     
@@ -159,9 +169,15 @@ function startBackend() {
       GUNICORN_WORKERS: config.gunicornWorkers,
       GUNICORN_TIMEOUT: config.gunicornTimeout,
       NODE_ENV: config.nodeEnv,
+      // Ensure we use system Python, not virtual environment
+      VIRTUAL_ENV: undefined,
+      PYTHONPATH: undefined,
     };
 
-    const backend = spawn('python3', ['backend/start_production.py'], {
+    // Use absolute path to system python3 to avoid virtual environment
+    const pythonPath = await runCommand('which', ['python3'], { silent: true }).then(result => result.stdout.trim()).catch(() => 'python3');
+    
+    const backend = spawn(pythonPath, ['backend/start_production.py'], {
       cwd: ROOT_DIR,
       env: backendEnv,
       stdio: 'inherit',
