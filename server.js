@@ -1642,6 +1642,13 @@ app.post('/api/parts/import/databricks', (req, res) => {
         const cost = Math.max(100, (part.weight || 1000) * 2);
 
         if (mode === 'upsert' || mode === 'insert') {
+          // Check if part exists BEFORE upsert to track insert vs update correctly
+          let wasExisting = false;
+          if (mode === 'upsert') {
+            const existing = db.prepare('SELECT id FROM parts WHERE id = ?').get(partId);
+            wasExisting = !!existing;
+          }
+          
           upsertStmt.run(
             partId,
             part.type,
@@ -1668,9 +1675,7 @@ app.post('/api/parts/import/databricks', (req, res) => {
           
           results.success++;
           if (mode === 'upsert') {
-            // Check if it was an insert or update
-            const existing = db.prepare('SELECT id FROM parts WHERE id = ?').get(partId);
-            if (existing) results.updated++;
+            if (wasExisting) results.updated++;
             else results.inserted++;
           } else {
             results.inserted++;
@@ -2206,11 +2211,15 @@ app.get('/api/databricks/parts', async (req, res) => {
     };
     
     // Build query with optional filters for parts_silver table
+    // Note: Properly escape search terms to prevent SQL injection
+    const escapeSQL = (str) => str.replace(/'/g, "''");
+    
     let query = "SELECT * FROM public_sector.predictive_maintenance_navy_test.parts_silver";
     const conditions = [];
     
     if (search) {
-      conditions.push(`(type LIKE '%${search}%' OR NSN LIKE '%${search}%' OR stock_location LIKE '%${search}%')`);
+      const escapedSearch = escapeSQL(search);
+      conditions.push(`(type LIKE '%${escapedSearch}%' OR NSN LIKE '%${escapedSearch}%' OR stock_location LIKE '%${escapedSearch}%')`);
     }
     
     if (conditions.length > 0) {
@@ -2305,17 +2314,22 @@ app.get('/api/databricks/parts', async (req, res) => {
       
       let localQuery = "SELECT * FROM parts";
       const conditions = [];
+      const params = [];
       
       if (req.query.category) {
-        conditions.push(`category = '${req.query.category}'`);
+        conditions.push('category = ?');
+        params.push(req.query.category);
       }
       
       if (req.query.condition) {
-        conditions.push(`condition = '${req.query.condition}'`);
+        conditions.push('condition = ?');
+        params.push(req.query.condition);
       }
       
       if (req.query.search) {
-        conditions.push(`(name LIKE '%${req.query.search}%' OR id LIKE '%${req.query.search}%' OR supplier LIKE '%${req.query.search}%' OR location LIKE '%${req.query.search}%')`);
+        conditions.push('(name LIKE ? OR id LIKE ? OR supplier LIKE ? OR location LIKE ?)');
+        const searchParam = `%${req.query.search}%`;
+        params.push(searchParam, searchParam, searchParam, searchParam);
       }
       
       if (conditions.length > 0) {
@@ -2324,7 +2338,7 @@ app.get('/api/databricks/parts', async (req, res) => {
       
       localQuery += " ORDER BY last_updated DESC";
       
-      const localResult = db.prepare(localQuery).all();
+      const localResult = db.prepare(localQuery).all(...params);
       db.close();
       
       // Transform snake_case to camelCase for frontend compatibility
