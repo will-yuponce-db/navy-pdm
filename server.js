@@ -928,12 +928,70 @@ app.post('/api/work-orders', (req, res) => {
   }
 });
 
-app.patch('/api/work-orders/:wo_id', (req, res) => {
+app.patch('/api/work-orders/:wo_id', async (req, res) => {
   try {
     const data = req.body;
     const woId = req.params.wo_id;
+    let updatedIn = null;
     
-    // Get the current work order to compare status changes
+    // Check if this is an AI work order (from Databricks)
+    if (woId.startsWith('AI-WO')) {
+      try {
+        // Build dynamic update query for Databricks
+        const updateFields = [];
+        
+        // Map frontend field names to Databricks column names
+        const fieldMapping = {
+          'priority': 'priority',
+          'status': 'operable',  // Note: status in UI maps to operable boolean
+          'fm': 'prediction',
+          'slaCategory': 'maintenance_type',
+          'eta': 'ttr',
+          'partsRequired': 'parts_required'
+        };
+        
+        Object.keys(data).forEach(key => {
+          if (fieldMapping[key]) {
+            const dbColumn = fieldMapping[key];
+            let value = data[key];
+            
+            // Special handling for status -> operable conversion
+            if (key === 'status') {
+              value = (value === 'Completed' || value === 'In progress') ? 'true' : 'false';
+            }
+            
+            // Handle string values with proper escaping
+            if (typeof value === 'string') {
+              value = value.replace(/'/g, "''"); // Escape single quotes
+              updateFields.push(`${dbColumn} = '${value}'`);
+            } else if (typeof value === 'boolean') {
+              updateFields.push(`${dbColumn} = ${value}`);
+            } else if (typeof value === 'number') {
+              updateFields.push(`${dbColumn} = ${value}`);
+            }
+          }
+        });
+        
+        if (updateFields.length > 0) {
+          const updateQuery = `UPDATE public_sector.predictive_maintenance_navy_test.ai_work_orders SET ${updateFields.join(', ')} WHERE work_order = '${woId}'`;
+          await executeDatabricksQuery(updateQuery, {}, null);
+          updatedIn = 'Databricks';
+          console.log(`Updated AI work order ${woId} in Databricks`);
+        }
+        
+        // Return success for Databricks update (don't try SQLite for AI work orders)
+        return res.json({ 
+          message: 'Work order updated successfully',
+          updatedIn: updatedIn,
+          wo: woId
+        });
+      } catch (dbError) {
+        console.error('Error updating Databricks work order:', dbError);
+        return res.status(500).json({ error: 'Failed to update AI work order in Databricks' });
+      }
+    }
+    
+    // For manual work orders (SQLite)
     const currentWorkOrder = db.prepare('SELECT * FROM work_orders WHERE wo = ?').get(woId);
     if (!currentWorkOrder) {
       return res.status(404).json({ message: 'Work order not found' });
@@ -1075,15 +1133,49 @@ app.patch('/api/work-orders/:wo_id', (req, res) => {
   }
 });
 
-app.delete('/api/work-orders/:wo_id', (req, res) => {
+app.delete('/api/work-orders/:wo_id', async (req, res) => {
   try {
-    const result = db.prepare('DELETE FROM work_orders WHERE wo = ?').run(req.params.wo_id);
+    const woId = req.params.wo_id;
+    let deletedFrom = [];
     
-    if (result.changes === 0) {
+    // Check if this is an AI work order (from Databricks)
+    if (woId.startsWith('AI-WO')) {
+      try {
+        // Delete from Databricks using service principal
+        const deleteQuery = `DELETE FROM public_sector.predictive_maintenance_navy_test.ai_work_orders WHERE work_order = '${woId}'`;
+        await executeDatabricksQuery(deleteQuery, {}, null);
+        deletedFrom.push('Databricks');
+        console.log(`Deleted AI work order ${woId} from Databricks`);
+      } catch (dbError) {
+        console.error('Error deleting from Databricks:', dbError);
+        // Continue to try SQLite in case it's also stored there
+      }
+    }
+    
+    // Try to delete from SQLite (for manual work orders or fallback)
+    try {
+      const result = db.prepare('DELETE FROM work_orders WHERE wo = ?').run(woId);
+      if (result.changes > 0) {
+        deletedFrom.push('SQLite');
+        console.log(`Deleted work order ${woId} from SQLite`);
+      }
+    } catch (sqliteError) {
+      console.error('Error deleting from SQLite:', sqliteError);
+      // If we already deleted from Databricks, this is okay
+      if (deletedFrom.length === 0) {
+        throw sqliteError;
+      }
+    }
+    
+    // If not deleted from either source, return 404
+    if (deletedFrom.length === 0) {
       return res.status(404).json({ message: 'Work order not found' });
     }
     
-    res.json({ message: 'Work order deleted successfully' });
+    res.json({ 
+      message: 'Work order deleted successfully',
+      deletedFrom: deletedFrom
+    });
   } catch (error) {
     console.error('Error deleting work order:', error);
     res.status(500).json({ error: 'Internal server error' });
