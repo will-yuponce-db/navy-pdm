@@ -6,8 +6,8 @@ import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-// Import Databricks configuration
-import { databricksConfig } from './app/config/databricks.js';
+// Import Databricks configuration from service
+import { databricksConfig } from './app/services/databricks.ts';
 
 // Databricks SQL Client instance
 let databricksClient = null;

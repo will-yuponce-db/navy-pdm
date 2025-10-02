@@ -1,5 +1,55 @@
 import { DBSQLClient } from '@databricks/sql';
-import { databricksConfig } from '../config/databricks';
+
+// Databricks Configuration Interface
+export interface DatabricksConfig {
+  clientId: string | undefined;
+  clientSecret: string | undefined;
+  serverHostname: string | undefined;
+  httpPath: string | undefined;
+}
+
+// Get configuration from environment variables
+function getConfigFromEnv(): DatabricksConfig {
+  return {
+    clientId: process.env.DATABRICKS_CLIENT_ID,
+    clientSecret: process.env.DATABRICKS_CLIENT_SECRET,
+    serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME || process.env.DATABRICKS_HOST,
+    httpPath: process.env.DATABRICKS_HTTP_PATH || `/sql/1.0/warehouses/8baced1ff014912d`
+  };
+}
+
+// Configuration management
+export const databricksConfig = {
+  // Get current configuration
+  get: (): DatabricksConfig => getConfigFromEnv(),
+
+  // Validate configuration
+  validate: (): { isValid: boolean; missingFields: string[] } => {
+    const config = getConfigFromEnv();
+    const missingFields: string[] = [];
+    
+    if (!config.clientId) missingFields.push('clientId');
+    if (!config.clientSecret) missingFields.push('clientSecret');
+    if (!config.serverHostname) missingFields.push('serverHostname');
+    if (!config.httpPath) missingFields.push('httpPath');
+    
+    return {
+      isValid: missingFields.length === 0,
+      missingFields
+    };
+  },
+
+  // Get configuration for logging (without sensitive data)
+  getSafeConfig: (): Omit<DatabricksConfig, 'clientSecret'> & { clientSecret: boolean } => {
+    const config = getConfigFromEnv();
+    return {
+      clientId: config.clientId,
+      clientSecret: !!config.clientSecret,
+      serverHostname: config.serverHostname,
+      httpPath: config.httpPath
+    };
+  }
+};
 
 // Connection retry configuration
 const CONNECTION_CONFIG = {
@@ -189,7 +239,7 @@ export async function testDatabricksConnection(): Promise<{ success: boolean; me
       data: result,
       diagnostics: {
         responseTime: duration,
-        serverTime: result[0]?.server_time,
+        serverTime: (result[0] as any)?.server_time,
         connectionStatus,
         lastHealthCheck: lastHealthCheck.toISOString()
       }
@@ -359,11 +409,12 @@ export async function databricksHealthCheck(): Promise<{
     const testResult = await testDatabricksConnection();
     
     // Generate recommendations based on diagnostics
-    if (testResult.diagnostics?.responseTime > 5000) {
+    const responseTime = testResult.diagnostics?.responseTime as number | undefined;
+    if (responseTime && responseTime > 5000) {
       recommendations.push('High response time detected. Consider checking network connectivity or Databricks warehouse status.');
     }
     
-    if (testResult.success && testResult.diagnostics?.responseTime > 10000) {
+    if (testResult.success && responseTime && responseTime > 10000) {
       recommendations.push('Very high response time. This may indicate Databricks warehouse is cold or overloaded.');
     }
     
