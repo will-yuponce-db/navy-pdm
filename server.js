@@ -2176,20 +2176,41 @@ app.get('/api/databricks/parts', async (req, res) => {
     // Get user token from headers (for Databricks app authorization)
     const userToken = req.headers['x-forwarded-access-token'];
     
-    // Build query with optional filters
-    let query = "SELECT * FROM public_sector.predictive_maintenance_navy.parts";
+    // Helper function to map part category from Databricks type
+    const mapCategory = (type) => {
+      const typeMap = {
+        'Valve': 'Fuel System',
+        'Filter': 'Consumables',
+        'Vane': 'Hot Section',
+        'Pump': 'Hydraulics',
+        'Fuel Nozzle': 'Fuel System',
+        'Seal': 'Hot Section',
+        'Blade': 'Rotating Parts',
+        'controller card': 'Electronics'
+      };
+
+      for (const [key, value] of Object.entries(typeMap)) {
+        if (type && type.includes(key)) {
+          return value;
+        }
+      }
+      return 'Consumables'; // Default
+    };
+
+    // Helper function to determine part condition
+    const mapCondition = (stockAvailable, productionTime) => {
+      if (productionTime === 0) return 'Condemned';
+      if (stockAvailable === 0) return 'Used';
+      if (stockAvailable > 7) return 'New';
+      return 'Refurbished';
+    };
+    
+    // Build query with optional filters for parts_silver table
+    let query = "SELECT * FROM public_sector.predictive_maintenance_navy_test.parts_silver";
     const conditions = [];
     
-    if (category) {
-      conditions.push(`category = '${category}'`);
-    }
-    
-    if (condition) {
-      conditions.push(`condition = '${condition}'`);
-    }
-    
     if (search) {
-      conditions.push(`(name LIKE '%${search}%' OR id LIKE '%${search}%' OR supplier LIKE '%${search}%' OR location LIKE '%${search}%')`);
+      conditions.push(`(type LIKE '%${search}%' OR NSN LIKE '%${search}%' OR stock_location LIKE '%${search}%')`);
     }
     
     if (conditions.length > 0) {
@@ -2198,31 +2219,61 @@ app.get('/api/databricks/parts', async (req, res) => {
     
     // Add pagination
     const offset = (page - 1) * limit;
-    query += ` ORDER BY last_updated DESC LIMIT ${limit} OFFSET ${offset}`;
+    query += ` LIMIT ${limit} OFFSET ${offset}`;
     
     const startTime = Date.now();
     const result = await executeDatabricksQuery(query, {}, userToken);
     const duration = Date.now() - startTime;
     
-    // Transform snake_case to camelCase for frontend compatibility
-    const transformedResult = result.map(part => ({
-      id: part.id,
-      name: part.name,
-      system: part.system,
-      category: part.category,
-      stockLevel: part.stock_level,
-      minStock: part.min_stock,
-      maxStock: part.max_stock,
-      location: part.location,
-      condition: part.condition,
-      leadTime: part.lead_time,
-      supplier: part.supplier,
-      cost: part.cost,
-      lastUpdated: part.last_updated
-    }));
+    // Transform parts_silver schema to application schema
+    const transformedResult = result.map(part => {
+      const category = mapCategory(part.type);
+      const partCondition = mapCondition(part.stock_available || 0, part.production_time || 0);
+      const stockLevel = part.stock_available || 0;
+      const minStock = Math.max(1, Math.floor(stockLevel * 0.3));
+      const maxStock = Math.ceil(stockLevel * 2);
+      
+      // Parse sensors array
+      let sensors = null;
+      try {
+        if (typeof part.sensors === 'string') {
+          sensors = JSON.parse(part.sensors);
+        } else if (Array.isArray(part.sensors)) {
+          sensors = part.sensors;
+        }
+      } catch (e) {
+        sensors = null;
+      }
+
+      return {
+        id: `${part.NSN}-${part.stock_location_id}`,
+        name: part.type,
+        system: 'LM2500',
+        category: category,
+        stockLevel: stockLevel,
+        minStock: minStock,
+        maxStock: maxStock,
+        location: part.stock_location,
+        condition: partCondition,
+        leadTime: `${part.production_time || 0} days`,
+        supplier: part.stock_location,
+        cost: Math.max(100, (part.weight || 1000) * 2),
+        lastUpdated: new Date().toISOString(),
+        // Databricks-specific fields
+        nsn: part.NSN,
+        width: part.width,
+        height: part.height,
+        weight: part.weight,
+        productionTime: part.production_time,
+        sensors: sensors,
+        stockLocationId: part.stock_location_id,
+        latitude: part.lat,
+        longitude: part.long
+      };
+    });
     
     // Get total count for pagination
-    let countQuery = "SELECT COUNT(*) as total FROM public_sector.predictive_maintenance_navy.parts";
+    let countQuery = "SELECT COUNT(*) as total FROM public_sector.predictive_maintenance_navy_test.parts_silver";
     if (conditions.length > 0) {
       countQuery += " WHERE " + conditions.join(" AND ");
     }
