@@ -6,8 +6,40 @@ import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-// Import Databricks configuration from service
-import { databricksConfig } from './app/services/databricks.ts';
+// Databricks Configuration (inline for server.js)
+const databricksConfig = {
+  get: () => ({
+    clientId: process.env.DATABRICKS_CLIENT_ID,
+    clientSecret: process.env.DATABRICKS_CLIENT_SECRET,
+    serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME || process.env.DATABRICKS_HOST,
+    httpPath: process.env.DATABRICKS_HTTP_PATH || `/sql/1.0/warehouses/8baced1ff014912d`
+  }),
+  
+  validate: () => {
+    const config = databricksConfig.get();
+    const missingFields = [];
+    
+    if (!config.clientId) missingFields.push('clientId');
+    if (!config.clientSecret) missingFields.push('clientSecret');
+    if (!config.serverHostname) missingFields.push('serverHostname');
+    if (!config.httpPath) missingFields.push('httpPath');
+    
+    return {
+      isValid: missingFields.length === 0,
+      missingFields
+    };
+  },
+  
+  getSafeConfig: () => {
+    const config = databricksConfig.get();
+    return {
+      clientId: config.clientId,
+      clientSecret: !!config.clientSecret,
+      serverHostname: config.serverHostname,
+      httpPath: config.httpPath
+    };
+  }
+};
 
 // Databricks SQL Client instance
 let databricksClient = null;
