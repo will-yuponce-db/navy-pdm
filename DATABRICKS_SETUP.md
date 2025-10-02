@@ -16,17 +16,12 @@ For local development, the application will automatically fall back to the local
 
 ## Authorization Flow
 
-The application supports two authorization methods:
+The application uses **Service Principal Authorization** exclusively:
 
-### 1. User Token Authorization (Preferred)
-- Uses the `X-Forwarded-Access-Token` header from Databricks app requests
-- Respects user permissions and Unity Catalog access controls
-- Automatically falls back to service principal if user token is unavailable
-
-### 2. Service Principal Authorization (Fallback)
-- Uses client credentials flow with the service principal
+- Uses OAuth 2.0 client credentials flow with the service principal
 - Requires all environment variables to be set
-- Used when user token is not available or fails
+- Provides consistent permissions across all requests
+- No per-user token handling required
 
 ## API Endpoints
 
