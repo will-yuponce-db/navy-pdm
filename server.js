@@ -2025,6 +2025,141 @@ app.get('/api/databricks/parts', async (req, res) => {
   }
 });
 
+// Get AI Work Orders from Databricks
+app.get('/api/databricks/ai-work-orders', async (req, res) => {
+  try {
+    const { limit = 50, offset = 0, priority, homeLocation } = req.query;
+    
+    // Get user token from headers (for Databricks app authorization)
+    const userToken = req.headers['x-forwarded-access-token'];
+    
+    // Build query with optional filters
+    let query = "SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders";
+    const conditions = [];
+    
+    if (priority) {
+      conditions.push(`priority = '${priority}'`);
+    }
+    
+    if (homeLocation) {
+      conditions.push(`home_location = '${homeLocation}'`);
+    }
+    
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
+    }
+    
+    // Add ordering and pagination
+    query += ` ORDER BY hourly_timestamp DESC LIMIT ${limit} OFFSET ${offset}`;
+    
+    const startTime = Date.now();
+    const result = await executeDatabricksQuery(query, {}, userToken);
+    const duration = Date.now() - startTime;
+    
+    // Get total count for pagination
+    let countQuery = "SELECT COUNT(*) as total FROM public_sector.predictive_maintenance_navy_test.ai_work_orders";
+    if (conditions.length > 0) {
+      countQuery += " WHERE " + conditions.join(" AND ");
+    }
+    
+    const countResult = await executeDatabricksQuery(countQuery, {}, userToken);
+    const total = countResult[0]?.total || 0;
+    
+    res.json({
+      success: true,
+      data: result,
+      total,
+      diagnostics: {
+        executionTime: duration,
+        queryLength: query.length,
+        timestamp: new Date().toISOString(),
+        source: 'databricks',
+        rowsReturned: result.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching AI work orders from Databricks:', error);
+    
+    const errorMessage = error.message || 'Unknown error';
+    let recommendations = ['Check server logs for detailed error information.'];
+    
+    if (errorMessage.includes('timeout')) {
+      recommendations = ['Databricks connection timeout. Check network connectivity and warehouse status.'];
+    } else if (errorMessage.includes('permission') || errorMessage.includes('access')) {
+      recommendations = ['Permission denied. Check service principal access to Databricks tables.'];
+    } else if (errorMessage.includes('table') || errorMessage.includes('database')) {
+      recommendations = ['Table not found. Verify the ai_work_orders table exists in Databricks.'];
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      error: `Failed to fetch AI work orders from Databricks: ${errorMessage}`,
+      diagnostics: {
+        error: errorMessage,
+        timestamp: new Date().toISOString()
+      },
+      recommendations
+    });
+  }
+});
+
+// Get single AI Work Order by ID from Databricks
+app.get('/api/databricks/ai-work-orders/:workOrderId', async (req, res) => {
+  try {
+    const { workOrderId } = req.params;
+    
+    // Get user token from headers (for Databricks app authorization)
+    const userToken = req.headers['x-forwarded-access-token'];
+    
+    const query = `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders WHERE work_order = '${workOrderId}'`;
+    
+    const startTime = Date.now();
+    const result = await executeDatabricksQuery(query, {}, userToken);
+    const duration = Date.now() - startTime;
+    
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: `AI work order ${workOrderId} not found`
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: result[0],
+      diagnostics: {
+        executionTime: duration,
+        queryLength: query.length,
+        timestamp: new Date().toISOString(),
+        source: 'databricks'
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching AI work order by ID from Databricks:', error);
+    
+    const errorMessage = error.message || 'Unknown error';
+    let recommendations = ['Check server logs for detailed error information.'];
+    
+    if (errorMessage.includes('timeout')) {
+      recommendations = ['Databricks connection timeout. Check network connectivity and warehouse status.'];
+    } else if (errorMessage.includes('permission') || errorMessage.includes('access')) {
+      recommendations = ['Permission denied. Check service principal access to Databricks tables.'];
+    } else if (errorMessage.includes('table') || errorMessage.includes('database')) {
+      recommendations = ['Table not found. Verify the ai_work_orders table exists in Databricks.'];
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      error: `Failed to fetch AI work order from Databricks: ${errorMessage}`,
+      diagnostics: {
+        error: errorMessage,
+        timestamp: new Date().toISOString()
+      },
+      recommendations
+    });
+  }
+});
+
 // Serve static files from build/client directory
 app.use(express.static(join(__dirname, 'build/client')));
 

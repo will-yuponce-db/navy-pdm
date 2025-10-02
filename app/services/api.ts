@@ -356,4 +356,36 @@ export const databricksApi = {
     const queryString = queryParams.toString();
     return apiRequest(`/databricks/parts${queryString ? `?${queryString}` : ""}`);
   },
+
+  getAIWorkOrders: async (params?: {
+    limit?: number;
+    offset?: number;
+    priority?: string;
+    homeLocation?: string;
+  }): Promise<{ 
+    success: boolean; 
+    data: unknown[];
+    total: number;
+    diagnostics?: Record<string, unknown>;
+  }> => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+
+    const queryString = queryParams.toString();
+    return apiRequest(`/databricks/ai-work-orders${queryString ? `?${queryString}` : ""}`);
+  },
+
+  getAIWorkOrderById: async (workOrderId: string): Promise<{ 
+    success: boolean; 
+    data: unknown;
+    diagnostics?: Record<string, unknown>;
+  }> => {
+    return apiRequest(`/databricks/ai-work-orders/${encodeURIComponent(workOrderId)}`);
+  },
 };

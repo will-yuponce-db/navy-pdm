@@ -262,6 +262,71 @@ export async function closeDatabricksConnection(): Promise<void> {
   }
 }
 
+// Query AI Work Orders from Databricks
+export async function getAIWorkOrders(params?: {
+  limit?: number;
+  offset?: number;
+  priority?: string;
+  homeLocation?: string;
+}): Promise<unknown[]> {
+  try {
+    let query = 'SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders';
+    const conditions: string[] = [];
+    
+    if (params?.priority) {
+      conditions.push(`priority = '${params.priority}'`);
+    }
+    
+    if (params?.homeLocation) {
+      conditions.push(`home_location = '${params.homeLocation}'`);
+    }
+    
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+    
+    query += ' ORDER BY hourly_timestamp DESC';
+    
+    if (params?.limit) {
+      query += ` LIMIT ${params.limit}`;
+    }
+    
+    if (params?.offset) {
+      query += ` OFFSET ${params.offset}`;
+    }
+    
+    const result = await executeDatabricksQuery(query);
+    return result;
+  } catch (error) {
+    logDatabricksError('Get AI Work Orders', error, { params });
+    throw error;
+  }
+}
+
+// Get single AI Work Order by work order ID
+export async function getAIWorkOrderById(workOrderId: string): Promise<unknown> {
+  try {
+    const query = `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders WHERE work_order = '${workOrderId}'`;
+    const result = await executeDatabricksQuery(query);
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    logDatabricksError('Get AI Work Order By ID', error, { workOrderId });
+    throw error;
+  }
+}
+
+// Get AI Work Orders by turbine ID
+export async function getAIWorkOrdersByTurbineId(turbineId: string): Promise<unknown[]> {
+  try {
+    const query = `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders WHERE turbine_id = '${turbineId}' ORDER BY hourly_timestamp DESC`;
+    const result = await executeDatabricksQuery(query);
+    return result;
+  } catch (error) {
+    logDatabricksError('Get AI Work Orders By Turbine ID', error, { turbineId });
+    throw error;
+  }
+}
+
 // Enhanced health check for Databricks service
 export async function databricksHealthCheck(): Promise<{ 
   status: string; 

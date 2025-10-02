@@ -8,7 +8,11 @@ import {
   createWorkOrderNotifications,
 } from "./notificationSlice";
 import { selectAllParts, getStockStatus } from "./partsSlice";
-import { workOrdersApi } from "../../services/api";
+import { workOrdersApi, databricksApi } from "../../services/api";
+import { 
+  mapDatabricksWorkOrdersToWorkOrders,
+  type DatabricksAIWorkOrder 
+} from "../../utils/databricksMapper";
 
 const initialState: WorkOrderState = {
   workOrders: [],
@@ -28,6 +32,86 @@ export const fetchWorkOrders = createAsyncThunk(
   }) => {
     const response = await workOrdersApi.getAll(params);
     return response.items;
+  },
+);
+
+// Fetch AI Work Orders from Databricks
+export const fetchAIWorkOrdersFromDatabricks = createAsyncThunk(
+  "workOrders/fetchAIWorkOrdersFromDatabricks",
+  async (params?: {
+    limit?: number;
+    offset?: number;
+    priority?: string;
+    homeLocation?: string;
+  }, { rejectWithValue }) => {
+    try {
+      const response = await databricksApi.getAIWorkOrders(params);
+      if (!response.success) {
+        throw new Error(response.diagnostics?.error || 'Failed to fetch AI work orders');
+      }
+      // Map Databricks data to WorkOrder format
+      const mappedWorkOrders = mapDatabricksWorkOrdersToWorkOrders(
+        response.data as DatabricksAIWorkOrder[]
+      );
+      return mappedWorkOrders;
+    } catch (error) {
+      console.error('Error fetching AI work orders from Databricks:', error);
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Unknown error fetching AI work orders'
+      );
+    }
+  },
+);
+
+// Fetch all work orders (both manual and AI from Databricks)
+export const fetchAllWorkOrders = createAsyncThunk(
+  "workOrders/fetchAllWorkOrders",
+  async (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    priority?: string;
+    search?: string;
+  }, { dispatch }) => {
+    try {
+      // Fetch manual work orders from local API
+      const manualResponse = await workOrdersApi.getAll(params);
+      const manualWorkOrders = manualResponse.items;
+      
+      // Fetch AI work orders from Databricks
+      let aiWorkOrders: WorkOrder[] = [];
+      try {
+        const aiResponse = await databricksApi.getAIWorkOrders({
+          limit: params?.limit,
+          priority: params?.priority,
+        });
+        
+        if (aiResponse.success) {
+          aiWorkOrders = mapDatabricksWorkOrdersToWorkOrders(
+            aiResponse.data as DatabricksAIWorkOrder[]
+          );
+        }
+      } catch (aiError) {
+        console.warn('Failed to fetch AI work orders from Databricks, continuing with manual work orders only:', aiError);
+        // Notify user about AI work orders fetch failure
+        dispatch(
+          addNotification({
+            type: 'warning',
+            title: 'Databricks Connection Issue',
+            message: 'Unable to fetch AI work orders from Databricks. Showing manual work orders only.',
+            priority: 'medium',
+            category: 'system',
+          })
+        );
+      }
+      
+      // Combine and return both
+      return [...manualWorkOrders, ...aiWorkOrders];
+    } catch (error) {
+      throw new Error(
+        error instanceof Error ? error.message : 'Failed to fetch work orders'
+      );
+    }
   },
 );
 
@@ -286,6 +370,35 @@ const workOrderSlice = createSlice({
       .addCase(fetchWorkOrders.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || "Failed to fetch work orders";
+      })
+      // Fetch AI work orders from Databricks
+      .addCase(fetchAIWorkOrdersFromDatabricks.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchAIWorkOrdersFromDatabricks.fulfilled, (state, action) => {
+        state.loading = false;
+        // Merge AI work orders with existing work orders, avoiding duplicates
+        const existingWOs = new Set(state.workOrders.map(wo => wo.wo));
+        const newAIWorkOrders = action.payload.filter(wo => !existingWOs.has(wo.wo));
+        state.workOrders = [...state.workOrders, ...newAIWorkOrders];
+      })
+      .addCase(fetchAIWorkOrdersFromDatabricks.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string || "Failed to fetch AI work orders from Databricks";
+      })
+      // Fetch all work orders (manual + AI)
+      .addCase(fetchAllWorkOrders.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchAllWorkOrders.fulfilled, (state, action) => {
+        state.loading = false;
+        state.workOrders = [...action.payload];
+      })
+      .addCase(fetchAllWorkOrders.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || "Failed to fetch all work orders";
       })
       // Add work order
       .addCase(addWorkOrderWithNotification.pending, (state) => {

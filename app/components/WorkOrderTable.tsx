@@ -25,7 +25,7 @@ import Chip from "@mui/material/Chip";
 import {
   deleteWorkOrderWithNotification,
   updateWorkOrderWithNotification,
-  fetchWorkOrders,
+  fetchAllWorkOrders,
   selectAllWorkOrders,
   selectWorkOrdersLoading,
 } from "../redux/services/workOrderSlice";
@@ -288,9 +288,9 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
   );
   const [sourceFilter, setSourceFilter] = useState<string>("All");
 
-  // Fetch work orders on component mount
+  // Fetch all work orders (manual + AI from Databricks) on component mount
   useEffect(() => {
-    dispatch(fetchWorkOrders());
+    dispatch(fetchAllWorkOrders());
   }, [dispatch]);
 
   const handleRequestSort = useCallback(
