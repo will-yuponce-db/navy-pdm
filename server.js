@@ -2071,8 +2071,9 @@ app.get('/api/databricks/ai-work-orders', async (req, res) => {
   try {
     const { limit = 50, offset = 0, priority, homeLocation } = req.query;
     
-    // Get user token from headers (for Databricks app authorization)
-    const userToken = req.headers['x-forwarded-access-token'];
+    // Force service principal authentication (not user token)
+    // This ensures consistent permissions using the service principal identity
+    // instead of individual user permissions
     
     // Build query with optional filters
     let query = "SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders";
@@ -2094,7 +2095,7 @@ app.get('/api/databricks/ai-work-orders', async (req, res) => {
     query += ` ORDER BY hourly_timestamp DESC LIMIT ${limit} OFFSET ${offset}`;
     
     const startTime = Date.now();
-    const result = await executeDatabricksQuery(query, {}, userToken);
+    const result = await executeDatabricksQuery(query, {}, null);
     const duration = Date.now() - startTime;
     
     // Get total count for pagination
@@ -2103,7 +2104,7 @@ app.get('/api/databricks/ai-work-orders', async (req, res) => {
       countQuery += " WHERE " + conditions.join(" AND ");
     }
     
-    const countResult = await executeDatabricksQuery(countQuery, {}, userToken);
+    const countResult = await executeDatabricksQuery(countQuery, {}, null);
     const total = countResult[0]?.total || 0;
     
     res.json({
@@ -2149,13 +2150,13 @@ app.get('/api/databricks/ai-work-orders/:workOrderId', async (req, res) => {
   try {
     const { workOrderId } = req.params;
     
-    // Get user token from headers (for Databricks app authorization)
-    const userToken = req.headers['x-forwarded-access-token'];
+    // Force service principal authentication (not user token)
+    // This ensures consistent permissions using the service principal identity
     
     const query = `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders WHERE work_order = '${workOrderId}'`;
     
     const startTime = Date.now();
-    const result = await executeDatabricksQuery(query, {}, userToken);
+    const result = await executeDatabricksQuery(query, {}, null);
     const duration = Date.now() - startTime;
     
     if (result.length === 0) {
