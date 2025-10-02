@@ -20,10 +20,13 @@ async function initializeDatabricks(userToken = null) {
       const { DBSQLClient } = await import('@databricks/sql');
       const client = new DBSQLClient();
       
+      // Get configuration
+      const config = databricksConfig.get();
+      
       await client.connect({
         token: userToken,
-        host: DATABRICKS_CONFIG.serverHostname,
-        path: DATABRICKS_CONFIG.httpPath
+        host: config.serverHostname,
+        path: config.httpPath
       });
 
       console.log('Databricks SQL connection established with user token');
