@@ -352,7 +352,7 @@ function initializeDatabase() {
     )
   `);
 
-  // Create Part table
+  // Create Part table with Databricks integration fields
   db.exec(`
     CREATE TABLE IF NOT EXISTS parts (
       id TEXT PRIMARY KEY,
@@ -367,7 +367,16 @@ function initializeDatabase() {
       lead_time TEXT NOT NULL,
       supplier TEXT NOT NULL,
       cost REAL NOT NULL,
-      last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
+      last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+      nsn TEXT,
+      width INTEGER,
+      height INTEGER,
+      weight INTEGER,
+      production_time INTEGER,
+      sensors TEXT,
+      stock_location_id TEXT,
+      latitude REAL,
+      longitude REAL
     )
   `);
 
@@ -1301,7 +1310,17 @@ app.get('/api/parts', (req, res) => {
         leadTime: part.lead_time,
         supplier: part.supplier,
         cost: part.cost,
-        lastUpdated: part.last_updated
+        lastUpdated: part.last_updated,
+        // Databricks integration fields
+        nsn: part.nsn,
+        width: part.width,
+        height: part.height,
+        weight: part.weight,
+        productionTime: part.production_time,
+        sensors: part.sensors ? JSON.parse(part.sensors) : null,
+        stockLocationId: part.stock_location_id,
+        latitude: part.latitude,
+        longitude: part.longitude
       })),
       total,
       page,
@@ -1336,7 +1355,17 @@ app.get('/api/parts/:part_id', (req, res) => {
       leadTime: part.lead_time,
       supplier: part.supplier,
       cost: part.cost,
-      lastUpdated: part.last_updated
+      lastUpdated: part.last_updated,
+      // Databricks integration fields
+      nsn: part.nsn,
+      width: part.width,
+      height: part.height,
+      weight: part.weight,
+      productionTime: part.production_time,
+      sensors: part.sensors ? JSON.parse(part.sensors) : null,
+      stockLocationId: part.stock_location_id,
+      latitude: part.latitude,
+      longitude: part.longitude
     });
   } catch (error) {
     console.error('Error fetching part:', error);
@@ -1513,6 +1542,156 @@ app.patch('/api/parts/:part_id/stock', (req, res) => {
   } catch (error) {
     console.error('Error updating stock:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Databricks Parts Import/Sync endpoint
+app.post('/api/parts/import/databricks', (req, res) => {
+  try {
+    const { parts, mode = 'upsert' } = req.body; // mode: 'upsert' | 'insert' | 'update'
+    
+    if (!Array.isArray(parts)) {
+      return res.status(400).json({ error: 'Parts must be an array' });
+    }
+
+    const results = {
+      success: 0,
+      failed: 0,
+      updated: 0,
+      inserted: 0,
+      errors: []
+    };
+
+    // Helper function to map part category from Databricks type
+    const mapCategory = (type) => {
+      const typeMap = {
+        'Valve': 'Fuel System',
+        'Filter': 'Consumables',
+        'Vane': 'Hot Section',
+        'Pump': 'Hydraulics',
+        'Fuel Nozzle': 'Fuel System',
+        'Seal': 'Hot Section',
+        'Blade': 'Rotating Parts',
+        'controller card': 'Electronics'
+      };
+
+      for (const [key, value] of Object.entries(typeMap)) {
+        if (type.includes(key)) {
+          return value;
+        }
+      }
+      return 'Consumables'; // Default
+    };
+
+    // Helper function to determine part condition based on stock and production time
+    const mapCondition = (stockAvailable, productionTime) => {
+      if (productionTime === 0) return 'Condemned';
+      if (stockAvailable === 0) return 'Used';
+      if (stockAvailable > 7) return 'New';
+      return 'Refurbished';
+    };
+
+    const upsertStmt = db.prepare(`
+      INSERT INTO parts (
+        id, name, system, category, stock_level, min_stock, max_stock, 
+        location, condition, lead_time, supplier, cost,
+        nsn, width, height, weight, production_time, sensors, 
+        stock_location_id, latitude, longitude
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        stock_level = excluded.stock_level,
+        location = excluded.location,
+        width = excluded.width,
+        height = excluded.height,
+        weight = excluded.weight,
+        production_time = excluded.production_time,
+        sensors = excluded.sensors,
+        stock_location_id = excluded.stock_location_id,
+        latitude = excluded.latitude,
+        longitude = excluded.longitude,
+        last_updated = CURRENT_TIMESTAMP
+    `);
+
+    for (const part of parts) {
+      try {
+        const category = mapCategory(part.type || '');
+        const condition = mapCondition(part.stock_available || 0, part.production_time || 0);
+        const leadTime = `${part.production_time || 0} days`;
+        
+        // Generate a unique ID from NSN and location if id not provided
+        const partId = part.id || `${part.NSN}-${part.stock_location_id}`;
+        
+        // Parse sensors array if it's a string
+        let sensorsJson = part.sensors;
+        if (typeof sensorsJson === 'string') {
+          sensorsJson = JSON.stringify(JSON.parse(sensorsJson));
+        } else if (Array.isArray(sensorsJson)) {
+          sensorsJson = JSON.stringify(sensorsJson);
+        }
+
+        // Determine min and max stock based on available stock
+        const stockLevel = part.stock_available || 0;
+        const minStock = Math.max(1, Math.floor(stockLevel * 0.3));
+        const maxStock = Math.ceil(stockLevel * 2);
+
+        // Default supplier based on location
+        const supplier = part.location || 'Navy Supply';
+        
+        // Estimate cost based on weight (rough estimation)
+        const cost = Math.max(100, (part.weight || 1000) * 2);
+
+        if (mode === 'upsert' || mode === 'insert') {
+          upsertStmt.run(
+            partId,
+            part.type,
+            'LM2500', // Default system
+            category,
+            stockLevel,
+            minStock,
+            maxStock,
+            part.stock_location,
+            condition,
+            leadTime,
+            supplier,
+            cost,
+            part.NSN,
+            part.width,
+            part.height,
+            part.weight,
+            part.production_time,
+            sensorsJson,
+            part.stock_location_id,
+            part.lat,
+            part.long
+          );
+          
+          results.success++;
+          if (mode === 'upsert') {
+            // Check if it was an insert or update
+            const existing = db.prepare('SELECT id FROM parts WHERE id = ?').get(partId);
+            if (existing) results.updated++;
+            else results.inserted++;
+          } else {
+            results.inserted++;
+          }
+        }
+      } catch (error) {
+        results.failed++;
+        results.errors.push({
+          part: part.NSN || part.id,
+          error: error.message
+        });
+      }
+    }
+
+    res.json({
+      message: `Import completed: ${results.success} successful, ${results.failed} failed`,
+      results
+    });
+  } catch (error) {
+    console.error('Error importing parts:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 

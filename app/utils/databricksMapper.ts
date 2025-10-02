@@ -1,4 +1,4 @@
-import type { WorkOrder, Priority } from "../types";
+import type { WorkOrder, Priority, Part, PartCategory, PartCondition } from "../types";
 
 /**
  * Databricks AI Work Order structure from the CSV
@@ -236,6 +236,172 @@ export function getDatabricksWorkOrderStats(databricksWOs: DatabricksAIWorkOrder
     byMaintenanceType: Object.fromEntries(maintenanceTypes),
     bySensorPrediction: Object.fromEntries(sensorPredictions),
     averageTTR: databricksWOs.reduce((sum, wo) => sum + wo.ttr, 0) / totalOrders || 0
+  };
+}
+
+/**
+ * Databricks Parts structure from the parts_silver table
+ */
+export interface DatabricksPart {
+  NSN: string;
+  type: string;
+  width: number;
+  height: number;
+  weight: number;
+  stock_available: number;
+  stock_location: string;
+  production_time: number;
+  sensors: string | string[];
+  stock_location_id: string;
+  lat: number;
+  long: number;
+}
+
+/**
+ * Map Databricks part type to Part category
+ */
+function mapPartCategory(type: string): PartCategory {
+  const typeMap: Record<string, PartCategory> = {
+    'Valve': 'Fuel System',
+    'Filter': 'Consumables',
+    'Vane': 'Hot Section',
+    'Pump': 'Hydraulics',
+    'Fuel Nozzle': 'Fuel System',
+    'Nozzle': 'Fuel System',
+    'Seal': 'Hot Section',
+    'Blade': 'Rotating Parts',
+    'Turbine': 'Rotating Parts',
+    'controller card': 'Electronics',
+    'ECU': 'Electronics'
+  };
+
+  for (const [key, value] of Object.entries(typeMap)) {
+    if (type.includes(key)) {
+      return value;
+    }
+  }
+  return 'Consumables'; // Default
+}
+
+/**
+ * Determine part condition based on stock and production time
+ */
+function mapPartCondition(stockAvailable: number, productionTime: number): PartCondition {
+  if (productionTime === 0) return 'Condemned';
+  if (stockAvailable === 0) return 'Used';
+  if (stockAvailable > 7) return 'New';
+  return 'Refurbished';
+}
+
+/**
+ * Parse sensors from various formats
+ */
+function parseSensors(sensors: string | string[]): string[] {
+  if (Array.isArray(sensors)) {
+    return sensors;
+  }
+  try {
+    const parsed = JSON.parse(sensors);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Map Databricks Part to Part type
+ */
+export function mapDatabricksPartToPart(databricksPart: DatabricksPart): Part {
+  const category = mapPartCategory(databricksPart.type);
+  const condition = mapPartCondition(
+    databricksPart.stock_available,
+    databricksPart.production_time
+  );
+  const stockLevel = databricksPart.stock_available;
+  const minStock = Math.max(1, Math.floor(stockLevel * 0.3));
+  const maxStock = Math.ceil(stockLevel * 2);
+  const sensors = parseSensors(databricksPart.sensors);
+
+  // Generate unique ID from NSN and location
+  const partId = `${databricksPart.NSN}-${databricksPart.stock_location_id}`;
+
+  // Estimate cost based on weight (rough estimation)
+  const cost = Math.max(100, databricksPart.weight * 2);
+
+  const part: Part = {
+    id: partId,
+    name: databricksPart.type,
+    system: 'LM2500', // Default system
+    category: category,
+    stockLevel: stockLevel,
+    minStock: minStock,
+    maxStock: maxStock,
+    location: databricksPart.stock_location,
+    condition: condition,
+    leadTime: `${databricksPart.production_time} days`,
+    supplier: databricksPart.stock_location, // Use location as supplier
+    cost: cost,
+    lastUpdated: new Date().toISOString(),
+    // Databricks-specific fields
+    nsn: databricksPart.NSN,
+    width: databricksPart.width,
+    height: databricksPart.height,
+    weight: databricksPart.weight,
+    productionTime: databricksPart.production_time,
+    sensors: sensors,
+    stockLocationId: databricksPart.stock_location_id,
+    latitude: databricksPart.lat,
+    longitude: databricksPart.long
+  };
+
+  return part;
+}
+
+/**
+ * Map an array of Databricks Parts to Part array
+ */
+export function mapDatabricksPartsToParts(databricksParts: DatabricksPart[]): Part[] {
+  return databricksParts.map(mapDatabricksPartToPart);
+}
+
+/**
+ * Get summary statistics from Databricks Parts
+ */
+export function getDatabricksPartsStats(databricksParts: DatabricksPart[]) {
+  const totalParts = databricksParts.length;
+  const totalStock = databricksParts.reduce((sum, part) => sum + part.stock_available, 0);
+  const outOfStock = databricksParts.filter(part => part.stock_available === 0).length;
+  const lowStock = databricksParts.filter(part => part.stock_available > 0 && part.stock_available <= 3).length;
+
+  const byLocation = new Map<string, number>();
+  const byType = new Map<string, number>();
+  const bySensors = new Map<string, number>();
+
+  databricksParts.forEach(part => {
+    // Count by location
+    byLocation.set(part.stock_location, (byLocation.get(part.stock_location) || 0) + 1);
+    
+    // Count by type
+    byType.set(part.type, (byType.get(part.type) || 0) + 1);
+    
+    // Count by sensors
+    const sensors = parseSensors(part.sensors);
+    sensors.forEach(sensor => {
+      bySensors.set(sensor, (bySensors.get(sensor) || 0) + 1);
+    });
+  });
+
+  return {
+    total: totalParts,
+    totalStock: totalStock,
+    outOfStock: outOfStock,
+    lowStock: lowStock,
+    averageStock: totalStock / totalParts || 0,
+    byLocation: Object.fromEntries(byLocation),
+    byType: Object.fromEntries(byType),
+    bySensors: Object.fromEntries(bySensors),
+    averageWeight: databricksParts.reduce((sum, part) => sum + part.weight, 0) / totalParts || 0,
+    averageProductionTime: databricksParts.reduce((sum, part) => sum + part.production_time, 0) / totalParts || 0
   };
 }
 

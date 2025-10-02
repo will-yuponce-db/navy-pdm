@@ -111,6 +111,16 @@ export interface Part {
   supplier: string;
   cost: number;
   lastUpdated?: string;
+  // Databricks integration fields
+  nsn?: string;
+  width?: number;
+  height?: number;
+  weight?: number;
+  productionTime?: number;
+  sensors?: string[];
+  stockLocationId?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export type PartCategory =
