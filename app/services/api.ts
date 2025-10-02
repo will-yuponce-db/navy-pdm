@@ -388,4 +388,43 @@ export const databricksApi = {
   }> => {
     return apiRequest(`/databricks/ai-work-orders/${encodeURIComponent(workOrderId)}`);
   },
+
+  getShipStatus: async (params?: {
+    limit?: number;
+    offset?: number;
+    designator?: string;
+    homeLocation?: string;
+    turbineId?: string;
+    operable?: boolean;
+  }): Promise<{ 
+    success: boolean; 
+    data: unknown[];
+    total: number;
+    limit: number;
+    offset: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+    diagnostics?: Record<string, unknown>;
+    recommendations?: string[];
+  }> => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+
+    const queryString = queryParams.toString();
+    return apiRequest(`/databricks/ship-status${queryString ? `?${queryString}` : ""}`);
+  },
+
+  getShipStatusByTurbineId: async (turbineId: string): Promise<{ 
+    success: boolean; 
+    data: unknown;
+    diagnostics?: Record<string, unknown>;
+  }> => {
+    return apiRequest(`/databricks/ship-status/${encodeURIComponent(turbineId)}`);
+  },
 };

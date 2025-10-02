@@ -2524,6 +2524,148 @@ app.get('/api/databricks/ai-work-orders/:workOrderId', async (req, res) => {
   }
 });
 
+// Get Ship Current Status from Databricks (ship_current_status_gold table)
+app.get('/api/databricks/ship-status', async (req, res) => {
+  try {
+    const { limit = 50, offset = 0, designator, homeLocation, turbineId, operable } = req.query;
+
+    // Build query with optional filters
+    let query = "SELECT * FROM public_sector.predictive_maintenance_navy_test.ship_current_status_gold";
+    const conditions = [];
+
+    if (turbineId) {
+      conditions.push(`turbine_id = '${turbineId}'`);
+    }
+
+    if (designator) {
+      conditions.push(`designator LIKE '%${designator}%'`);
+    }
+
+    if (homeLocation) {
+      conditions.push(`home_location LIKE '%${homeLocation}%'`);
+    }
+
+    if (operable !== undefined) {
+      const operableValue = operable === 'true' || operable === true;
+      conditions.push(`operable = ${operableValue}`);
+    }
+
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
+    }
+
+    // Add ordering and pagination
+    query += ` ORDER BY hourly_timestamp DESC LIMIT ${limit} OFFSET ${offset}`;
+
+    const startTime = Date.now();
+    const result = await executeDatabricksQuery(query, {}, null);
+    const duration = Date.now() - startTime;
+
+    // Get total count for pagination
+    let countQuery = "SELECT COUNT(*) as total FROM public_sector.predictive_maintenance_navy_test.ship_current_status_gold";
+    if (conditions.length > 0) {
+      countQuery += " WHERE " + conditions.join(" AND ");
+    }
+
+    const countResult = await executeDatabricksQuery(countQuery, {}, null);
+    const total = countResult[0]?.total || 0;
+
+    res.json({
+      success: true,
+      data: result,
+      total,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      hasNext: (parseInt(offset) + parseInt(limit)) < total,
+      hasPrevious: parseInt(offset) > 0,
+      diagnostics: {
+        query,
+        responseTime: duration,
+        recordCount: result.length,
+        totalRecords: total,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching ship status from Databricks:', error);
+
+    const errorMessage = error.message || 'Unknown error';
+    let recommendations = ['Check server logs for detailed error information.'];
+
+    if (errorMessage.includes('timeout')) {
+      recommendations = ['Databricks connection timeout. Check network connectivity and warehouse status.'];
+    } else if (errorMessage.includes('permission') || errorMessage.includes('access')) {
+      recommendations = ['Permission denied. Check service principal access to Databricks tables.'];
+    } else if (errorMessage.includes('table') || errorMessage.includes('database')) {
+      recommendations = ['Table not found. Verify the ship_current_status_gold table exists in Databricks.'];
+    }
+
+    res.status(500).json({
+      success: false,
+      error: `Failed to fetch ship status from Databricks: ${errorMessage}`,
+      diagnostics: {
+        error: errorMessage,
+        timestamp: new Date().toISOString()
+      },
+      recommendations
+    });
+  }
+});
+
+// Get Ship Current Status by Turbine ID
+app.get('/api/databricks/ship-status/:turbineId', async (req, res) => {
+  try {
+    const { turbineId } = req.params;
+
+    const query = `SELECT * FROM public_sector.predictive_maintenance_navy_test.ship_current_status_gold WHERE turbine_id = '${turbineId}' ORDER BY hourly_timestamp DESC LIMIT 1`;
+
+    const startTime = Date.now();
+    const result = await executeDatabricksQuery(query, {}, null);
+    const duration = Date.now() - startTime;
+
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Ship status not found',
+        turbineId
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result[0],
+      diagnostics: {
+        query,
+        responseTime: duration,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching ship status by turbine ID from Databricks:', error);
+
+    const errorMessage = error.message || 'Unknown error';
+    let recommendations = ['Check server logs for detailed error information.'];
+
+    if (errorMessage.includes('timeout')) {
+      recommendations = ['Databricks connection timeout. Check network connectivity and warehouse status.'];
+    } else if (errorMessage.includes('permission') || errorMessage.includes('access')) {
+      recommendations = ['Permission denied. Check service principal access to Databricks tables.'];
+    } else if (errorMessage.includes('table') || errorMessage.includes('database')) {
+      recommendations = ['Table not found. Verify the ship_current_status_gold table exists in Databricks.'];
+    }
+
+    res.status(500).json({
+      success: false,
+      error: `Failed to fetch ship status from Databricks: ${errorMessage}`,
+      diagnostics: {
+        error: errorMessage,
+        timestamp: new Date().toISOString()
+      },
+      recommendations
+    });
+  }
+});
+
 // Serve static files from build/client directory
 app.use(express.static(join(__dirname, 'build/client')));
 

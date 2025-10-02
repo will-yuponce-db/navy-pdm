@@ -1,4 +1,12 @@
-import type { WorkOrder, Priority, Part, PartCategory, PartCondition } from "../types";
+import type { 
+  WorkOrder, 
+  Priority, 
+  Part, 
+  PartCategory, 
+  PartCondition,
+  ShipCurrentStatus,
+  DatabricksShipStatus
+} from "../types";
 
 /**
  * Databricks AI Work Order structure from the CSV
@@ -402,6 +410,133 @@ export function getDatabricksPartsStats(databricksParts: DatabricksPart[]) {
     bySensors: Object.fromEntries(bySensors),
     averageWeight: databricksParts.reduce((sum, part) => sum + part.weight, 0) / totalParts || 0,
     averageProductionTime: databricksParts.reduce((sum, part) => sum + part.production_time, 0) / totalParts || 0
+  };
+}
+
+/**
+ * ========================================
+ * SHIP CURRENT STATUS MAPPING FUNCTIONS
+ * ========================================
+ */
+
+/**
+ * Parse sensor percentiles from string or array
+ */
+function parsePercentiles(value: string | number[] | undefined | null): number[] | null {
+  if (!value) return null;
+  
+  if (Array.isArray(value)) {
+    return value;
+  }
+  
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch (e) {
+      // If parsing fails, return null
+      return null;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Map a Databricks Ship Status record to ShipCurrentStatus
+ */
+export function mapDatabricksShipStatusToShipStatus(databricksStatus: DatabricksShipStatus): ShipCurrentStatus {
+  const status: ShipCurrentStatus = {
+    turbineId: databricksStatus.turbine_id,
+    hourlyTimestamp: new Date(databricksStatus.hourly_timestamp),
+    avgEnergy: databricksStatus.avg_energy,
+    stdSensorA: databricksStatus.std_sensor_A,
+    stdSensorB: databricksStatus.std_sensor_B,
+    stdSensorC: databricksStatus.std_sensor_C,
+    stdSensorD: databricksStatus.std_sensor_D,
+    stdSensorE: databricksStatus.std_sensor_E,
+    stdSensorF: databricksStatus.std_sensor_F,
+    percentilesSensorA: parsePercentiles(databricksStatus.percentiles_sensor_A) ?? undefined,
+    percentilesSensorB: parsePercentiles(databricksStatus.percentiles_sensor_B) ?? undefined,
+    percentilesSensorC: parsePercentiles(databricksStatus.percentiles_sensor_C) ?? undefined,
+    percentilesSensorD: parsePercentiles(databricksStatus.percentiles_sensor_D) ?? undefined,
+    percentilesSensorE: parsePercentiles(databricksStatus.percentiles_sensor_E) ?? undefined,
+    percentilesSensorF: parsePercentiles(databricksStatus.percentiles_sensor_F) ?? undefined,
+    homeLocation: databricksStatus.home_location,
+    designator: databricksStatus.designator,
+    lat: databricksStatus.lat,
+    long: databricksStatus.long,
+    designatorId: databricksStatus.designator_id,
+    homeLocationId: databricksStatus.home_location_id,
+    prediction: databricksStatus.prediction,
+    maintenanceType: databricksStatus.maintenance_type,
+    operable: databricksStatus.operable,
+    ttr: databricksStatus.ttr
+  };
+
+  return status;
+}
+
+/**
+ * Map an array of Databricks Ship Status records to ShipCurrentStatus array
+ */
+export function mapDatabricksShipStatusesToShipStatuses(databricksStatuses: DatabricksShipStatus[]): ShipCurrentStatus[] {
+  return databricksStatuses.map(mapDatabricksShipStatusToShipStatus);
+}
+
+/**
+ * Get summary statistics from Databricks Ship Statuses
+ */
+export function getDatabricksShipStatusStats(databricksStatuses: DatabricksShipStatus[]) {
+  const total = databricksStatuses.length;
+  const operable = databricksStatuses.filter(s => s.operable).length;
+  const nonOperable = total - operable;
+  
+  const byLocation = new Map<string, number>();
+  const byDesignator = new Map<string, number>();
+  const byPrediction = new Map<string, number>();
+  const byMaintenanceType = new Map<string, number>();
+  
+  databricksStatuses.forEach(status => {
+    // Count by location
+    byLocation.set(status.home_location, (byLocation.get(status.home_location) || 0) + 1);
+    
+    // Count by designator
+    byDesignator.set(status.designator, (byDesignator.get(status.designator) || 0) + 1);
+    
+    // Count by prediction
+    if (status.prediction) {
+      byPrediction.set(status.prediction, (byPrediction.get(status.prediction) || 0) + 1);
+    }
+    
+    // Count by maintenance type
+    if (status.maintenance_type) {
+      byMaintenanceType.set(status.maintenance_type, (byMaintenanceType.get(status.maintenance_type) || 0) + 1);
+    }
+  });
+
+  // Calculate average energy
+  const avgEnergy = databricksStatuses.reduce((sum, s) => sum + s.avg_energy, 0) / total || 0;
+  
+  // Calculate average TTR (for non-operable only)
+  const nonOperableWithTTR = databricksStatuses.filter(s => !s.operable && s.ttr !== undefined && s.ttr !== null);
+  const avgTTR = nonOperableWithTTR.length > 0
+    ? nonOperableWithTTR.reduce((sum, s) => sum + (s.ttr || 0), 0) / nonOperableWithTTR.length
+    : 0;
+
+  return {
+    total,
+    operable,
+    nonOperable,
+    operablePercentage: (operable / total) * 100 || 0,
+    avgEnergy,
+    avgTTR,
+    byLocation: Object.fromEntries(byLocation),
+    byDesignator: Object.fromEntries(byDesignator),
+    byPrediction: Object.fromEntries(byPrediction),
+    byMaintenanceType: Object.fromEntries(byMaintenanceType)
   };
 }
 

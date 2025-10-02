@@ -271,6 +271,68 @@ export type GTEStatus =
   | "Down"
   | "CASREP";
 
+// Ship Current Status (from Databricks ship_current_status_gold table)
+export interface ShipCurrentStatus {
+  turbineId: string;
+  hourlyTimestamp: Date | string;
+  avgEnergy: number;
+  // Sensor standard deviations
+  stdSensorA?: number;
+  stdSensorB?: number;
+  stdSensorC?: number;
+  stdSensorD?: number;
+  stdSensorE?: number;
+  stdSensorF?: number;
+  // Sensor percentiles (stored as JSON strings in Databricks)
+  percentilesSensorA?: number[];
+  percentilesSensorB?: number[];
+  percentilesSensorC?: number[];
+  percentilesSensorD?: number[];
+  percentilesSensorE?: number[];
+  percentilesSensorF?: number[];
+  // Ship information
+  homeLocation: string;
+  designator: string;
+  lat: number;
+  long: number;
+  designatorId: string;
+  homeLocationId: string;
+  // Prediction and maintenance
+  prediction?: string;
+  maintenanceType?: string;
+  operable: boolean;
+  ttr?: number; // Time to repair
+}
+
+// Databricks raw ship status (snake_case from database)
+export interface DatabricksShipStatus {
+  turbine_id: string;
+  hourly_timestamp: string;
+  avg_energy: number;
+  std_sensor_A?: number;
+  std_sensor_B?: number;
+  std_sensor_C?: number;
+  std_sensor_D?: number;
+  std_sensor_E?: number;
+  std_sensor_F?: number;
+  percentiles_sensor_A?: string | number[];
+  percentiles_sensor_B?: string | number[];
+  percentiles_sensor_C?: string | number[];
+  percentiles_sensor_D?: string | number[];
+  percentiles_sensor_E?: string | number[];
+  percentiles_sensor_F?: string | number[];
+  home_location: string;
+  designator: string;
+  lat: number;
+  long: number;
+  designator_id: string;
+  home_location_id: string;
+  prediction?: string;
+  maintenance_type?: string;
+  operable: boolean;
+  ttr?: number;
+}
+
 // Asset Types
 export interface Asset {
   readonly id: string;
