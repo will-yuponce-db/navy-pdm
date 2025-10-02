@@ -46,6 +46,12 @@ async function initializeDatabricks(userToken = null) {
   if (!validation.isValid) {
     console.warn('Databricks configuration not available, falling back to local database');
     console.warn('Available config:', databricksConfig.getSafeConfig());
+    console.warn('Environment variables check:', {
+      DATABRICKS_CLIENT_ID: !!process.env.DATABRICKS_CLIENT_ID,
+      DATABRICKS_CLIENT_SECRET: !!process.env.DATABRICKS_CLIENT_SECRET,
+      DATABRICKS_SERVER_HOSTNAME: process.env.DATABRICKS_SERVER_HOSTNAME,
+      DATABRICKS_HTTP_PATH: process.env.DATABRICKS_HTTP_PATH
+    });
     throw new Error(`Databricks configuration not available - using local database fallback. Missing: ${validation.missingFields.join(', ')}`);
   }
 
