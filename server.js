@@ -818,66 +818,6 @@ app.delete('/api/parts/:id', async (req, res) => {
 });
 
 // ============================================================================
-// ERROR HANDLING
-// ============================================================================
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Endpoint not found',
-    path: req.path,
-    availableEndpoints: {
-      workOrders: [
-        'GET /api/work-orders',
-        'GET /api/work-orders/:id',
-        'POST /api/work-orders',
-        'PATCH /api/work-orders/:id',
-        'DELETE /api/work-orders/:id'
-      ],
-      parts: [
-        'GET /api/parts',
-        'GET /api/parts/:id',
-        'POST /api/parts',
-        'PATCH /api/parts/:id',
-        'PATCH /api/parts/:id/stock',
-        'DELETE /api/parts/:id'
-      ],
-      databricks: [
-        'Note: Databricks endpoints available in production only'
-      ]
-    }
-  });
-});
-
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({
-    success: false,
-    message: 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
-  });
-});
-
-// ============================================================================
-// SERVER STARTUP
-// ============================================================================
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('\nSIGTERM received, closing database connection...');
-  db.close();
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  console.log('\nSIGINT received, closing database connection...');
-  db.close();
-  process.exit(0);
-});
-
-// ============================================================================
 // KEPLER MAP DATA ROUTES
 // ============================================================================
 
@@ -987,6 +927,66 @@ app.get('/api/map/shipping-routes', async (req, res) => {
       error: error.message
     });
   }
+});
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Endpoint not found',
+    path: req.path,
+    availableEndpoints: {
+      workOrders: [
+        'GET /api/work-orders',
+        'GET /api/work-orders/:id',
+        'POST /api/work-orders',
+        'PATCH /api/work-orders/:id',
+        'DELETE /api/work-orders/:id'
+      ],
+      parts: [
+        'GET /api/parts',
+        'GET /api/parts/:id',
+        'POST /api/parts',
+        'PATCH /api/parts/:id',
+        'PATCH /api/parts/:id/stock',
+        'DELETE /api/parts/:id'
+      ],
+      databricks: [
+        'Note: Databricks endpoints available in production only'
+      ]
+    }
+  });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
+  });
+});
+
+// ============================================================================
+// SERVER STARTUP
+// ============================================================================
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('\nSIGTERM received, closing database connection...');
+  db.close();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('\nSIGINT received, closing database connection...');
+  db.close();
+  process.exit(0);
 });
 
 // Start server
