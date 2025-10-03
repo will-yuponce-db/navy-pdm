@@ -23,9 +23,14 @@ let databricksConnected = false;
 
 // Check if Databricks credentials are available
 const hasDatabricksCredentials = () => {
+  // Accept either DATABRICKS_SERVER_HOSTNAME or DATABRICKS_HOST (Databricks Apps uses DATABRICKS_HOST)
+  const hostname = process.env.DATABRICKS_SERVER_HOSTNAME || process.env.DATABRICKS_HOST;
+  // HTTP path can be provided or use default warehouse path
+  const httpPath = process.env.DATABRICKS_HTTP_PATH || '/sql/1.0/warehouses/8baced1ff014912d';
+  
   return !!(
-    process.env.DATABRICKS_SERVER_HOSTNAME &&
-    process.env.DATABRICKS_HTTP_PATH &&
+    hostname &&
+    httpPath &&
     (process.env.DATABRICKS_TOKEN || 
      (process.env.DATABRICKS_CLIENT_ID && process.env.DATABRICKS_CLIENT_SECRET))
   );
@@ -48,7 +53,9 @@ async function getDatabricksToken() {
   }
 
   // Get new token using client credentials
-  const tokenUrl = `https://${process.env.DATABRICKS_SERVER_HOSTNAME}/oidc/v1/token`;
+  // Accept either DATABRICKS_SERVER_HOSTNAME or DATABRICKS_HOST (Databricks Apps uses DATABRICKS_HOST)
+  const hostname = process.env.DATABRICKS_SERVER_HOSTNAME || process.env.DATABRICKS_HOST;
+  const tokenUrl = `https://${hostname}/oidc/v1/token`;
   const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: {
@@ -86,10 +93,14 @@ async function initDatabricks() {
     
     const token = await getDatabricksToken();
     
+    // Accept either DATABRICKS_SERVER_HOSTNAME or DATABRICKS_HOST (Databricks Apps uses DATABRICKS_HOST)
+    const hostname = process.env.DATABRICKS_SERVER_HOSTNAME || process.env.DATABRICKS_HOST;
+    const httpPath = process.env.DATABRICKS_HTTP_PATH || '/sql/1.0/warehouses/8baced1ff014912d';
+    
     await databricksClient.connect({
       token: token,
-      host: process.env.DATABRICKS_SERVER_HOSTNAME,
-      path: process.env.DATABRICKS_HTTP_PATH,
+      host: hostname,
+      path: httpPath,
     });
 
     databricksConnected = true;
@@ -166,7 +177,7 @@ app.get('/api/databricks/test', async (req, res) => {
   try {
     const { data, source } = await executeQuery(
       'SELECT "Databricks connection successful" as message, current_timestamp() as timestamp',
-      'SELECT "SQLite fallback active" as message, datetime("now") as timestamp',
+      'SELECT \'SQLite fallback active\' as message, datetime(\'now\') as timestamp',
       []
     );
     
