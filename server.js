@@ -930,10 +930,44 @@ app.get('/api/map/shipping-routes', async (req, res) => {
 });
 
 // ============================================================================
+// FRONTEND STATIC FILES (for standalone deployment)
+// ============================================================================
+
+// Serve static assets from build/client (if it exists)
+const buildClientPath = join(__dirname, 'build', 'client');
+if (existsSync(buildClientPath)) {
+  // Serve static assets with caching
+  app.use('/assets', express.static(join(buildClientPath, 'assets'), {
+    immutable: true,
+    maxAge: '1y'
+  }));
+  
+  // Serve other static files
+  app.use(express.static(buildClientPath, {
+    maxAge: '1h'
+  }));
+  
+  // Handle React Router SSR
+  const buildServerPath = join(__dirname, 'build', 'server', 'index.js');
+  if (existsSync(buildServerPath)) {
+    Promise.all([
+      import(buildServerPath),
+      import('@react-router/express')
+    ]).then(([build, reactRouterExpress]) => {
+      const { createRequestHandler } = reactRouterExpress;
+      // Serve React app for all non-API routes
+      app.get('*', createRequestHandler({ build }));
+    }).catch((err) => {
+      console.warn('React Router SSR not available:', err.message);
+    });
+  }
+}
+
+// ============================================================================
 // ERROR HANDLING
 // ============================================================================
 
-// 404 handler
+// 404 handler (only for API routes if frontend is not built)
 app.use((req, res) => {
   res.status(404).json({
     success: false,
