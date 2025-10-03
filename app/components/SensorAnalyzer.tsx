@@ -382,22 +382,65 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
     plugins: {
       legend: {
         position: "top" as const,
+        labels: {
+          font: {
+            size: 14,
+            weight: 600,
+          },
+          padding: 15,
+        },
       },
       title: {
         display: true,
         text: "Sensor Data Timeline (24 Hours Prior to Work Order)",
+        font: {
+          size: 16,
+          weight: 700,
+        },
+        padding: {
+          top: 10,
+          bottom: 20,
+        },
+      },
+      tooltip: {
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
+        padding: 12,
+        titleFont: {
+          size: 14,
+          weight: 600,
+        },
+        bodyFont: {
+          size: 13,
+        },
+        cornerRadius: 8,
       },
     },
     scales: {
       y: {
         beginAtZero: false,
         grid: {
-          color: "rgba(0,0,0,0.1)",
+          color: "rgba(0,0,0,0.05)",
+          drawBorder: false,
+        },
+        ticks: {
+          font: {
+            size: 12,
+          },
+          padding: 8,
         },
       },
       x: {
         grid: {
-          color: "rgba(0,0,0,0.1)",
+          color: "rgba(0,0,0,0.05)",
+          drawBorder: false,
+        },
+        ticks: {
+          font: {
+            size: 11,
+          },
+          maxRotation: 45,
+          minRotation: 45,
+          padding: 8,
         },
       },
     },
@@ -443,14 +486,9 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
             Work Order Evidence Package
           </Typography>
           {workOrderInfo && (
-            <>
-              <Typography variant="h6" color="primary" sx={{ mt: 1 }}>
-                Work Order #{workOrderInfo.wo} - {workOrderInfo.ship?.name || "Unknown Ship"}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Data Source: {dataSource}
-              </Typography>
-            </>
+            <Typography variant="h6" color="primary" sx={{ mt: 1 }}>
+              Work Order #{workOrderInfo.wo} - {workOrderInfo.ship?.name || "Unknown Ship"}
+            </Typography>
           )}
         </Box>
         <Box sx={{ display: "flex", gap: 1 }}>
@@ -654,57 +692,98 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                 <Card
                   sx={{
                     cursor: "pointer",
-                    border: selectedSensor === sensorId ? 2 : 1,
+                    border: selectedSensor === sensorId ? 3 : 1,
                     borderColor:
                       selectedSensor === sensorId
                         ? "primary.main"
                         : "divider",
-                    "&:hover": { boxShadow: 4 },
+                    boxShadow: selectedSensor === sensorId ? 3 : 1,
+                    transition: "all 0.3s ease-in-out",
+                    "&:hover": { 
+                      boxShadow: 6,
+                      transform: "translateY(-4px)",
+                      borderColor: selectedSensor === sensorId ? "primary.main" : "primary.light",
+                    },
+                    height: "100%",
                   }}
                   onClick={() => setSelectedSensor(sensorId)}
                 >
-                  <CardContent>
+                  <CardContent sx={{ p: 2.5 }}>
                     <Box
                       sx={{
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "flex-start",
-                        mb: 1,
+                        mb: 2,
                       }}
                     >
                       <Typography
                         variant="h6"
                         component="div"
-                        sx={{ fontSize: "1rem" }}
+                        sx={{ 
+                          fontSize: "1.1rem",
+                          fontWeight: 600,
+                          color: "text.primary",
+                        }}
                       >
                         {latestSensor.sensorName}
                       </Typography>
                       <Chip
                         icon={getStatusIcon(overallStatus)}
-                        label={overallStatus}
+                        label={overallStatus.toUpperCase()}
                         color={getStatusColor(overallStatus)}
                         size="small"
+                        sx={{ fontWeight: 600 }}
                       />
                     </Box>
                     <Typography
-                      variant="h4"
+                      variant="h3"
                       component="div"
-                      sx={{ fontWeight: 700, mb: 1 }}
+                      sx={{ 
+                        fontWeight: 700, 
+                        mb: 1.5,
+                        color: overallStatus === "critical" ? "error.main" : 
+                               overallStatus === "warning" ? "warning.main" : 
+                               "success.main",
+                      }}
                     >
-                      {latestSensor.value.toFixed(2)} {latestSensor.unit}
+                      {latestSensor.value.toFixed(2)} <Typography component="span" variant="h5" color="text.secondary">{latestSensor.unit}</Typography>
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {latestSensor.sensorType} • {sensorReadings.length} readings
-                    </Typography>
-                    {(criticalCount > 0 || warningCount > 0) && (
-                      <Typography variant="caption" display="block" sx={{ mt: 1, color: "error.main" }}>
-                        {criticalCount > 0 && `${criticalCount} critical`}
-                        {criticalCount > 0 && warningCount > 0 && ", "}
-                        {warningCount > 0 && `${warningCount} warning`}
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ textTransform: "capitalize", fontWeight: 500 }}>
+                        {latestSensor.sensorType}
                       </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        •
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {sensorReadings.length} readings
+                      </Typography>
+                    </Box>
+                    {(criticalCount > 0 || warningCount > 0) && (
+                      <Box sx={{ 
+                        mt: 1.5, 
+                        p: 1, 
+                        bgcolor: "error.50",
+                        borderRadius: 1,
+                        border: "1px solid",
+                        borderColor: "error.200",
+                      }}>
+                        <Typography variant="caption" display="block" sx={{ color: "error.dark", fontWeight: 600 }}>
+                          ⚠️ {criticalCount > 0 && `${criticalCount} critical`}
+                          {criticalCount > 0 && warningCount > 0 && ", "}
+                          {warningCount > 0 && `${warningCount} warning`}
+                        </Typography>
+                      </Box>
                     )}
-                    <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                      Latest: {latestSensor.timestamp.toLocaleString()}
+                    <Divider sx={{ my: 1.5 }} />
+                    <Typography variant="caption" display="block" color="text.secondary">
+                      Latest: {latestSensor.timestamp.toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </Typography>
                   </CardContent>
                 </Card>
