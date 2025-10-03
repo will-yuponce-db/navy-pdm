@@ -348,7 +348,7 @@ app.get('/api/databricks/ship-status', async (req, res) => {
     const { limit = 100 } = req.query;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy_test.ship_status LIMIT ${limit}`,
+      `SELECT * FROM public_sector.predictive_maintenance_navy_test.current_status_predictions LIMIT ${limit}`,
       `SELECT s.*, COUNT(wo.wo) as open_work_orders 
        FROM ships s 
        LEFT JOIN work_orders wo ON s.id = wo.ship_id AND wo.status != 'Completed' 
@@ -379,7 +379,7 @@ app.get('/api/databricks/ship-status/:turbineId', async (req, res) => {
     const { turbineId } = req.params;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy_test.ship_status WHERE turbine_id = '${turbineId}'`,
+      `SELECT * FROM public_sector.predictive_maintenance_navy_test.current_status_predictions WHERE turbine_id = '${turbineId}'`,
       'SELECT s.* FROM ships s LEFT JOIN gte_systems g ON s.id = g.ship_id WHERE g.id = ?',
       [turbineId]
     );
@@ -439,7 +439,7 @@ app.get('/api/databricks/sensor-data/:turbineId', async (req, res) => {
     
     // Query current_status_predictions for the same time period to get failing sensors
     let predictions = [];
-    if (isDatabricksConfigured() && startTime && endTime) {
+    if (databricksConnected && startTime && endTime) {
       try {
         const predictionsQuery = `
           SELECT prediction, hourly_timestamp 
