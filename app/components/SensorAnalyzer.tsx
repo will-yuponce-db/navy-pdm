@@ -171,7 +171,9 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                   
                   predictions.forEach((pred: any) => {
                     if (pred.prediction && pred.prediction !== 'ok' && pred.prediction.trim() !== '') {
-                      failing.add(pred.prediction);
+                      // Extract just the sensor name (e.g., "sensor_F" from "sensor_F - Depot Level")
+                      const sensorName = pred.prediction.split(' - ')[0].trim();
+                      failing.add(sensorName);
                     }
                   });
                   
@@ -340,7 +342,9 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
           
           predictions.forEach((pred: any) => {
             if (pred.prediction && pred.prediction !== 'ok' && pred.prediction.trim() !== '') {
-              failing.add(pred.prediction);
+              // Extract just the sensor name (e.g., "sensor_F" from "sensor_F - Depot Level")
+              const sensorName = pred.prediction.split(' - ')[0].trim();
+              failing.add(sensorName);
             }
           });
           
