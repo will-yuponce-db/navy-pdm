@@ -4,16 +4,132 @@ import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
+import { DBSQLClient } from '@databricks/sql';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+const NODE_ENV = process.env.NODE_ENV || 'development';
 
-// Database setup
+// Database setup - SQLite
 const dbPath = join(__dirname, 'backend', 'instance', 'navy_pdm.db');
 const db = new Database(dbPath);
+
+// Databricks setup
+let databricksClient = null;
+let databricksConnected = false;
+
+// Check if Databricks credentials are available
+const hasDatabricksCredentials = () => {
+  return !!(
+    process.env.DATABRICKS_SERVER_HOSTNAME &&
+    process.env.DATABRICKS_HTTP_PATH &&
+    (process.env.DATABRICKS_TOKEN || 
+     (process.env.DATABRICKS_CLIENT_ID && process.env.DATABRICKS_CLIENT_SECRET))
+  );
+};
+
+// OAuth token management for Databricks
+let cachedAccessToken = null;
+let tokenExpiresAt = null;
+const TOKEN_REFRESH_BUFFER = 300000; // 5 minutes
+
+// Get or refresh OAuth token
+async function getDatabricksToken() {
+  if (process.env.DATABRICKS_TOKEN) {
+    return process.env.DATABRICKS_TOKEN;
+  }
+
+  // Check if cached token is still valid
+  if (cachedAccessToken && tokenExpiresAt && Date.now() < tokenExpiresAt - TOKEN_REFRESH_BUFFER) {
+    return cachedAccessToken;
+  }
+
+  // Get new token using client credentials
+  const tokenUrl = `https://${process.env.DATABRICKS_SERVER_HOSTNAME}/oidc/v1/token`;
+  const response = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: process.env.DATABRICKS_CLIENT_ID,
+      client_secret: process.env.DATABRICKS_CLIENT_SECRET,
+      scope: 'all-apis',
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get Databricks token: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  cachedAccessToken = data.access_token;
+  tokenExpiresAt = Date.now() + (data.expires_in * 1000);
+  
+  return cachedAccessToken;
+}
+
+// Initialize Databricks connection
+async function initDatabricks() {
+  if (NODE_ENV !== 'production' || !hasDatabricksCredentials()) {
+    console.log('[DATABRICKS] Skipping initialization - not in production or missing credentials');
+    return false;
+  }
+
+  try {
+    console.log('[DATABRICKS] Attempting to connect...');
+    databricksClient = new DBSQLClient();
+    
+    const token = await getDatabricksToken();
+    
+    await databricksClient.connect({
+      token: token,
+      host: process.env.DATABRICKS_SERVER_HOSTNAME,
+      path: process.env.DATABRICKS_HTTP_PATH,
+    });
+
+    databricksConnected = true;
+    console.log('[DATABRICKS] ✓ Connected successfully');
+    return true;
+  } catch (error) {
+    console.error('[DATABRICKS] ✗ Connection failed:', error.message);
+    console.log('[DATABRICKS] Falling back to SQLite');
+    databricksConnected = false;
+    return false;
+  }
+}
+
+// Execute Databricks query with SQLite fallback
+async function executeQuery(databricksQuery, sqliteQuery, params = []) {
+  // Try Databricks first if connected
+  if (databricksConnected && databricksClient) {
+    try {
+      const session = await databricksClient.openSession();
+      const queryOperation = await session.executeStatement(databricksQuery, { runAsync: true });
+      const result = await queryOperation.fetchAll();
+      await queryOperation.close();
+      await session.close();
+      return { data: result, source: 'databricks' };
+    } catch (error) {
+      console.error('[DATABRICKS] Query failed, falling back to SQLite:', error.message);
+      databricksConnected = false;
+    }
+  }
+
+  // Fallback to SQLite
+  const stmt = db.prepare(sqliteQuery);
+  const data = params.length > 0 ? stmt.all(...params) : stmt.all();
+  return { data, source: 'sqlite' };
+}
+
+// Initialize Databricks on startup
+initDatabricks().catch(err => {
+  console.error('[DATABRICKS] Initialization error:', err);
+});
 
 // Middleware
 app.use(cors());
@@ -29,95 +145,235 @@ app.use((req, res, next) => {
   next();
 });
 
-// Helper function for Databricks unavailability
-function databricksUnavailable(res, endpoint) {
-  return res.status(503).json({
-    success: false,
-    message: `Databricks ${endpoint} not available in development mode`,
-    diagnostics: {
-      note: 'This endpoint requires Databricks connection which is configured for production deployment',
-      development: 'Using local SQLite database for development',
-      documentation: 'See DATABRICKS_SETUP.md for configuration details'
-    }
-  });
-}
-
 // ============================================================================
-// DATABRICKS API ROUTES (Development placeholders)
+// DATABRICKS API ROUTES (With SQLite fallback)
 // ============================================================================
-// These endpoints return informative errors in development.
-// In production with proper TypeScript compilation, these would connect to Databricks.
 
 app.get('/api/databricks/health', async (req, res) => {
-  res.status(503).json({
-    status: 'unavailable',
+  res.json({
+    status: databricksConnected ? 'connected' : 'disconnected',
     timestamp: new Date().toISOString(),
-    message: 'Databricks integration requires production deployment',
-    diagnostics: {
-      mode: 'development',
-      note: 'TypeScript compilation required for Databricks integration'
-    }
+    mode: NODE_ENV,
+    databricks: {
+      available: databricksConnected,
+      credentials: hasDatabricksCredentials(),
+    },
+    fallback: 'sqlite',
   });
 });
 
 app.get('/api/databricks/test', async (req, res) => {
-  databricksUnavailable(res, 'test');
+  try {
+    const { data, source } = await executeQuery(
+      'SELECT "Databricks connection successful" as message, current_timestamp() as timestamp',
+      'SELECT "SQLite fallback active" as message, datetime("now") as timestamp',
+      []
+    );
+    
+    res.json({
+      success: true,
+      source,
+      data,
+      message: `Query executed successfully using ${source}`,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
 });
 
 app.post('/api/databricks/query', async (req, res) => {
-  databricksUnavailable(res, 'custom query');
+  try {
+    const { query } = req.body;
+    
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        error: 'Query parameter is required',
+      });
+    }
+
+    // For custom queries, we can only support Databricks
+    if (!databricksConnected) {
+      return res.status(503).json({
+        success: false,
+        message: 'Custom queries require Databricks connection',
+        fallback: 'Not available for custom queries',
+      });
+    }
+
+    const session = await databricksClient.openSession();
+    const queryOperation = await session.executeStatement(query, { runAsync: true });
+    const result = await queryOperation.fetchAll();
+    await queryOperation.close();
+    await session.close();
+
+    res.json({
+      success: true,
+      source: 'databricks',
+      data: result,
+      count: result.length,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
 });
 
 app.get('/api/databricks/ai-work-orders', async (req, res) => {
-  databricksUnavailable(res, 'AI work orders');
+  try {
+    const { limit = 100 } = req.query;
+    
+    const { data, source } = await executeQuery(
+      `SELECT * FROM public_sector.predictive_maintenance_navy.ai_work_orders LIMIT ${limit}`,
+      `SELECT * FROM work_orders WHERE creation_source = 'ai' LIMIT ${limit}`,
+      []
+    );
+    
+    res.json({
+      success: true,
+      source,
+      data,
+      count: data.length,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
 });
 
 app.get('/api/databricks/ai-work-orders/:workOrderId', async (req, res) => {
-  databricksUnavailable(res, 'AI work order details');
+  try {
+    const { workOrderId } = req.params;
+    
+    const { data, source } = await executeQuery(
+      `SELECT * FROM public_sector.predictive_maintenance_navy.ai_work_orders WHERE wo = '${workOrderId}'`,
+      'SELECT * FROM work_orders WHERE wo = ? AND creation_source = "ai"',
+      [workOrderId]
+    );
+    
+    if (data.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Work order not found',
+      });
+    }
+    
+    res.json({
+      success: true,
+      source,
+      data: data[0],
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
 });
 
 app.get('/api/databricks/ship-status', async (req, res) => {
-  databricksUnavailable(res, 'ship status');
+  try {
+    const { limit = 100 } = req.query;
+    
+    const { data, source } = await executeQuery(
+      `SELECT * FROM public_sector.predictive_maintenance_navy.ship_status LIMIT ${limit}`,
+      `SELECT s.*, COUNT(wo.wo) as open_work_orders 
+       FROM ships s 
+       LEFT JOIN work_orders wo ON s.id = wo.ship_id AND wo.status != 'Completed' 
+       GROUP BY s.id LIMIT ${limit}`,
+      []
+    );
+    
+    res.json({
+      success: true,
+      source,
+      data,
+      count: data.length,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
 });
 
 app.get('/api/databricks/ship-status/:turbineId', async (req, res) => {
-  databricksUnavailable(res, 'ship status by turbine');
+  try {
+    const { turbineId } = req.params;
+    
+    const { data, source } = await executeQuery(
+      `SELECT * FROM public_sector.predictive_maintenance_navy.ship_status WHERE turbine_id = '${turbineId}'`,
+      'SELECT s.* FROM ships s LEFT JOIN gte_systems g ON s.id = g.ship_id WHERE g.id = ?',
+      [turbineId]
+    );
+    
+    if (data.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Ship status not found for turbine',
+      });
+    }
+    
+    res.json({
+      success: true,
+      source,
+      data: data[0],
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
 });
 
-// Get parts requisitions (fallback to SQLite)
+// Get parts requisitions (with Databricks and SQLite fallback)
 app.get('/api/databricks/parts-requisitions', async (req, res) => {
   try {
     const { limit = 1000, orderNumber, partType, stockLocation } = req.query;
     
-    let query = 'SELECT * FROM parts_requisitions WHERE 1=1';
+    // Build Databricks query
+    let databricksQuery = 'SELECT * FROM public_sector.predictive_maintenance_navy.parts_requisitions WHERE 1=1';
+    let sqliteQuery = 'SELECT * FROM parts_requisitions WHERE 1=1';
     const params = [];
     
     if (orderNumber) {
-      query += ' AND order_number = ?';
+      databricksQuery += ` AND order_number = '${orderNumber}'`;
+      sqliteQuery += ' AND order_number = ?';
       params.push(orderNumber);
     }
     
     if (partType) {
-      query += ' AND part_type LIKE ?';
+      databricksQuery += ` AND part_type LIKE '%${partType}%'`;
+      sqliteQuery += ' AND part_type LIKE ?';
       params.push(`%${partType}%`);
     }
     
     if (stockLocation) {
-      query += ' AND stock_location LIKE ?';
+      databricksQuery += ` AND stock_location LIKE '%${stockLocation}%'`;
+      sqliteQuery += ' AND stock_location LIKE ?';
       params.push(`%${stockLocation}%`);
     }
     
-    query += ' ORDER BY created_at DESC LIMIT ?';
+    databricksQuery += ` ORDER BY created_at DESC LIMIT ${limit}`;
+    sqliteQuery += ' ORDER BY created_at DESC LIMIT ?';
     params.push(parseInt(limit));
     
-    const stmt = db.prepare(query);
-    const requisitions = stmt.all(...params);
+    const { data, source } = await executeQuery(databricksQuery, sqliteQuery, params);
     
     res.json({
       success: true,
-      data: requisitions,
-      count: requisitions.length,
-      source: 'sqlite'
+      data,
+      count: data.length,
+      source
     });
   } catch (error) {
     console.error('Error fetching parts requisitions:', error);
@@ -131,10 +387,14 @@ app.get('/api/databricks/parts-requisitions', async (req, res) => {
 app.get('/api/databricks/parts-requisitions/:orderNumber', async (req, res) => {
   try {
     const { orderNumber } = req.params;
-    const stmt = db.prepare('SELECT * FROM parts_requisitions WHERE order_number = ?');
-    const requisitions = stmt.all(orderNumber);
     
-    if (requisitions.length === 0) {
+    const { data, source } = await executeQuery(
+      `SELECT * FROM public_sector.predictive_maintenance_navy.parts_requisitions WHERE order_number = '${orderNumber}'`,
+      'SELECT * FROM parts_requisitions WHERE order_number = ?',
+      [orderNumber]
+    );
+    
+    if (data.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'No requisitions found for this order number'
@@ -143,8 +403,8 @@ app.get('/api/databricks/parts-requisitions/:orderNumber', async (req, res) => {
     
     res.json({
       success: true,
-      data: requisitions,
-      source: 'sqlite'
+      data,
+      source
     });
   } catch (error) {
     console.error('Error fetching parts requisition:', error);
@@ -158,14 +418,18 @@ app.get('/api/databricks/parts-requisitions/:orderNumber', async (req, res) => {
 app.get('/api/databricks/parts-requisitions/ship/:designatorId', async (req, res) => {
   try {
     const { designatorId } = req.params;
-    const stmt = db.prepare('SELECT * FROM parts_requisitions WHERE designator_id = ?');
-    const requisitions = stmt.all(designatorId);
+    
+    const { data, source } = await executeQuery(
+      `SELECT * FROM public_sector.predictive_maintenance_navy.parts_requisitions WHERE designator_id = '${designatorId}'`,
+      'SELECT * FROM parts_requisitions WHERE designator_id = ?',
+      [designatorId]
+    );
     
     res.json({
       success: true,
-      data: requisitions,
-      count: requisitions.length,
-      source: 'sqlite'
+      data,
+      count: data.length,
+      source
     });
   } catch (error) {
     console.error('Error fetching parts requisitions by ship:', error);
@@ -252,7 +516,51 @@ app.post('/api/parts-requisitions', async (req, res) => {
 });
 
 app.get('/api/databricks/parts', async (req, res) => {
-  databricksUnavailable(res, 'parts from Databricks');
+  try {
+    const { limit = 1000, category, condition, search } = req.query;
+    
+    // Build Databricks query
+    let databricksQuery = 'SELECT * FROM public_sector.predictive_maintenance_navy.parts WHERE 1=1';
+    let sqliteQuery = 'SELECT * FROM parts WHERE 1=1';
+    const params = [];
+    
+    if (category) {
+      databricksQuery += ` AND category = '${category}'`;
+      sqliteQuery += ' AND category = ?';
+      params.push(category);
+    }
+    
+    if (condition) {
+      databricksQuery += ` AND condition = '${condition}'`;
+      sqliteQuery += ' AND condition = ?';
+      params.push(condition);
+    }
+    
+    if (search) {
+      databricksQuery += ` AND (name LIKE '%${search}%' OR id LIKE '%${search}%')`;
+      sqliteQuery += ' AND (name LIKE ? OR id LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+    
+    databricksQuery += ` ORDER BY name ASC LIMIT ${limit}`;
+    sqliteQuery += ' ORDER BY name ASC LIMIT ?';
+    params.push(parseInt(limit));
+    
+    const { data, source } = await executeQuery(databricksQuery, sqliteQuery, params);
+    
+    res.json({
+      success: true,
+      data,
+      count: data.length,
+      source
+    });
+  } catch (error) {
+    console.error('Error fetching parts:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 // ============================================================================
@@ -1014,17 +1322,28 @@ app.use((err, req, res, next) => {
 // ============================================================================
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('\nSIGTERM received, closing database connection...');
-  db.close();
+async function gracefulShutdown(signal) {
+  console.log(`\n${signal} received, closing connections...`);
+  
+  try {
+    // Close SQLite connection
+    db.close();
+    console.log('✓ SQLite connection closed');
+    
+    // Close Databricks connection if active
+    if (databricksClient && databricksConnected) {
+      await databricksClient.close();
+      console.log('✓ Databricks connection closed');
+    }
+  } catch (error) {
+    console.error('Error during shutdown:', error.message);
+  }
+  
   process.exit(0);
-});
+}
 
-process.on('SIGINT', () => {
-  console.log('\nSIGINT received, closing database connection...');
-  db.close();
-  process.exit(0);
-});
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Start server - async to wait for SSR setup
 async function startServer() {
@@ -1039,8 +1358,10 @@ async function startServer() {
     console.log('='.repeat(70));
     console.log('');
     console.log(`✓ Server running on port ${PORT}`);
+    console.log(`✓ Mode: ${NODE_ENV}`);
     console.log(`✓ API available at http://localhost:${PORT}/api`);
     console.log(`✓ SQLite database: ${dbPath}`);
+    console.log(`✓ Databricks: ${databricksConnected ? 'CONNECTED' : 'Disconnected (using SQLite fallback)'}`);
     console.log('');
     console.log('Available Endpoints:');
     console.log('');
@@ -1065,16 +1386,21 @@ async function startServer() {
     console.log('    GET    /api/map/stock-locations      - Get parts warehouse locations');
     console.log('    GET    /api/map/shipping-routes      - Get parts shipment routes');
     console.log('');
-    console.log('  Databricks (Placeholder in Development):');
+    console.log('  Databricks (With SQLite Fallback):');
     console.log('    GET    /api/databricks/health        - Health check');
+    console.log('    GET    /api/databricks/test          - Test connection');
+    console.log('    POST   /api/databricks/query         - Custom query (Databricks only)');
     console.log('    GET    /api/databricks/ai-work-orders');
     console.log('    GET    /api/databricks/ship-status');
     console.log('    GET    /api/databricks/parts-requisitions');
     console.log('    GET    /api/databricks/parts');
     console.log('');
-    console.log('  Note: Databricks endpoints return informative errors in development.');
-    console.log('        They require TypeScript compilation and Databricks credentials');
-    console.log('        for production deployment. See DATABRICKS_SETUP.md for details.');
+    if (databricksConnected) {
+      console.log('  ✓ Databricks endpoints are using live data');
+    } else {
+      console.log('  ℹ Databricks endpoints will fall back to SQLite');
+      console.log('    Set NODE_ENV=production and configure Databricks credentials to enable.');
+    }
     console.log('');
     console.log('Press Ctrl+C to stop');
     console.log('='.repeat(70));
