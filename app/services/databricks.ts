@@ -867,20 +867,14 @@ export async function getParts(params?: {
   search?: string;
 }): Promise<unknown[]> {
   try {
-    let query = "SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_part_orders";
+    let query = "SELECT * FROM public_sector.predictive_maintenance_navy_test.parts_silver";
     const conditions: string[] = [];
 
-    if (params?.category) {
-      conditions.push(`category = '${params.category}'`);
-    }
-
-    if (params?.condition) {
-      conditions.push(`condition = '${params.condition}'`);
-    }
-
+    // Note: parts_silver doesn't have category/condition fields, 
+    // but we keep the parameters for API compatibility
     if (params?.search) {
       conditions.push(
-        `(name LIKE '%${params.search}%' OR id LIKE '%${params.search}%')`,
+        `(type LIKE '%${params.search}%' OR NSN LIKE '%${params.search}%')`,
       );
     }
 
@@ -888,7 +882,7 @@ export async function getParts(params?: {
       query += " WHERE " + conditions.join(" AND ");
     }
 
-    query += " ORDER BY last_updated DESC";
+    query += " ORDER BY NSN ASC";
 
     const limit = params?.limit || 50;
     const offset = params?.page ? (params.page - 1) * limit : 0;

@@ -412,8 +412,8 @@ app.get('/api/databricks/parts-requisitions', async (req, res) => {
   try {
     const { limit = 1000, orderNumber, partType, stockLocation } = req.query;
     
-    // Build Databricks query
-    let databricksQuery = 'SELECT * FROM public_sector.predictive_maintenance_navy_test.parts_requisitions WHERE 1=1';
+    // Build Databricks query - using ai_part_orders table
+    let databricksQuery = 'SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_part_orders WHERE 1=1';
     let sqliteQuery = 'SELECT * FROM parts_requisitions WHERE 1=1';
     const params = [];
     
@@ -424,7 +424,7 @@ app.get('/api/databricks/parts-requisitions', async (req, res) => {
     }
     
     if (partType) {
-      databricksQuery += ` AND part_type LIKE '%${partType}%'`;
+      databricksQuery += ` AND type LIKE '%${partType}%'`; // Changed from part_type to type
       sqliteQuery += ' AND part_type LIKE ?';
       params.push(`%${partType}%`);
     }
@@ -435,7 +435,7 @@ app.get('/api/databricks/parts-requisitions', async (req, res) => {
       params.push(`%${stockLocation}%`);
     }
     
-    databricksQuery += ` ORDER BY created_at DESC LIMIT ${limit}`;
+    databricksQuery += ` ORDER BY order_number DESC LIMIT ${limit}`; // Changed from created_at to order_number
     sqliteQuery += ' ORDER BY created_at DESC LIMIT ?';
     params.push(parseInt(limit));
     
@@ -465,7 +465,7 @@ app.get('/api/databricks/parts-requisitions/:orderNumber', async (req, res) => {
     const { orderNumber } = req.params;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy_test.parts_requisitions WHERE order_number = '${orderNumber}'`,
+      `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_part_orders WHERE order_number = '${orderNumber}'`,
       'SELECT * FROM parts_requisitions WHERE order_number = ?',
       [orderNumber]
     );
@@ -500,7 +500,7 @@ app.get('/api/databricks/parts-requisitions/ship/:designatorId', async (req, res
     const { designatorId } = req.params;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy_test.parts_requisitions WHERE designator_id = '${designatorId}'`,
+      `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_part_orders WHERE designator_id = '${designatorId}'`,
       'SELECT * FROM parts_requisitions WHERE designator_id = ?',
       [designatorId]
     );
@@ -603,61 +603,93 @@ app.get('/api/databricks/parts', async (req, res) => {
   try {
     const { limit = 1000, category, condition, search } = req.query;
     
-    // Build Databricks query
-    let databricksQuery = 'SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_part_orders WHERE 1=1';
+    // Build Databricks query - using parts_silver table
+    let databricksQuery = 'SELECT * FROM public_sector.predictive_maintenance_navy_test.parts_silver WHERE 1=1';
     let sqliteQuery = 'SELECT * FROM parts WHERE 1=1';
     const params = [];
     
+    // Note: parts_silver doesn't have category/condition fields
+    // These filters only apply to SQLite fallback
     if (category) {
-      databricksQuery += ` AND category = '${category}'`;
       sqliteQuery += ' AND category = ?';
       params.push(category);
     }
     
     if (condition) {
-      databricksQuery += ` AND condition = '${condition}'`;
       sqliteQuery += ' AND condition = ?';
       params.push(condition);
     }
     
     if (search) {
-      databricksQuery += ` AND (name LIKE '%${search}%' OR id LIKE '%${search}%')`;
+      databricksQuery += ` AND (type LIKE '%${search}%' OR NSN LIKE '%${search}%')`;
       sqliteQuery += ' AND (name LIKE ? OR id LIKE ?)';
       params.push(`%${search}%`, `%${search}%`);
     }
     
-    databricksQuery += ` ORDER BY name ASC LIMIT ${limit}`;
+    databricksQuery += ` ORDER BY NSN ASC LIMIT ${limit}`;
     sqliteQuery += ' ORDER BY name ASC LIMIT ?';
     params.push(parseInt(limit));
     
     const { data, source, fallbackReason } = await executeQuery(databricksQuery, sqliteQuery, params);
     
-    // Transform snake_case to camelCase for frontend compatibility
-    const transformedData = data.map(part => ({
-      id: part.id,
-      name: part.name,
-      system: part.system,
-      category: part.category,
-      stockLevel: part.stock_level ?? part.stockLevel,
-      minStock: part.min_stock ?? part.minStock,
-      maxStock: part.max_stock ?? part.maxStock,
-      location: part.location,
-      condition: part.condition,
-      leadTime: part.lead_time ?? part.leadTime,
-      supplier: part.supplier,
-      cost: part.cost,
-      lastUpdated: part.last_updated ?? part.lastUpdated,
-      // Optional Databricks fields
-      nsn: part.nsn,
-      width: part.width,
-      height: part.height,
-      weight: part.weight,
-      productionTime: part.production_time ?? part.productionTime,
-      sensors: part.sensors ? (typeof part.sensors === 'string' ? JSON.parse(part.sensors) : part.sensors) : undefined,
-      stockLocationId: part.stock_location_id ?? part.stockLocationId,
-      latitude: part.latitude,
-      longitude: part.longitude
-    }));
+    // Transform data based on source
+    const transformedData = data.map(part => {
+      // If data is from Databricks parts_silver table
+      if (source === 'databricks' && part.NSN) {
+        return {
+          id: part.NSN || part.id,
+          name: part.type || part.name,
+          system: 'GTE System', // Default since parts_silver doesn't have system field
+          category: 'Rotating Parts', // Default since parts_silver doesn't have category field
+          stockLevel: part.inventory_level ?? part.stock_level ?? part.stockLevel ?? 0,
+          minStock: 5, // Default minimum stock
+          maxStock: 50, // Default maximum stock
+          location: part.stock_location ?? part.location,
+          condition: 'New', // Default condition since parts_silver doesn't have this field
+          leadTime: part.provisioning_time ? `${part.provisioning_time} days` : (part.lead_time ?? part.leadTime ?? 'Unknown'),
+          supplier: 'Navy Supply', // Default supplier
+          cost: part.cost ?? 0,
+          lastUpdated: new Date().toISOString(),
+          // Databricks-specific fields from parts_silver
+          nsn: part.NSN,
+          width: part.width,
+          height: part.height,
+          weight: part.weight,
+          productionTime: part.production_time ?? part.productionTime,
+          sensors: part.sensors ? (typeof part.sensors === 'string' ? JSON.parse(part.sensors) : part.sensors) : undefined,
+          stockLocationId: part.stock_location_id ?? part.stockLocationId,
+          latitude: part.lat ?? part.latitude,
+          longitude: part.long ?? part.longitude
+        };
+      }
+      
+      // If data is from SQLite (fallback)
+      return {
+        id: part.id,
+        name: part.name,
+        system: part.system,
+        category: part.category,
+        stockLevel: part.stock_level ?? part.stockLevel,
+        minStock: part.min_stock ?? part.minStock,
+        maxStock: part.max_stock ?? part.maxStock,
+        location: part.location,
+        condition: part.condition,
+        leadTime: part.lead_time ?? part.leadTime,
+        supplier: part.supplier,
+        cost: part.cost,
+        lastUpdated: part.last_updated ?? part.lastUpdated,
+        // Optional Databricks fields
+        nsn: part.nsn,
+        width: part.width,
+        height: part.height,
+        weight: part.weight,
+        productionTime: part.production_time ?? part.productionTime,
+        sensors: part.sensors ? (typeof part.sensors === 'string' ? JSON.parse(part.sensors) : part.sensors) : undefined,
+        stockLocationId: part.stock_location_id ?? part.stockLocationId,
+        latitude: part.latitude,
+        longitude: part.longitude
+      };
+    });
     
     res.json({
       success: true,
