@@ -313,7 +313,7 @@ app.get('/api/databricks/ai-work-orders/:workOrderId', async (req, res) => {
     const { workOrderId } = req.params;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders WHERE wo = '${workOrderId}'`,
+      `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders WHERE work_order = '${workOrderId}'`,
       'SELECT * FROM work_orders WHERE wo = ? AND creation_source = "ai"',
       [workOrderId]
     );
@@ -335,6 +335,7 @@ app.get('/api/databricks/ai-work-orders/:workOrderId', async (req, res) => {
       })
     });
   } catch (error) {
+    console.error('Error fetching AI work order:', error);
     res.status(500).json({
       success: false,
       error: error.message,
