@@ -20,6 +20,8 @@ const db = new Database(dbPath);
 // Databricks setup
 let databricksClient = null;
 let databricksConnected = false;
+let lastDatabricksError = null;
+let databricksErrorCount = 0;
 
 // Check if Databricks credentials are available
 const hasDatabricksCredentials = () => {
@@ -116,6 +118,8 @@ async function initDatabricks() {
 
 // Execute Databricks query with SQLite fallback
 async function executeQuery(databricksQuery, sqliteQuery, params = []) {
+  let fallbackReason = null;
+  
   // Try Databricks first if connected
   if (databricksConnected && databricksClient) {
     try {
@@ -124,17 +128,45 @@ async function executeQuery(databricksQuery, sqliteQuery, params = []) {
       const result = await queryOperation.fetchAll();
       await queryOperation.close();
       await session.close();
-      return { data: result, source: 'databricks' };
+      return { data: result, source: 'databricks', fallbackReason: null };
     } catch (error) {
-      console.error('[DATABRICKS] Query failed, falling back to SQLite:', error.message);
+      // Extract meaningful error information
+      const errorMessage = error.message || String(error);
+      const errorCode = error.code || error.errorCode || 'UNKNOWN';
+      
+      // Log detailed error
+      console.error('[DATABRICKS] Query failed, falling back to SQLite:');
+      console.error('  Error Code:', errorCode);
+      console.error('  Error Message:', errorMessage);
+      console.error('  Query:', databricksQuery.substring(0, 200) + (databricksQuery.length > 200 ? '...' : ''));
+      
+      // Create user-friendly fallback reason
+      fallbackReason = {
+        code: errorCode,
+        message: errorMessage,
+        query: databricksQuery.substring(0, 100) + (databricksQuery.length > 100 ? '...' : ''),
+        timestamp: new Date().toISOString()
+      };
+      
+      // Track error for health monitoring
+      lastDatabricksError = fallbackReason;
+      databricksErrorCount++;
+      
+      // Mark connection as unhealthy (but don't disable for all queries)
       databricksConnected = false;
     }
+  } else if (!databricksConnected) {
+    fallbackReason = {
+      code: 'NOT_CONNECTED',
+      message: 'Databricks connection is not available or has been disabled due to previous errors',
+      timestamp: new Date().toISOString()
+    };
   }
 
   // Fallback to SQLite
   const stmt = db.prepare(sqliteQuery);
   const data = params.length > 0 ? stmt.all(...params) : stmt.all();
-  return { data, source: 'sqlite' };
+  return { data, source: 'sqlite', fallbackReason };
 }
 
 // Initialize Databricks on startup
@@ -168,6 +200,8 @@ app.get('/api/databricks/health', async (req, res) => {
     databricks: {
       available: databricksConnected,
       credentials: hasDatabricksCredentials(),
+      errorCount: databricksErrorCount,
+      lastError: lastDatabricksError,
     },
     fallback: 'sqlite',
   });
@@ -175,7 +209,7 @@ app.get('/api/databricks/health', async (req, res) => {
 
 app.get('/api/databricks/test', async (req, res) => {
   try {
-    const { data, source } = await executeQuery(
+    const { data, source, fallbackReason } = await executeQuery(
       'SELECT "Databricks connection successful" as message, current_timestamp() as timestamp',
       'SELECT \'SQLite fallback active\' as message, datetime(\'now\') as timestamp',
       []
@@ -186,6 +220,10 @@ app.get('/api/databricks/test', async (req, res) => {
       source,
       data,
       message: `Query executed successfully using ${source}`,
+      ...(fallbackReason && {
+        warning: 'Using SQLite fallback due to Databricks error',
+        fallbackReason
+      })
     });
   } catch (error) {
     res.status(500).json({
@@ -239,7 +277,7 @@ app.get('/api/databricks/ai-work-orders', async (req, res) => {
   try {
     const { limit = 100 } = req.query;
     
-    const { data, source } = await executeQuery(
+    const { data, source, fallbackReason } = await executeQuery(
       `SELECT * FROM public_sector.predictive_maintenance_navy.ai_work_orders LIMIT ${limit}`,
       `SELECT * FROM work_orders WHERE creation_source = 'ai' LIMIT ${limit}`,
       []
@@ -250,6 +288,10 @@ app.get('/api/databricks/ai-work-orders', async (req, res) => {
       source,
       data,
       count: data.length,
+      ...(fallbackReason && {
+        warning: 'Using SQLite fallback due to Databricks error',
+        fallbackReason
+      })
     });
   } catch (error) {
     res.status(500).json({
@@ -263,7 +305,7 @@ app.get('/api/databricks/ai-work-orders/:workOrderId', async (req, res) => {
   try {
     const { workOrderId } = req.params;
     
-    const { data, source } = await executeQuery(
+    const { data, source, fallbackReason } = await executeQuery(
       `SELECT * FROM public_sector.predictive_maintenance_navy.ai_work_orders WHERE wo = '${workOrderId}'`,
       'SELECT * FROM work_orders WHERE wo = ? AND creation_source = "ai"',
       [workOrderId]
@@ -280,6 +322,10 @@ app.get('/api/databricks/ai-work-orders/:workOrderId', async (req, res) => {
       success: true,
       source,
       data: data[0],
+      ...(fallbackReason && {
+        warning: 'Using SQLite fallback due to Databricks error',
+        fallbackReason
+      })
     });
   } catch (error) {
     res.status(500).json({
@@ -293,7 +339,7 @@ app.get('/api/databricks/ship-status', async (req, res) => {
   try {
     const { limit = 100 } = req.query;
     
-    const { data, source } = await executeQuery(
+    const { data, source, fallbackReason } = await executeQuery(
       `SELECT * FROM public_sector.predictive_maintenance_navy.ship_status LIMIT ${limit}`,
       `SELECT s.*, COUNT(wo.wo) as open_work_orders 
        FROM ships s 
@@ -307,6 +353,10 @@ app.get('/api/databricks/ship-status', async (req, res) => {
       source,
       data,
       count: data.length,
+      ...(fallbackReason && {
+        warning: 'Using SQLite fallback due to Databricks error',
+        fallbackReason
+      })
     });
   } catch (error) {
     res.status(500).json({
@@ -320,7 +370,7 @@ app.get('/api/databricks/ship-status/:turbineId', async (req, res) => {
   try {
     const { turbineId } = req.params;
     
-    const { data, source } = await executeQuery(
+    const { data, source, fallbackReason } = await executeQuery(
       `SELECT * FROM public_sector.predictive_maintenance_navy.ship_status WHERE turbine_id = '${turbineId}'`,
       'SELECT s.* FROM ships s LEFT JOIN gte_systems g ON s.id = g.ship_id WHERE g.id = ?',
       [turbineId]
@@ -337,6 +387,10 @@ app.get('/api/databricks/ship-status/:turbineId', async (req, res) => {
       success: true,
       source,
       data: data[0],
+      ...(fallbackReason && {
+        warning: 'Using SQLite fallback due to Databricks error',
+        fallbackReason
+      })
     });
   } catch (error) {
     res.status(500).json({
@@ -378,13 +432,17 @@ app.get('/api/databricks/parts-requisitions', async (req, res) => {
     sqliteQuery += ' ORDER BY created_at DESC LIMIT ?';
     params.push(parseInt(limit));
     
-    const { data, source } = await executeQuery(databricksQuery, sqliteQuery, params);
+    const { data, source, fallbackReason } = await executeQuery(databricksQuery, sqliteQuery, params);
     
     res.json({
       success: true,
       data,
       count: data.length,
-      source
+      source,
+      ...(fallbackReason && {
+        warning: 'Using SQLite fallback due to Databricks error',
+        fallbackReason
+      })
     });
   } catch (error) {
     console.error('Error fetching parts requisitions:', error);
@@ -399,7 +457,7 @@ app.get('/api/databricks/parts-requisitions/:orderNumber', async (req, res) => {
   try {
     const { orderNumber } = req.params;
     
-    const { data, source } = await executeQuery(
+    const { data, source, fallbackReason } = await executeQuery(
       `SELECT * FROM public_sector.predictive_maintenance_navy.parts_requisitions WHERE order_number = '${orderNumber}'`,
       'SELECT * FROM parts_requisitions WHERE order_number = ?',
       [orderNumber]
@@ -415,7 +473,11 @@ app.get('/api/databricks/parts-requisitions/:orderNumber', async (req, res) => {
     res.json({
       success: true,
       data,
-      source
+      source,
+      ...(fallbackReason && {
+        warning: 'Using SQLite fallback due to Databricks error',
+        fallbackReason
+      })
     });
   } catch (error) {
     console.error('Error fetching parts requisition:', error);
@@ -430,7 +492,7 @@ app.get('/api/databricks/parts-requisitions/ship/:designatorId', async (req, res
   try {
     const { designatorId } = req.params;
     
-    const { data, source } = await executeQuery(
+    const { data, source, fallbackReason } = await executeQuery(
       `SELECT * FROM public_sector.predictive_maintenance_navy.parts_requisitions WHERE designator_id = '${designatorId}'`,
       'SELECT * FROM parts_requisitions WHERE designator_id = ?',
       [designatorId]
@@ -440,7 +502,11 @@ app.get('/api/databricks/parts-requisitions/ship/:designatorId', async (req, res
       success: true,
       data,
       count: data.length,
-      source
+      source,
+      ...(fallbackReason && {
+        warning: 'Using SQLite fallback due to Databricks error',
+        fallbackReason
+      })
     });
   } catch (error) {
     console.error('Error fetching parts requisitions by ship:', error);
@@ -557,7 +623,7 @@ app.get('/api/databricks/parts', async (req, res) => {
     sqliteQuery += ' ORDER BY name ASC LIMIT ?';
     params.push(parseInt(limit));
     
-    const { data, source } = await executeQuery(databricksQuery, sqliteQuery, params);
+    const { data, source, fallbackReason } = await executeQuery(databricksQuery, sqliteQuery, params);
     
     // Transform snake_case to camelCase for frontend compatibility
     const transformedData = data.map(part => ({
@@ -588,9 +654,15 @@ app.get('/api/databricks/parts', async (req, res) => {
     
     res.json({
       success: true,
-      data: transformedData,
-      count: transformedData.length,
-      source
+      items: transformedData,
+      total: transformedData.length,
+      page: 1,
+      limit: transformedData.length,
+      source,
+      ...(fallbackReason && {
+        warning: 'Using SQLite fallback due to Databricks error',
+        fallbackReason
+      })
     });
   } catch (error) {
     console.error('Error fetching parts:', error);
