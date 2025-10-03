@@ -286,8 +286,8 @@ app.get('/api/databricks/ai-work-orders', async (req, res) => {
     
     const { data, source, fallbackReason } = await executeQuery(
       `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders LIMIT ${limit}`,
-      `SELECT * FROM work_orders WHERE creation_source = 'ai' LIMIT ${limit}`,
-      []
+      `SELECT * FROM work_orders WHERE creation_source = ? LIMIT ?`,
+      ['ai', parseInt(limit)]
     );
     
     res.json({
@@ -314,8 +314,8 @@ app.get('/api/databricks/ai-work-orders/:workOrderId', async (req, res) => {
     
     const { data, source, fallbackReason } = await executeQuery(
       `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders WHERE work_order = '${workOrderId}'`,
-      'SELECT * FROM work_orders WHERE wo = ? AND creation_source = "ai"',
-      [workOrderId]
+      `SELECT * FROM work_orders WHERE wo = ? AND creation_source = ?`,
+      [workOrderId, 'ai']
     );
     
     if (data.length === 0) {
@@ -414,24 +414,33 @@ app.get('/api/databricks/sensor-data/:turbineId', async (req, res) => {
     const { turbineId } = req.params;
     const { startTime, endTime, limit = 1000 } = req.query;
     
-    let databricksQuery = `SELECT * FROM public_sector.predictive_maintenance_navy_test.sensor_bronze WHERE turbine_id = '${turbineId}'`;
+    // Join sensor_bronze with current_status_predictions to get the prediction (abnormal sensor)
+    let databricksQuery = `
+      SELECT 
+        sb.*,
+        csp.prediction as abnormal_sensor
+      FROM public_sector.predictive_maintenance_navy_test.sensor_bronze sb
+      LEFT JOIN public_sector.predictive_maintenance_navy_test.current_status_predictions csp
+        ON sb.turbine_id = csp.turbine_id 
+        AND CAST(sb.timestamp AS BIGINT) = UNIX_TIMESTAMP(csp.hourly_timestamp)
+      WHERE sb.turbine_id = '${turbineId}'`;
     let sqliteQuery = 'SELECT * FROM sensor_data WHERE turbine_id = ?';
     const params = [turbineId];
     
     if (startTime) {
       // Convert timestamp in seconds to datetime comparison
-      databricksQuery += ` AND timestamp >= ${startTime}`;
+      databricksQuery += ` AND sb.timestamp >= ${startTime}`;
       sqliteQuery += ' AND timestamp >= ?';
       params.push(startTime);
     }
     
     if (endTime) {
-      databricksQuery += ` AND timestamp <= ${endTime}`;
+      databricksQuery += ` AND sb.timestamp <= ${endTime}`;
       sqliteQuery += ' AND timestamp <= ?';
       params.push(endTime);
     }
     
-    databricksQuery += ` ORDER BY timestamp DESC LIMIT ${limit}`;
+    databricksQuery += ` ORDER BY sb.timestamp DESC LIMIT ${limit}`;
     sqliteQuery += ' ORDER BY timestamp DESC LIMIT ?';
     params.push(parseInt(limit));
     
