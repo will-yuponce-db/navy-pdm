@@ -147,8 +147,9 @@ export const links: Route.LinksFunction = () => [
     href: "https://fonts.googleapis.com/icon?family=Material+Icons",
   },
   {
-    rel: "stylesheet",
-    href: "https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css",
+    rel: "icon",
+    href: "/favicon.ico",
+    type: "image/x-icon",
   },
 ];
 
