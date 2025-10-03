@@ -548,10 +548,37 @@ app.get('/api/databricks/parts', async (req, res) => {
     
     const { data, source } = await executeQuery(databricksQuery, sqliteQuery, params);
     
+    // Transform snake_case to camelCase for frontend compatibility
+    const transformedData = data.map(part => ({
+      id: part.id,
+      name: part.name,
+      system: part.system,
+      category: part.category,
+      stockLevel: part.stock_level ?? part.stockLevel,
+      minStock: part.min_stock ?? part.minStock,
+      maxStock: part.max_stock ?? part.maxStock,
+      location: part.location,
+      condition: part.condition,
+      leadTime: part.lead_time ?? part.leadTime,
+      supplier: part.supplier,
+      cost: part.cost,
+      lastUpdated: part.last_updated ?? part.lastUpdated,
+      // Optional Databricks fields
+      nsn: part.nsn,
+      width: part.width,
+      height: part.height,
+      weight: part.weight,
+      productionTime: part.production_time ?? part.productionTime,
+      sensors: part.sensors ? (typeof part.sensors === 'string' ? JSON.parse(part.sensors) : part.sensors) : undefined,
+      stockLocationId: part.stock_location_id ?? part.stockLocationId,
+      latitude: part.latitude,
+      longitude: part.longitude
+    }));
+    
     res.json({
       success: true,
-      data,
-      count: data.length,
+      data: transformedData,
+      count: transformedData.length,
       source
     });
   } catch (error) {
@@ -904,7 +931,34 @@ app.get('/api/parts', async (req, res) => {
     }
     
     const stmt = db.prepare(query);
-    const parts = stmt.all(...params);
+    const rawParts = stmt.all(...params);
+    
+    // Transform snake_case to camelCase for frontend compatibility
+    const parts = rawParts.map(part => ({
+      id: part.id,
+      name: part.name,
+      system: part.system,
+      category: part.category,
+      stockLevel: part.stock_level,
+      minStock: part.min_stock,
+      maxStock: part.max_stock,
+      location: part.location,
+      condition: part.condition,
+      leadTime: part.lead_time,
+      supplier: part.supplier,
+      cost: part.cost,
+      lastUpdated: part.last_updated,
+      // Optional Databricks fields
+      nsn: part.nsn,
+      width: part.width,
+      height: part.height,
+      weight: part.weight,
+      productionTime: part.production_time,
+      sensors: part.sensors ? (typeof part.sensors === 'string' ? JSON.parse(part.sensors) : part.sensors) : undefined,
+      stockLocationId: part.stock_location_id,
+      latitude: part.latitude,
+      longitude: part.longitude
+    }));
     
     // Get total count
     let countQuery = 'SELECT COUNT(*) as total FROM parts WHERE 1=1';
@@ -937,14 +991,40 @@ app.get('/api/parts/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const stmt = db.prepare('SELECT * FROM parts WHERE id = ?');
-    const part = stmt.get(id);
+    const rawPart = stmt.get(id);
     
-    if (!part) {
+    if (!rawPart) {
       return res.status(404).json({
         success: false,
         message: 'Part not found',
       });
     }
+    
+    // Transform snake_case to camelCase
+    const part = {
+      id: rawPart.id,
+      name: rawPart.name,
+      system: rawPart.system,
+      category: rawPart.category,
+      stockLevel: rawPart.stock_level,
+      minStock: rawPart.min_stock,
+      maxStock: rawPart.max_stock,
+      location: rawPart.location,
+      condition: rawPart.condition,
+      leadTime: rawPart.lead_time,
+      supplier: rawPart.supplier,
+      cost: rawPart.cost,
+      lastUpdated: rawPart.last_updated,
+      nsn: rawPart.nsn,
+      width: rawPart.width,
+      height: rawPart.height,
+      weight: rawPart.weight,
+      productionTime: rawPart.production_time,
+      sensors: rawPart.sensors ? (typeof rawPart.sensors === 'string' ? JSON.parse(rawPart.sensors) : rawPart.sensors) : undefined,
+      stockLocationId: rawPart.stock_location_id,
+      latitude: rawPart.latitude,
+      longitude: rawPart.longitude
+    };
     
     res.json(part);
   } catch (error) {
@@ -962,26 +1042,32 @@ app.post('/api/parts', async (req, res) => {
   try {
     const part = req.body;
     const stmt = db.prepare(`
-      INSERT INTO parts (id, name, category, stockLevel, minStock, maxStock, location, condition, cost, supplier, lastUpdated)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO parts (id, name, system, category, stock_level, min_stock, max_stock, location, condition, lead_time, cost, supplier, last_updated)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     const now = new Date().toISOString();
     stmt.run(
       part.id,
       part.name,
+      part.system || 'LM2500',
       part.category,
       part.stockLevel,
       part.minStock,
       part.maxStock,
       part.location,
       part.condition,
+      part.leadTime,
       part.cost,
       part.supplier,
       now
     );
     
-    res.status(201).json({ ...part, lastUpdated: now });
+    res.status(201).json({ 
+      ...part, 
+      system: part.system || 'LM2500',
+      lastUpdated: now 
+    });
   } catch (error) {
     console.error('Failed to create part:', error);
     res.status(500).json({
@@ -998,10 +1084,21 @@ app.patch('/api/parts/:id', async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
     
-    // Build dynamic UPDATE query
+    // Map camelCase to snake_case for database
+    const fieldMapping = {
+      stockLevel: 'stock_level',
+      minStock: 'min_stock',
+      maxStock: 'max_stock',
+      leadTime: 'lead_time',
+      lastUpdated: 'last_updated',
+      productionTime: 'production_time',
+      stockLocationId: 'stock_location_id'
+    };
+    
+    // Build dynamic UPDATE query with proper field names
     const fields = Object.keys(updates)
       .filter(key => key !== 'id') // Don't allow updating the ID
-      .map(key => `${key} = ?`)
+      .map(key => `${fieldMapping[key] || key} = ?`)
       .join(', ');
     
     if (!fields) {
@@ -1017,7 +1114,7 @@ app.patch('/api/parts/:id', async (req, res) => {
     
     const stmt = db.prepare(`
       UPDATE parts 
-      SET ${fields}, lastUpdated = ?
+      SET ${fields}, last_updated = ?
       WHERE id = ?
     `);
     
@@ -1033,7 +1130,33 @@ app.patch('/api/parts/:id', async (req, res) => {
     
     // Fetch updated part
     const selectStmt = db.prepare('SELECT * FROM parts WHERE id = ?');
-    const part = selectStmt.get(id);
+    const rawPart = selectStmt.get(id);
+    
+    // Transform to camelCase
+    const part = {
+      id: rawPart.id,
+      name: rawPart.name,
+      system: rawPart.system,
+      category: rawPart.category,
+      stockLevel: rawPart.stock_level,
+      minStock: rawPart.min_stock,
+      maxStock: rawPart.max_stock,
+      location: rawPart.location,
+      condition: rawPart.condition,
+      leadTime: rawPart.lead_time,
+      supplier: rawPart.supplier,
+      cost: rawPart.cost,
+      lastUpdated: rawPart.last_updated,
+      nsn: rawPart.nsn,
+      width: rawPart.width,
+      height: rawPart.height,
+      weight: rawPart.weight,
+      productionTime: rawPart.production_time,
+      sensors: rawPart.sensors ? (typeof rawPart.sensors === 'string' ? JSON.parse(rawPart.sensors) : rawPart.sensors) : undefined,
+      stockLocationId: rawPart.stock_location_id,
+      latitude: rawPart.latitude,
+      longitude: rawPart.longitude
+    };
     
     res.json(part);
   } catch (error) {
@@ -1060,7 +1183,7 @@ app.patch('/api/parts/:id/stock', async (req, res) => {
     }
     
     // Get current stock level
-    const selectStmt = db.prepare('SELECT stockLevel FROM parts WHERE id = ?');
+    const selectStmt = db.prepare('SELECT stock_level FROM parts WHERE id = ?');
     const part = selectStmt.get(id);
     
     if (!part) {
@@ -1071,7 +1194,7 @@ app.patch('/api/parts/:id/stock', async (req, res) => {
     }
     
     // Calculate new stock level
-    const currentStock = part.stockLevel;
+    const currentStock = part.stock_level;
     const newStock = operation === 'add' 
       ? currentStock + quantity 
       : currentStock - quantity;
@@ -1079,15 +1202,40 @@ app.patch('/api/parts/:id/stock', async (req, res) => {
     // Update stock level
     const updateStmt = db.prepare(`
       UPDATE parts 
-      SET stockLevel = ?, lastUpdated = ?
+      SET stock_level = ?, last_updated = ?
       WHERE id = ?
     `);
     
     const now = new Date().toISOString();
     updateStmt.run(newStock, now, id);
     
-    // Fetch updated part
-    const updatedPart = db.prepare('SELECT * FROM parts WHERE id = ?').get(id);
+    // Fetch updated part and transform
+    const rawPart = db.prepare('SELECT * FROM parts WHERE id = ?').get(id);
+    
+    const updatedPart = {
+      id: rawPart.id,
+      name: rawPart.name,
+      system: rawPart.system,
+      category: rawPart.category,
+      stockLevel: rawPart.stock_level,
+      minStock: rawPart.min_stock,
+      maxStock: rawPart.max_stock,
+      location: rawPart.location,
+      condition: rawPart.condition,
+      leadTime: rawPart.lead_time,
+      supplier: rawPart.supplier,
+      cost: rawPart.cost,
+      lastUpdated: rawPart.last_updated,
+      nsn: rawPart.nsn,
+      width: rawPart.width,
+      height: rawPart.height,
+      weight: rawPart.weight,
+      productionTime: rawPart.production_time,
+      sensors: rawPart.sensors ? (typeof rawPart.sensors === 'string' ? JSON.parse(rawPart.sensors) : rawPart.sensors) : undefined,
+      stockLocationId: rawPart.stock_location_id,
+      latitude: rawPart.latitude,
+      longitude: rawPart.longitude
+    };
     
     res.json(updatedPart);
   } catch (error) {
