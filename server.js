@@ -407,6 +407,56 @@ app.get('/api/databricks/ship-status/:turbineId', async (req, res) => {
   }
 });
 
+// Get sensor data by turbine ID with time range filter
+app.get('/api/databricks/sensor-data/:turbineId', async (req, res) => {
+  try {
+    const { turbineId } = req.params;
+    const { startTime, endTime, limit = 1000 } = req.query;
+    
+    let databricksQuery = `SELECT * FROM public_sector.predictive_maintenance_navy_test.sensor_bronze WHERE turbine_id = '${turbineId}'`;
+    let sqliteQuery = 'SELECT * FROM sensor_data WHERE turbine_id = ?';
+    const params = [turbineId];
+    
+    if (startTime) {
+      // Convert timestamp in seconds to datetime comparison
+      databricksQuery += ` AND timestamp >= ${startTime}`;
+      sqliteQuery += ' AND timestamp >= ?';
+      params.push(startTime);
+    }
+    
+    if (endTime) {
+      databricksQuery += ` AND timestamp <= ${endTime}`;
+      sqliteQuery += ' AND timestamp <= ?';
+      params.push(endTime);
+    }
+    
+    databricksQuery += ` ORDER BY timestamp DESC LIMIT ${limit}`;
+    sqliteQuery += ' ORDER BY timestamp DESC LIMIT ?';
+    params.push(parseInt(limit));
+    
+    const { data, source, fallbackReason } = await executeQuery(databricksQuery, sqliteQuery, params);
+    
+    res.json({
+      success: true,
+      data,
+      count: data.length,
+      turbineId,
+      timeRange: { startTime, endTime },
+      source,
+      ...(fallbackReason && {
+        warning: 'Using SQLite fallback due to Databricks error',
+        fallbackReason
+      })
+    });
+  } catch (error) {
+    console.error('Error fetching sensor data:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 // Get parts requisitions (with Databricks and SQLite fallback)
 app.get('/api/databricks/parts-requisitions', async (req, res) => {
   try {

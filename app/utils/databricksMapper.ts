@@ -6,6 +6,10 @@ import type {
   PartCondition,
   ShipCurrentStatus,
   DatabricksShipStatus,
+  SensorData,
+  SensorType,
+  SensorStatus,
+  DatabricksSensorData,
 } from "../types";
 
 /**
@@ -797,5 +801,173 @@ export function getDatabricksPartsRequisitionStats(
     byStockLocation: Object.fromEntries(byStockLocation),
     byShip: Object.fromEntries(byShip),
     quantityByType: Object.fromEntries(quantityByType),
+  };
+}
+
+/**
+ * ========================================
+ * SENSOR DATA MAPPING FUNCTIONS
+ * ========================================
+ */
+
+/**
+ * Determine sensor status based on abnormal_sensor flag and sensor name
+ */
+function determineSensorStatus(
+  abnormalSensor: string,
+  sensorName: string,
+): SensorStatus {
+  if (abnormalSensor === sensorName) {
+    return "critical";
+  }
+  return "normal";
+}
+
+/**
+ * Map sensor name to sensor type (for LM2500 turbine sensors)
+ */
+function mapSensorNameToType(sensorName: string): SensorType {
+  // Based on LM2500 turbine sensor naming conventions
+  const typeMap: Record<string, SensorType> = {
+    sensor_A: "temperature",
+    sensor_B: "pressure",
+    sensor_C: "vibration",
+    sensor_D: "temperature",
+    sensor_E: "pressure",
+    sensor_F: "vibration",
+    energy: "voltage", // Energy output measurement
+  };
+
+  return typeMap[sensorName] || "temperature";
+}
+
+/**
+ * Get sensor unit based on type
+ */
+function getSensorUnit(sensorType: SensorType): string {
+  const unitMap: Record<SensorType, string> = {
+    temperature: "°C",
+    pressure: "PSI",
+    vibration: "g",
+    rpm: "RPM",
+    oil_level: "%",
+    fuel_flow: "gal/hr",
+    voltage: "V",
+    current: "A",
+  };
+
+  return unitMap[sensorType] || "units";
+}
+
+/**
+ * Map a single Databricks sensor record to an array of SensorData records
+ * (one per sensor: A, B, C, D, E, F, plus energy)
+ */
+export function mapDatabricksSensorDataToSensorDataArray(
+  databricksSensor: DatabricksSensorData,
+): SensorData[] {
+  const timestamp = new Date(databricksSensor.timestamp * 1000); // Convert Unix timestamp to Date
+  const turbineId = databricksSensor.turbine_id;
+  const abnormalSensor = databricksSensor.abnormal_sensor;
+
+  // Create a sensor data record for each sensor
+  const sensors = [
+    { name: "sensor_A", value: databricksSensor.sensor_A },
+    { name: "sensor_B", value: databricksSensor.sensor_B },
+    { name: "sensor_C", value: databricksSensor.sensor_C },
+    { name: "sensor_D", value: databricksSensor.sensor_D },
+    { name: "sensor_E", value: databricksSensor.sensor_E },
+    { name: "sensor_F", value: databricksSensor.sensor_F },
+    { name: "energy", value: databricksSensor.energy },
+  ];
+
+  return sensors.map((sensor) => {
+    const sensorType = mapSensorNameToType(sensor.name);
+    const status = determineSensorStatus(abnormalSensor, sensor.name);
+    const unit = getSensorUnit(sensorType);
+
+    return {
+      id: `${turbineId}-${sensor.name}-${databricksSensor.timestamp}`,
+      sensorId: `${turbineId}-${sensor.name}`,
+      sensorName: sensor.name,
+      sensorType: sensorType,
+      value: sensor.value,
+      unit: unit,
+      timestamp: timestamp,
+      status: status,
+      location: turbineId,
+      systemId: turbineId,
+    };
+  });
+}
+
+/**
+ * Map an array of Databricks sensor records to a flattened array of SensorData records
+ */
+export function mapDatabricksSensorDataArrayToSensorDataArray(
+  databricksSensors: DatabricksSensorData[],
+): SensorData[] {
+  return databricksSensors.flatMap(mapDatabricksSensorDataToSensorDataArray);
+}
+
+/**
+ * Group sensor data by sensor name for time-series analysis
+ */
+export function groupSensorDataBySensorName(
+  sensorData: SensorData[],
+): Record<string, SensorData[]> {
+  const grouped: Record<string, SensorData[]> = {};
+
+  sensorData.forEach((data) => {
+    if (!grouped[data.sensorName]) {
+      grouped[data.sensorName] = [];
+    }
+    grouped[data.sensorName].push(data);
+  });
+
+  // Sort each group by timestamp
+  Object.keys(grouped).forEach((sensorName) => {
+    grouped[sensorName].sort(
+      (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+    );
+  });
+
+  return grouped;
+}
+
+/**
+ * Get summary statistics from sensor data
+ */
+export function getSensorDataStats(sensorData: SensorData[]) {
+  if (sensorData.length === 0) {
+    return {
+      total: 0,
+      bySensor: {},
+      byStatus: {},
+      timeRange: null,
+    };
+  }
+
+  const bySensor = new Map<string, number>();
+  const byStatus = new Map<SensorStatus, number>();
+
+  sensorData.forEach((data) => {
+    bySensor.set(data.sensorName, (bySensor.get(data.sensorName) || 0) + 1);
+    byStatus.set(data.status, (byStatus.get(data.status) || 0) + 1);
+  });
+
+  const timestamps = sensorData.map((d) => d.timestamp.getTime());
+  const minTime = Math.min(...timestamps);
+  const maxTime = Math.max(...timestamps);
+
+  return {
+    total: sensorData.length,
+    bySensor: Object.fromEntries(bySensor),
+    byStatus: Object.fromEntries(byStatus),
+    timeRange: {
+      start: new Date(minTime),
+      end: new Date(maxTime),
+      durationMs: maxTime - minTime,
+    },
   };
 }

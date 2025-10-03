@@ -180,6 +180,13 @@ export interface WorkOrderModalProps {
   handleModalClose: () => void;
 }
 
+export interface SensorAnalyzerProps {
+  workOrderId: string | null;
+  systemId?: string;
+  sensorId?: string;
+  onClose?: () => void;
+}
+
 export interface EnhancedTableToolbarProps {
   selected?: string[];
   handleDeselect?: () => void;
@@ -345,6 +352,21 @@ export interface DatabricksShipStatus {
   maintenance_type?: string;
   operable: boolean;
   ttr?: number;
+}
+
+// Databricks raw sensor data (snake_case from sensor_bronze table)
+export interface DatabricksSensorData {
+  timestamp: number;
+  sensor_F: number;
+  sensor_B: number;
+  sensor_C: number;
+  sensor_E: number;
+  sensor_D: number;
+  sensor_A: number;
+  energy: number;
+  turbine_id: string;
+  abnormal_sensor: string;
+  _rescued_data: string | null;
 }
 
 // Asset Types

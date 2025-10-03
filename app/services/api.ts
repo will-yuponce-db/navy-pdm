@@ -406,6 +406,40 @@ export const databricksApi = {
     );
   },
 
+  getSensorData: async (
+    turbineId: string,
+    params?: {
+      startTime?: number;
+      endTime?: number;
+      limit?: number;
+    },
+  ): Promise<{
+    success: boolean;
+    data: unknown[];
+    count: number;
+    turbineId: string;
+    timeRange: { startTime?: number; endTime?: number };
+    source: string;
+    warning?: string;
+    fallbackReason?: string;
+  }> => {
+    const queryParams = new URLSearchParams();
+    if (params?.startTime) {
+      queryParams.append("startTime", String(params.startTime));
+    }
+    if (params?.endTime) {
+      queryParams.append("endTime", String(params.endTime));
+    }
+    if (params?.limit) {
+      queryParams.append("limit", String(params.limit));
+    }
+
+    const queryString = queryParams.toString();
+    return apiRequest(
+      `/databricks/sensor-data/${encodeURIComponent(turbineId)}${queryString ? `?${queryString}` : ""}`,
+    );
+  },
+
   getShipStatus: async (params?: {
     limit?: number;
     offset?: number;

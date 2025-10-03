@@ -47,10 +47,16 @@ import type {
   SensorSystem,
   SensorAnalytics,
   SensorStatus,
+  WorkOrder,
+  DatabricksSensorData,
 } from "../types";
-import { sensorDataService } from "../services/sensorData";
+import { databricksApi } from "../services/api";
 import { createAIWorkOrder } from "../utils/aiWorkOrderGenerator";
 import { useAppDispatch } from "../redux/hooks";
+import {
+  mapDatabricksSensorDataArrayToSensorDataArray,
+  groupSensorDataBySensorName,
+} from "../utils/databricksMapper";
 
 // Register Chart.js components
 ChartJS.register(
@@ -75,51 +81,101 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
   const [systems, setSystems] = useState<SensorSystem[]>([]);
   const [selectedSystem, setSelectedSystem] = useState<string>(systemId || "");
   const [selectedSensor, setSelectedSensor] = useState<string>(sensorId || "");
-  const [timeRange, setTimeRange] = useState<string>("7d");
+  const [timeRange, setTimeRange] = useState<string>("24h");
   const [analytics, setAnalytics] = useState<SensorAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [workOrderInfo, setWorkOrderInfo] = useState<Record<
-    string,
-    unknown
-  > | null>(null);
+  const [workOrderInfo, setWorkOrderInfo] = useState<WorkOrder | null>(null);
+  const [dataSource, setDataSource] = useState<string>("Unknown");
 
   // Load initial data
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
+        setError(null);
 
         // Load work order information if workOrderId is provided
         if (workOrderId) {
-          // In a real app, this would fetch from the API
-          // For now, we'll simulate work order data
-          const mockWorkOrder = {
-            wo: workOrderId,
-            ship: "USS Example",
-            gte: "LM2500",
-            fm: "High Vibration",
-            priority: "Urgent",
-            status: "In Progress",
-            symptoms: "Excessive vibration detected in main engine",
-            recommendedAction: "Inspect and replace vibration dampeners",
-          };
-          setWorkOrderInfo(mockWorkOrder);
-        }
+          try {
+            // Try to fetch from Databricks first
+            const aiWorkOrderResponse = await databricksApi.getAIWorkOrderById(
+              workOrderId,
+            );
 
-        const systemsData = sensorDataService.getSystems();
-        setSystems(systemsData);
+            if (aiWorkOrderResponse.success && aiWorkOrderResponse.data) {
+              // Map the Databricks work order to the WorkOrder type
+              const databricksWO = aiWorkOrderResponse.data as any;
+              const workOrder: WorkOrder = {
+                wo: databricksWO.work_order || workOrderId,
+                shipId: String(databricksWO.designator_id || ""),
+                gteSystemId: databricksWO.turbine_id,
+                fm: `${databricksWO.prediction || "Unknown"} - ${databricksWO.maintenance_type || ""}`,
+                priority: databricksWO.priority || "Routine",
+                status: "Pending approval",
+                eta: databricksWO.ttr || 0,
+                symptoms: `AI detected ${databricksWO.prediction || "anomaly"} requiring ${databricksWO.maintenance_type || "maintenance"}. ${databricksWO.operable ? "Currently Operable" : "Currently Non-Operable"}. Average energy output: ${databricksWO.avg_energy?.toFixed(4) || "N/A"}.`,
+                recommendedAction: databricksWO.maintenance_type || "Inspect system",
+                partsRequired: databricksWO.parts_required,
+                slaCategory: databricksWO.maintenance_type,
+                creationSource: "ai",
+                createdAt: new Date(databricksWO.hourly_timestamp),
+                ship: {
+                  id: String(databricksWO.designator_id || ""),
+                  name: databricksWO.designator || "Unknown Ship",
+                  designation: databricksWO.designator?.match(/\(([^)]+)\)/)?.[1] || "",
+                  class: "DDG",
+                  homeport: databricksWO.home_location || "Unknown",
+                  status: databricksWO.operable ? "Active" : "Maintenance",
+                },
+              };
+              setWorkOrderInfo(workOrder);
 
-        if (systemId) {
-          const systemSensors = sensorDataService.getSensorData(systemId);
-          setSensorData(systemSensors);
-          setSelectedSystem(systemId);
-        } else if (systemsData.length > 0) {
-          setSelectedSystem(systemsData[0].id);
-          const initialSensors = sensorDataService.getSensorData(
-            systemsData[0].id,
-          );
-          setSensorData(initialSensors);
+              // Fetch sensor data for the turbine
+              if (databricksWO.turbine_id) {
+                const turbineId = databricksWO.turbine_id;
+                setSelectedSystem(turbineId);
+
+                // Calculate time range: 1 day back from work order creation
+                const workOrderTime = new Date(databricksWO.hourly_timestamp).getTime() / 1000;
+                const oneDayInSeconds = 24 * 60 * 60;
+                const startTime = Math.floor(workOrderTime - oneDayInSeconds);
+                const endTime = Math.floor(workOrderTime);
+
+                const sensorResponse = await databricksApi.getSensorData(
+                  turbineId,
+                  {
+                    startTime,
+                    endTime,
+                    limit: 1000,
+                  },
+                );
+
+                if (sensorResponse.success && sensorResponse.data) {
+                  // Map Databricks sensor data to SensorData array
+                  const mappedSensorData = mapDatabricksSensorDataArrayToSensorDataArray(
+                    sensorResponse.data as DatabricksSensorData[],
+                  );
+                  setSensorData(mappedSensorData);
+                  setDataSource(sensorResponse.source || "Unknown");
+
+                  // Set initial selected sensor if not already set
+                  if (!selectedSensor && mappedSensorData.length > 0) {
+                    // Find the abnormal sensor if available
+                    const abnormalSensor = mappedSensorData.find(
+                      (s) => s.status === "critical",
+                    );
+                    setSelectedSensor(
+                      abnormalSensor?.sensorId || mappedSensorData[0].sensorId,
+                    );
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Error fetching AI work order:", err);
+            setError(`Failed to load work order: ${err instanceof Error ? err.message : "Unknown error"}`);
+          }
         }
       } catch (err) {
         setError("Failed to load sensor data");
@@ -130,53 +186,90 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
     };
 
     loadData();
-  }, [systemId, workOrderId]);
+  }, [workOrderId]);
 
-  // Update sensor data when system changes
+  // Calculate analytics when sensor or sensor data changes
   useEffect(() => {
-    if (selectedSystem) {
-      const systemSensors = sensorDataService.getSensorData(selectedSystem);
-      setSensorData(systemSensors);
-      if (systemSensors.length > 0 && !selectedSensor) {
-        setSelectedSensor(systemSensors[0].sensorId);
-      }
-    }
-  }, [selectedSystem, selectedSensor]);
-
-  // Load analytics when sensor changes
-  useEffect(() => {
-    if (selectedSensor) {
+    if (selectedSensor && sensorData.length > 0) {
       try {
-        const sensorAnalytics = sensorDataService.getSensorAnalytics(
-          selectedSensor,
-          timeRange,
+        const sensorReadings = sensorData.filter(
+          (s) => s.sensorId === selectedSensor,
         );
-        setAnalytics(sensorAnalytics);
+        if (sensorReadings.length > 0) {
+          const values = sensorReadings.map((s) => s.value);
+          const avgValue = values.reduce((a, b) => a + b, 0) / values.length;
+          const minValue = Math.min(...values);
+          const maxValue = Math.max(...values);
+
+          // Calculate trend (simple linear regression slope)
+          let trend = "stable";
+          if (values.length > 2) {
+            const firstHalf = values.slice(0, Math.floor(values.length / 2));
+            const secondHalf = values.slice(Math.floor(values.length / 2));
+            const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+            const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+            const changePercent = ((secondAvg - firstAvg) / firstAvg) * 100;
+            if (changePercent > 5) trend = "increasing";
+            else if (changePercent < -5) trend = "decreasing";
+          }
+
+          // Count anomalies (critical status)
+          const anomalies = sensorReadings.filter((s) => s.status === "critical" || s.status === "warning").length;
+
+          // Calculate efficiency (inverse of anomaly rate)
+          const efficiency = Math.round((1 - anomalies / sensorReadings.length) * 100);
+
+          setAnalytics({
+            sensorId: selectedSensor,
+            timeRange: timeRange,
+            averageValue: parseFloat(avgValue.toFixed(2)),
+            minValue: parseFloat(minValue.toFixed(2)),
+            maxValue: parseFloat(maxValue.toFixed(2)),
+            trend: trend,
+            anomalies: anomalies,
+            efficiency: efficiency,
+          });
+        }
       } catch (err) {
-        console.error("Error loading analytics:", err);
+        console.error("Error calculating analytics:", err);
       }
     }
-  }, [selectedSensor, timeRange]);
+  }, [selectedSensor, sensorData, timeRange]);
 
-  // Start real-time updates
-  useEffect(() => {
-    const handleRealTimeUpdate = (updatedData: SensorData[]) => {
-      setSensorData(updatedData);
-    };
+  const handleRefresh = useCallback(async () => {
+    if (workOrderInfo && workOrderInfo.gteSystemId) {
+      try {
+        setLoading(true);
+        const turbineId = workOrderInfo.gteSystemId;
 
-    sensorDataService.startRealTimeUpdates(handleRealTimeUpdate, 5000);
+        // Calculate time range: 1 day back from work order creation
+        const workOrderTime = workOrderInfo.createdAt
+          ? new Date(workOrderInfo.createdAt).getTime() / 1000
+          : Date.now() / 1000;
+        const oneDayInSeconds = 24 * 60 * 60;
+        const startTime = Math.floor(workOrderTime - oneDayInSeconds);
+        const endTime = Math.floor(workOrderTime);
 
-    return () => {
-      sensorDataService.stopRealTimeUpdates();
-    };
-  }, []);
+        const sensorResponse = await databricksApi.getSensorData(turbineId, {
+          startTime,
+          endTime,
+          limit: 1000,
+        });
 
-  const handleRefresh = useCallback(() => {
-    if (selectedSystem) {
-      const systemSensors = sensorDataService.getSensorData(selectedSystem);
-      setSensorData(systemSensors);
+        if (sensorResponse.success && sensorResponse.data) {
+          const mappedSensorData = mapDatabricksSensorDataArrayToSensorDataArray(
+            sensorResponse.data as DatabricksSensorData[],
+          );
+          setSensorData(mappedSensorData);
+          setDataSource(sensorResponse.source || "Unknown");
+        }
+      } catch (err) {
+        console.error("Error refreshing sensor data:", err);
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [selectedSystem]);
+  }, [workOrderInfo]);
 
   const handleCreateAIWorkOrder = useCallback(async () => {
     try {
@@ -221,7 +314,7 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
       case "maintenance":
         return <BuildIcon />;
       default:
-        return null;
+        return undefined;
     }
   };
 
@@ -240,40 +333,42 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
 
   // Generate chart data for selected sensor
   const chartData = useMemo(() => {
-    if (!selectedSensor) return null;
+    if (!selectedSensor || sensorData.length === 0) return null;
 
-    const historicalData = sensorDataService.getHistoricalData(
-      selectedSensor,
-      24,
-    );
-    const sensor = sensorData.find((s) => s.sensorId === selectedSensor);
+    // Get all readings for the selected sensor
+    const sensorReadings = sensorData
+      .filter((s) => s.sensorId === selectedSensor)
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 
-    if (!sensor || historicalData.length === 0) return null;
+    if (sensorReadings.length === 0) return null;
+
+    const firstSensor = sensorReadings[0];
+    const hasCritical = sensorReadings.some((s) => s.status === "critical");
+    const hasWarning = sensorReadings.some((s) => s.status === "warning");
 
     return {
-      labels: historicalData.map((_, index) => {
-        const date = new Date(Date.now() - (23 - index) * 60 * 60 * 1000);
-        return date.toLocaleTimeString("en-US", {
+      labels: sensorReadings.map((reading) => {
+        return reading.timestamp.toLocaleTimeString("en-US", {
+          month: "short",
+          day: "numeric",
           hour: "2-digit",
           minute: "2-digit",
         });
       }),
       datasets: [
         {
-          label: `${sensor.sensorName} (${sensor.unit})`,
-          data: historicalData.map((d) => d.value),
-          borderColor:
-            sensor.status === "critical"
-              ? "#f44336"
-              : sensor.status === "warning"
-                ? "#ff9800"
-                : "#4caf50",
-          backgroundColor:
-            sensor.status === "critical"
-              ? "rgba(244, 67, 54, 0.1)"
-              : sensor.status === "warning"
-                ? "rgba(255, 152, 0, 0.1)"
-                : "rgba(76, 175, 80, 0.1)",
+          label: `${firstSensor.sensorName} (${firstSensor.unit})`,
+          data: sensorReadings.map((d) => d.value),
+          borderColor: hasCritical
+            ? "#f44336"
+            : hasWarning
+              ? "#ff9800"
+              : "#4caf50",
+          backgroundColor: hasCritical
+            ? "rgba(244, 67, 54, 0.1)"
+            : hasWarning
+              ? "rgba(255, 152, 0, 0.1)"
+              : "rgba(76, 175, 80, 0.1)",
           fill: true,
           tension: 0.4,
         },
@@ -290,7 +385,7 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
       },
       title: {
         display: true,
-        text: "Sensor Data Over Time (24 Hours)",
+        text: "Sensor Data Timeline (24 Hours Prior to Work Order)",
       },
     },
     scales: {
@@ -348,9 +443,14 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
             Work Order Evidence Package
           </Typography>
           {workOrderInfo && (
-            <Typography variant="h6" color="primary" sx={{ mt: 1 }}>
-              Work Order #{workOrderInfo.wo} - {workOrderInfo.ship}
-            </Typography>
+            <>
+              <Typography variant="h6" color="primary" sx={{ mt: 1 }}>
+                Work Order #{workOrderInfo.wo} - {workOrderInfo.ship?.name || "Unknown Ship"}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Data Source: {dataSource}
+              </Typography>
+            </>
           )}
         </Box>
         <Box sx={{ display: "flex", gap: 1 }}>
@@ -398,7 +498,7 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                 System
               </Typography>
               <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                {workOrderInfo.gte}
+                {workOrderInfo.gteSystemId || "N/A"}
               </Typography>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
@@ -437,20 +537,36 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                 size="small"
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <Typography variant="body2" color="text.secondary">
                 Symptoms
               </Typography>
               <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                {workOrderInfo.symptoms}
+                {workOrderInfo.symptoms || "N/A"}
               </Typography>
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <Typography variant="body2" color="text.secondary">
                 Recommended Action
               </Typography>
               <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                {workOrderInfo.recommendedAction}
+                {workOrderInfo.recommendedAction || "N/A"}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                Ship
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                {workOrderInfo.ship?.name || "Unknown"} - {workOrderInfo.ship?.homeport || "Unknown"}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Typography variant="body2" color="text.secondary">
+                ETA (Days)
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                {workOrderInfo.eta || "N/A"}
               </Typography>
             </Grid>
           </Grid>
@@ -469,17 +585,15 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={4}>
             <FormControl fullWidth>
-              <InputLabel>System</InputLabel>
+              <InputLabel>Turbine ID</InputLabel>
               <Select
                 value={selectedSystem}
-                label="System"
-                onChange={(e) => setSelectedSystem(e.target.value)}
+                label="Turbine ID"
+                disabled
               >
-                {systems.map((system) => (
-                  <MenuItem key={system.id} value={system.id}>
-                    {system.name} - {system.location}
-                  </MenuItem>
-                ))}
+                <MenuItem value={selectedSystem}>
+                  {selectedSystem || "N/A"}
+                </MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -491,11 +605,15 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                 label="Sensor"
                 onChange={(e) => setSelectedSensor(e.target.value)}
               >
-                {sensorData.map((sensor) => (
-                  <MenuItem key={sensor.sensorId} value={sensor.sensorId}>
-                    {sensor.sensorName}
-                  </MenuItem>
-                ))}
+                {Array.from(new Set(sensorData.map((sensor) => sensor.sensorId)))
+                  .map((sensorId) => {
+                    const sensor = sensorData.find((s) => s.sensorId === sensorId);
+                    return sensor ? (
+                      <MenuItem key={sensorId} value={sensorId}>
+                        {sensor.sensorName} ({sensor.sensorType})
+                      </MenuItem>
+                    ) : null;
+                  })}
               </Select>
             </FormControl>
           </Grid>
@@ -507,118 +625,92 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                 label="Analysis Period"
                 onChange={(e) => setTimeRange(e.target.value)}
               >
-                <MenuItem value="24h">Last 24 Hours</MenuItem>
-                <MenuItem value="7d">Last 7 Days</MenuItem>
-                <MenuItem value="30d">Last 30 Days</MenuItem>
-                <MenuItem value="90d">Last 90 Days</MenuItem>
+                <MenuItem value="24h">24 Hours (from WO trigger)</MenuItem>
               </Select>
             </FormControl>
           </Grid>
         </Grid>
       </Paper>
 
-      {/* System Overview */}
-      {selectedSystem && (
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography
-            variant="h6"
-            gutterBottom
-            sx={{ color: "primary.main", fontWeight: 600 }}
-          >
-            System Overview - Evidence Context
-          </Typography>
-          <Grid container spacing={2}>
-            {systems
-              .filter((system) => system.id === selectedSystem)
-              .map((system) => (
-                <Grid item xs={12} key={system.id}>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Box>
-                      <Typography variant="h6">{system.name}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {system.type} - {system.location}
-                      </Typography>
-                    </Box>
-                    <Chip
-                      label={system.status.toUpperCase()}
-                      color={
-                        system.status === "operational"
-                          ? "success"
-                          : system.status === "degraded"
-                            ? "warning"
-                            : "error"
-                      }
-                      variant="outlined"
-                    />
-                  </Box>
-                </Grid>
-              ))}
-          </Grid>
-        </Paper>
-      )}
-
       {/* Sensor Grid */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        {sensorData.map((sensor) => (
-          <Grid item xs={12} sm={6} md={4} key={sensor.sensorId}>
-            <Card
-              sx={{
-                cursor: "pointer",
-                border: selectedSensor === sensor.sensorId ? 2 : 1,
-                borderColor:
-                  selectedSensor === sensor.sensorId
-                    ? "primary.main"
-                    : "divider",
-                "&:hover": { boxShadow: 4 },
-              }}
-              onClick={() => setSelectedSensor(sensor.sensorId)}
-            >
-              <CardContent>
-                <Box
+        {Array.from(new Set(sensorData.map((s) => s.sensorId)))
+          .map((sensorId) => {
+            // Get the latest reading for this sensor
+            const sensorReadings = sensorData
+              .filter((s) => s.sensorId === sensorId)
+              .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+            const latestSensor = sensorReadings[0];
+
+            if (!latestSensor) return null;
+
+            // Count critical and warning readings
+            const criticalCount = sensorReadings.filter((s) => s.status === "critical").length;
+            const warningCount = sensorReadings.filter((s) => s.status === "warning").length;
+            const overallStatus = criticalCount > 0 ? "critical" : warningCount > 0 ? "warning" : "normal";
+
+            return (
+              <Grid item xs={12} sm={6} md={4} key={sensorId}>
+                <Card
                   sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    mb: 1,
+                    cursor: "pointer",
+                    border: selectedSensor === sensorId ? 2 : 1,
+                    borderColor:
+                      selectedSensor === sensorId
+                        ? "primary.main"
+                        : "divider",
+                    "&:hover": { boxShadow: 4 },
                   }}
+                  onClick={() => setSelectedSensor(sensorId)}
                 >
-                  <Typography
-                    variant="h6"
-                    component="div"
-                    sx={{ fontSize: "1rem" }}
-                  >
-                    {sensor.sensorName}
-                  </Typography>
-                  <Chip
-                    icon={getStatusIcon(sensor.status)}
-                    label={sensor.status}
-                    color={getStatusColor(sensor.status)}
-                    size="small"
-                  />
-                </Box>
-                <Typography
-                  variant="h4"
-                  component="div"
-                  sx={{ fontWeight: 700, mb: 1 }}
-                >
-                  {sensor.value} {sensor.unit}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {sensor.sensorId} • {sensor.location}
-                </Typography>
-                <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                  Last updated: {sensor.timestamp.toLocaleTimeString()}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+                  <CardContent>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        mb: 1,
+                      }}
+                    >
+                      <Typography
+                        variant="h6"
+                        component="div"
+                        sx={{ fontSize: "1rem" }}
+                      >
+                        {latestSensor.sensorName}
+                      </Typography>
+                      <Chip
+                        icon={getStatusIcon(overallStatus)}
+                        label={overallStatus}
+                        color={getStatusColor(overallStatus)}
+                        size="small"
+                      />
+                    </Box>
+                    <Typography
+                      variant="h4"
+                      component="div"
+                      sx={{ fontWeight: 700, mb: 1 }}
+                    >
+                      {latestSensor.value.toFixed(2)} {latestSensor.unit}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {latestSensor.sensorType} • {sensorReadings.length} readings
+                    </Typography>
+                    {(criticalCount > 0 || warningCount > 0) && (
+                      <Typography variant="caption" display="block" sx={{ mt: 1, color: "error.main" }}>
+                        {criticalCount > 0 && `${criticalCount} critical`}
+                        {criticalCount > 0 && warningCount > 0 && ", "}
+                        {warningCount > 0 && `${warningCount} warning`}
+                      </Typography>
+                    )}
+                    <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                      Latest: {latestSensor.timestamp.toLocaleString()}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
       </Grid>
 
       {/* Analytics and Chart */}

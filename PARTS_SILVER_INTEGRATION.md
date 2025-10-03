@@ -156,3 +156,4 @@ To test the integration:
 - Inventory levels and provisioning times are tracked per location
 - The table includes geographic data for map-based visualizations
 
+
