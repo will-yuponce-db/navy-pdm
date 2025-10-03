@@ -338,12 +338,14 @@ export default function Assets() {
           bValue = b.name;
       }
 
-      if (typeof aValue === "string") {
+      if (typeof aValue === "string" && typeof bValue === "string") {
         return filters.sortOrder === "asc"
           ? aValue.localeCompare(bValue)
           : bValue.localeCompare(aValue);
       } else {
-        return filters.sortOrder === "asc" ? aValue - bValue : bValue - aValue;
+        return filters.sortOrder === "asc"
+          ? (aValue as number) - (bValue as number)
+          : (bValue as number) - (aValue as number);
       }
     });
 
@@ -464,14 +466,11 @@ export default function Assets() {
     // Show success notification
     dispatch(
       addNotification({
-        id: Date.now().toString(),
         type: "success",
         title: "Export Complete",
         message: `Successfully exported ${dataToExport.length} assets to CSV.`,
-        timestamp: new Date().toISOString(),
         priority: "medium",
         category: "update",
-        read: false,
       }),
     );
   }, [selectedAssets, assets, filteredAndSortedAssets, dispatch]);
@@ -686,14 +685,11 @@ export default function Assets() {
       // Show success notification
       dispatch(
         addNotification({
-          id: Date.now().toString(),
           type: "success",
           title: "Asset Updated",
           message: `${updatedAsset.name} has been updated successfully.`,
-          timestamp: new Date().toISOString(),
           priority: "medium",
           category: "update",
-          read: false,
         }),
       );
 
@@ -704,14 +700,11 @@ export default function Assets() {
       // Show error notification
       dispatch(
         addNotification({
-          id: Date.now().toString(),
           type: "error",
           title: "Update Failed",
           message: "Failed to update asset. Please try again.",
-          timestamp: new Date().toISOString(),
           priority: "high",
           category: "alert",
-          read: false,
         }),
       );
 

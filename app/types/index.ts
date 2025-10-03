@@ -212,6 +212,20 @@ export interface CreateWorkOrderForm {
   sensorData?: SensorData[];
 }
 
+export interface CreateMaintenanceScheduleForm {
+  assetId: string;
+  scheduleType: string;
+  frequency: string;
+  nextDueDate: string;
+  estimatedDuration: number;
+  priority: Priority;
+  description: string;
+  assignedTechnician: string;
+  partsRequired: string[];
+  estimatedCost: number;
+  notes: string;
+}
+
 // API Response Types (for future backend integration)
 export interface ApiResponse<T> {
   readonly data: T;
