@@ -414,41 +414,53 @@ app.get('/api/databricks/sensor-data/:turbineId', async (req, res) => {
     const { turbineId } = req.params;
     const { startTime, endTime, limit = 1000 } = req.query;
     
-    // Join sensor_bronze with current_status_predictions to get the prediction (abnormal sensor)
-    let databricksQuery = `
-      SELECT 
-        sb.*,
-        csp.prediction as abnormal_sensor
-      FROM public_sector.predictive_maintenance_navy_test.sensor_bronze sb
-      LEFT JOIN public_sector.predictive_maintenance_navy_test.current_status_predictions csp
-        ON sb.turbine_id = csp.turbine_id 
-        AND CAST(sb.timestamp AS BIGINT) = UNIX_TIMESTAMP(csp.hourly_timestamp)
-      WHERE sb.turbine_id = '${turbineId}'`;
+    // Query sensor_bronze for sensor readings
+    let databricksQuery = `SELECT * FROM public_sector.predictive_maintenance_navy_test.sensor_bronze WHERE turbine_id = '${turbineId}'`;
     let sqliteQuery = 'SELECT * FROM sensor_data WHERE turbine_id = ?';
     const params = [turbineId];
     
     if (startTime) {
-      // Convert timestamp in seconds to datetime comparison
-      databricksQuery += ` AND sb.timestamp >= ${startTime}`;
+      databricksQuery += ` AND timestamp >= ${startTime}`;
       sqliteQuery += ' AND timestamp >= ?';
       params.push(startTime);
     }
     
     if (endTime) {
-      databricksQuery += ` AND sb.timestamp <= ${endTime}`;
+      databricksQuery += ` AND timestamp <= ${endTime}`;
       sqliteQuery += ' AND timestamp <= ?';
       params.push(endTime);
     }
     
-    databricksQuery += ` ORDER BY sb.timestamp DESC LIMIT ${limit}`;
+    databricksQuery += ` ORDER BY timestamp DESC LIMIT ${limit}`;
     sqliteQuery += ' ORDER BY timestamp DESC LIMIT ?';
     params.push(parseInt(limit));
     
     const { data, source, fallbackReason } = await executeQuery(databricksQuery, sqliteQuery, params);
     
+    // Query current_status_predictions for the same time period to get failing sensors
+    let predictions = [];
+    if (isDatabricksConfigured() && startTime && endTime) {
+      try {
+        const predictionsQuery = `
+          SELECT prediction, hourly_timestamp 
+          FROM public_sector.predictive_maintenance_navy_test.current_status_predictions 
+          WHERE turbine_id = '${turbineId}'
+          AND UNIX_TIMESTAMP(hourly_timestamp) >= ${startTime}
+          AND UNIX_TIMESTAMP(hourly_timestamp) <= ${endTime}
+          ORDER BY hourly_timestamp DESC
+        `;
+        const predictionsResult = await executeDatabricksQuery(predictionsQuery);
+        predictions = predictionsResult || [];
+        console.log(`Fetched ${predictions.length} predictions for turbine ${turbineId}`);
+      } catch (err) {
+        console.warn('Failed to fetch predictions, continuing without them:', err.message);
+      }
+    }
+    
     res.json({
       success: true,
       data,
+      predictions,
       count: data.length,
       turbineId,
       timeRange: { startTime, endTime },

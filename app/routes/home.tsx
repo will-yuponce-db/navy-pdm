@@ -3,8 +3,7 @@ import QuickActions from "~/components/QuickActions";
 import MaintenanceOverview from "~/components/MaintenanceOverview";
 import WorkOrderTable from "~/components/WorkOrderTable";
 import WorkOrderModal from "~/components/WorkOrderModal";
-import FleetMap from "~/components/FleetMap";
-import { Box, Tabs, Tab } from "@mui/material";
+import { Box } from "@mui/material";
 import { useWorkflowShortcuts } from "~/components/WorkflowShortcuts";
 
 export function meta() {
@@ -16,7 +15,6 @@ export function meta() {
 
 export default function Home() {
   const [workOrderModalOpen, setWorkOrderModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
 
   function openWorkOrderModal() {
     setWorkOrderModalOpen(true);
@@ -25,10 +23,6 @@ export default function Home() {
   function closeWorkOrderModal() {
     setWorkOrderModalOpen(false);
   }
-
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
-  };
 
   const handleRefreshData = () => {
     // Trigger data refresh (only on client side)
@@ -71,28 +65,7 @@ export default function Home() {
         </Box>
 
         <Box sx={{ flex: 1 }}>
-          <Box
-            sx={{
-              borderBottom: 1,
-              borderColor: "divider",
-              mb: 3,
-              background: "rgba(255,255,255,0.05)",
-              backdropFilter: "blur(10px)",
-              borderRadius: 2,
-              p: 2,
-            }}
-          >
-            <Tabs value={activeTab} onChange={handleTabChange}>
-              <Tab label="Work Orders" />
-              <Tab label="Fleet Map" />
-            </Tabs>
-          </Box>
-
-          {activeTab === 0 && (
-            <WorkOrderTable openWorkOrderModal={openWorkOrderModal} />
-          )}
-
-          {activeTab === 1 && <FleetMap />}
+          <WorkOrderTable openWorkOrderModal={openWorkOrderModal} />
         </Box>
 
         <WorkOrderModal

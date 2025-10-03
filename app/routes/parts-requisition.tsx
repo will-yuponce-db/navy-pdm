@@ -23,6 +23,7 @@ import {
   CircularProgress,
   Card,
   CardContent,
+  Collapse,
 } from "@mui/material";
 import type { SelectChangeEvent } from "@mui/material";
 import {
@@ -32,6 +33,8 @@ import {
   LocalShipping,
   Inventory,
   Info,
+  KeyboardArrowDown,
+  KeyboardArrowUp,
 } from "@mui/icons-material";
 import { tableStyles } from "../utils/tableStyles";
 import { databricksApi } from "../services/api";
@@ -41,6 +44,17 @@ import {
   type DatabricksPartsRequisition,
   type PartsRequisition,
 } from "../utils/databricksMapper";
+import FleetMap from "../components/FleetMap";
+
+// Interface for grouped orders
+interface GroupedOrder {
+  orderNumber: string;
+  parts: PartsRequisition[];
+  totalQuantity: number;
+  uniquePartTypes: number;
+  shipName: string;
+  stockLocation: string;
+}
 
 export function meta() {
   return [
@@ -50,6 +64,108 @@ export function meta() {
       content: "Navy PDM Supply Orders and Parts Requisition System",
     },
   ];
+}
+
+// Component for each expandable row
+function OrderRow({ order }: { order: GroupedOrder }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <TableRow hover sx={{ "& > *": { borderBottom: "unset" } }}>
+        <TableCell>
+          <IconButton
+            aria-label="expand row"
+            size="small"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+          </IconButton>
+        </TableCell>
+        <TableCell>
+          <Chip
+            label={order.orderNumber}
+            size="small"
+            color="primary"
+            variant="outlined"
+          />
+        </TableCell>
+        <TableCell>
+          <Chip
+            label={`${order.parts.length} parts`}
+            size="small"
+            color="info"
+          />
+        </TableCell>
+        <TableCell align="right">
+          <Chip
+            label={order.totalQuantity}
+            size="small"
+            color={order.totalQuantity > 5 ? "warning" : "default"}
+          />
+        </TableCell>
+        <TableCell>{order.shipName}</TableCell>
+        <TableCell>
+          <Chip
+            label={order.stockLocation}
+            size="small"
+            color="success"
+            variant="outlined"
+          />
+        </TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
+          <Collapse in={open} timeout="auto" unmountOnExit>
+            <Box sx={{ margin: 2 }}>
+              <Typography variant="h6" gutterBottom component="div">
+                Parts Detail
+              </Typography>
+              <Table size="small" aria-label="parts">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Part Type</TableCell>
+                    <TableCell align="right">Quantity</TableCell>
+                    <TableCell>Ship Designation</TableCell>
+                    <TableCell>Stock Location</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {order.parts.map((part) => (
+                    <TableRow key={part.id}>
+                      <TableCell component="th" scope="row">
+                        {part.partType}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Chip
+                          label={part.quantityShipped}
+                          size="small"
+                          color={
+                            part.quantityShipped > 1 ? "warning" : "default"
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip label={part.shipDesignation} size="small" />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={part.stockLocation}
+                          size="small"
+                          color="success"
+                          variant="outlined"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+          </Collapse>
+        </TableCell>
+      </TableRow>
+    </>
+  );
 }
 
 export default function PartsRequisitionRoute() {
@@ -158,8 +274,30 @@ export default function PartsRequisitionRoute() {
     return matchesSearch && matchesPartType && matchesLocation;
   });
 
-  // Pagination
-  const paginatedRequisitions = filteredRequisitions.slice(
+  // Group requisitions by order number
+  const groupedOrders: GroupedOrder[] = Object.values(
+    filteredRequisitions.reduce((acc, req) => {
+      if (!acc[req.orderNumber]) {
+        acc[req.orderNumber] = {
+          orderNumber: req.orderNumber,
+          parts: [],
+          totalQuantity: 0,
+          uniquePartTypes: 0,
+          shipName: req.shipName,
+          stockLocation: req.stockLocation,
+        };
+      }
+      acc[req.orderNumber].parts.push(req);
+      acc[req.orderNumber].totalQuantity += req.quantityShipped;
+      return acc;
+    }, {} as Record<string, GroupedOrder>),
+  ).map((order) => ({
+    ...order,
+    uniquePartTypes: new Set(order.parts.map((p) => p.partType)).size,
+  }));
+
+  // Pagination on grouped orders
+  const paginatedOrders = groupedOrders.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage,
   );
@@ -194,35 +332,42 @@ export default function PartsRequisitionRoute() {
   ).sort();
 
   const handleExport = () => {
-    // Create CSV content
+    // Create CSV content with grouped structure
     const headers = [
       "Order Number",
+      "Total Parts",
+      "Total Quantity",
       "Part Type",
       "Quantity",
       "Ship Name",
       "Ship Designation",
       "Stock Location",
     ];
-    const csvContent = [
-      headers.join(","),
-      ...filteredRequisitions.map((req) =>
-        [
-          req.orderNumber,
-          `"${req.partType}"`,
-          req.quantityShipped,
-          `"${req.shipName}"`,
-          req.shipDesignation,
-          `"${req.stockLocation}"`,
-        ].join(","),
-      ),
-    ].join("\n");
+    
+    const rows: string[] = [];
+    groupedOrders.forEach((order) => {
+      order.parts.forEach((part, index) => {
+        rows.push([
+          index === 0 ? order.orderNumber : "",
+          index === 0 ? order.parts.length.toString() : "",
+          index === 0 ? order.totalQuantity.toString() : "",
+          `"${part.partType}"`,
+          part.quantityShipped.toString(),
+          `"${part.shipName}"`,
+          part.shipDesignation,
+          `"${part.stockLocation}"`,
+        ].join(","));
+      });
+    });
+
+    const csvContent = [headers.join(","), ...rows].join("\n");
 
     // Download CSV
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `parts-requisition-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `supply-orders-${new Date().toISOString().split("T")[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -309,6 +454,19 @@ export default function PartsRequisitionRoute() {
           </Card>
         </Box>
       )}
+
+      {/* Fleet Map */}
+      <Box
+        sx={{
+          height: "600px",
+          mb: 3,
+          borderRadius: 2,
+          overflow: "hidden",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+        }}
+      >
+        <FleetMap />
+      </Box>
 
       {/* Filters */}
       <Paper sx={{ p: 2, mb: 2 }}>
@@ -423,11 +581,11 @@ export default function PartsRequisitionRoute() {
         <Table sx={tableStyles}>
           <TableHead>
             <TableRow>
+              <TableCell />
               <TableCell>Order Number</TableCell>
-              <TableCell>Part Type</TableCell>
-              <TableCell align="right">Quantity</TableCell>
+              <TableCell>Parts Count</TableCell>
+              <TableCell align="right">Total Quantity</TableCell>
               <TableCell>Ship Name</TableCell>
-              <TableCell>Designation</TableCell>
               <TableCell>Stock Location</TableCell>
             </TableRow>
           </TableHead>
@@ -438,46 +596,17 @@ export default function PartsRequisitionRoute() {
                   <CircularProgress />
                 </TableCell>
               </TableRow>
-            ) : paginatedRequisitions.length === 0 ? (
+            ) : paginatedOrders.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">
-                    No requisitions found
+                    No supply orders found
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              paginatedRequisitions.map((req) => (
-                <TableRow key={req.id} hover>
-                  <TableCell>
-                    <Chip
-                      label={req.orderNumber}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell>{req.partType}</TableCell>
-                  <TableCell align="right">
-                    <Chip
-                      label={req.quantityShipped}
-                      size="small"
-                      color={req.quantityShipped > 1 ? "warning" : "default"}
-                    />
-                  </TableCell>
-                  <TableCell>{req.shipName}</TableCell>
-                  <TableCell>
-                    <Chip label={req.shipDesignation} size="small" />
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={req.stockLocation}
-                      size="small"
-                      color="success"
-                      variant="outlined"
-                    />
-                  </TableCell>
-                </TableRow>
+              paginatedOrders.map((order) => (
+                <OrderRow key={order.orderNumber} order={order} />
               ))
             )}
           </TableBody>
@@ -485,7 +614,7 @@ export default function PartsRequisitionRoute() {
         <TablePagination
           rowsPerPageOptions={[10, 25, 50, 100]}
           component="div"
-          count={filteredRequisitions.length}
+          count={groupedOrders.length}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}

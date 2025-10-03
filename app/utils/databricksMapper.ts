@@ -811,15 +811,23 @@ export function getDatabricksPartsRequisitionStats(
  */
 
 /**
- * Determine sensor status based on abnormal_sensor flag and sensor name
+ * Determine sensor status based on abnormal_sensor flag (prediction) and sensor name
+ * abnormalSensor comes from the "prediction" column in current_status_predictions
+ * It will be "ok" if no sensor is failing, or the sensor name (e.g., "sensor_F") if that sensor is failing
  */
 function determineSensorStatus(
   abnormalSensor: string,
   sensorName: string,
 ): SensorStatus {
+  // If abnormalSensor is null, undefined, empty, or "ok", then no sensor is failing
+  if (!abnormalSensor || abnormalSensor === "ok" || abnormalSensor.trim() === "") {
+    return "normal";
+  }
+  // If the abnormalSensor matches this sensor's name, it's critical
   if (abnormalSensor === sensorName) {
     return "critical";
   }
+  // Otherwise, this sensor is operating normally
   return "normal";
 }
 
