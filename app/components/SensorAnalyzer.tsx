@@ -48,15 +48,10 @@ import type {
   SensorAnalytics,
   SensorStatus,
   WorkOrder,
-  DatabricksSensorData,
 } from "../types";
 import { databricksApi } from "../services/api";
 import { createAIWorkOrder } from "../utils/aiWorkOrderGenerator";
 import { useAppDispatch } from "../redux/hooks";
-import {
-  mapDatabricksSensorDataArrayToSensorDataArray,
-  groupSensorDataBySensorName,
-} from "../utils/databricksMapper";
 
 // Register Chart.js components
 ChartJS.register(
@@ -76,7 +71,6 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
   sensorId,
   onClose,
 }) => {
-  const dispatch = useAppDispatch();
   const [sensorData, setSensorData] = useState<SensorData[]>([]);
   const [systems, setSystems] = useState<SensorSystem[]>([]);
   const [selectedSystem, setSelectedSystem] = useState<string>(systemId || "");
@@ -87,6 +81,7 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [workOrderInfo, setWorkOrderInfo] = useState<WorkOrder | null>(null);
   const [dataSource, setDataSource] = useState<string>("Unknown");
+  const [failingSensors, setFailingSensors] = useState<Set<string>>(new Set());
 
   // Load initial data
   useEffect(() => {
@@ -95,15 +90,19 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
         setLoading(true);
         setError(null);
 
+        console.log('[SensorAnalyzer] Starting data load for workOrderId:', workOrderId);
+
         // Load work order information if workOrderId is provided
         if (workOrderId) {
           try {
             // Try to fetch from Databricks first
+            console.log('[SensorAnalyzer] Fetching AI work order:', workOrderId);
             const aiWorkOrderResponse = await databricksApi.getAIWorkOrderById(
               workOrderId,
             );
 
             if (aiWorkOrderResponse.success && aiWorkOrderResponse.data) {
+              console.log('[SensorAnalyzer] Successfully fetched work order:', aiWorkOrderResponse.data);
               // Map the Databricks work order to the WorkOrder type
               const databricksWO = aiWorkOrderResponse.data as any;
               const workOrder: WorkOrder = {
@@ -142,6 +141,13 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                 const startTime = Math.floor(workOrderTime - oneDayInSeconds);
                 const endTime = Math.floor(workOrderTime);
 
+                console.log('[SensorAnalyzer] Fetching sensor data for turbine:', {
+                  turbineId,
+                  startTime,
+                  endTime,
+                  workOrderTime: new Date(workOrderTime * 1000).toISOString(),
+                });
+
                 const sensorResponse = await databricksApi.getSensorData(
                   turbineId,
                   {
@@ -152,28 +158,97 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                 );
 
                 if (sensorResponse.success && sensorResponse.data) {
-                  // Map Databricks sensor data to SensorData array
-                  const mappedSensorData = mapDatabricksSensorDataArrayToSensorDataArray(
-                    sensorResponse.data as DatabricksSensorData[],
-                  );
+                  console.log('[SensorAnalyzer] Raw sensor response:', {
+                    success: sensorResponse.success,
+                    dataLength: sensorResponse.data?.length,
+                    source: sensorResponse.source,
+                    predictions: (sensorResponse as any).predictions?.length || 0,
+                  });
+                  
+                  // Process predictions to determine failing sensors
+                  const predictions = (sensorResponse as any).predictions || [];
+                  const failing = new Set<string>();
+                  
+                  predictions.forEach((pred: any) => {
+                    if (pred.prediction && pred.prediction !== 'ok' && pred.prediction.trim() !== '') {
+                      failing.add(pred.prediction);
+                    }
+                  });
+                  
+                  console.log(`[SensorAnalyzer] Predictions analysis - Total: ${predictions.length}, Failing sensors:`, Array.from(failing));
+                  setFailingSensors(failing);
+                  
+                  // Map Databricks sensor data to SensorData array (without abnormal_sensor field)
+                  const mappedSensorData = sensorResponse.data.flatMap((reading: any) => {
+                    const timestamp = new Date(reading.timestamp * 1000);
+                    const turbineId = reading.turbine_id;
+                    
+                    const sensors = [
+                      { name: "sensor_A", value: reading.sensor_A },
+                      { name: "sensor_B", value: reading.sensor_B },
+                      { name: "sensor_C", value: reading.sensor_C },
+                      { name: "sensor_D", value: reading.sensor_D },
+                      { name: "sensor_E", value: reading.sensor_E },
+                      { name: "sensor_F", value: reading.sensor_F },
+                      { name: "energy", value: reading.energy },
+                    ];
+                    
+                    return sensors.map((sensor) => ({
+                      id: `${turbineId}-${sensor.name}-${reading.timestamp}`,
+                      sensorId: `${turbineId}-${sensor.name}`,
+                      sensorName: sensor.name,
+                      sensorType: (sensor.name === 'energy' ? 'power' : 'temperature') as import('../types').SensorType,
+                      value: sensor.value,
+                      unit: sensor.name === 'energy' ? 'kW' : '°C',
+                      timestamp: timestamp,
+                      status: 'normal' as const,
+                      location: turbineId,
+                      systemId: turbineId,
+                    }));
+                  });
+                  
+                  console.log('[SensorAnalyzer] Mapped sensor data:', {
+                    totalReadings: mappedSensorData.length,
+                    uniqueSensors: Array.from(new Set(mappedSensorData.map(s => s.sensorId))),
+                    sampleData: mappedSensorData.slice(0, 2),
+                  });
+                  
                   setSensorData(mappedSensorData);
                   setDataSource(sensorResponse.source || "Unknown");
 
-                  // Set initial selected sensor if not already set
+                  // Set initial selected sensor - prefer a failing sensor
                   if (!selectedSensor && mappedSensorData.length > 0) {
-                    // Find the abnormal sensor if available
-                    const abnormalSensor = mappedSensorData.find(
-                      (s) => s.status === "critical",
-                    );
-                    setSelectedSensor(
-                      abnormalSensor?.sensorId || mappedSensorData[0].sensorId,
-                    );
+                    const failingSensorIds = Array.from(failing);
+                    if (failingSensorIds.length > 0) {
+                      const firstFailingSensor = mappedSensorData.find(
+                        (s) => failingSensorIds.some(f => s.sensorName === f)
+                      );
+                      setSelectedSensor(firstFailingSensor?.sensorId || mappedSensorData[0].sensorId);
+                    } else {
+                      setSelectedSensor(mappedSensorData[0].sensorId);
+                    }
                   }
+                } else {
+                  console.error('[SensorAnalyzer] Failed to fetch sensor data or no data returned:', {
+                    success: sensorResponse.success,
+                    hasData: !!sensorResponse.data,
+                    dataLength: sensorResponse.data?.length,
+                  });
+                  setError('No sensor data available for this work order');
                 }
+              } else {
+                console.error('[SensorAnalyzer] No turbine ID found in work order:', databricksWO);
+                setError('Work order has no associated turbine/system ID');
               }
+            } else {
+              console.error('[SensorAnalyzer] Failed to fetch work order or no data:', {
+                success: aiWorkOrderResponse.success,
+                hasData: !!aiWorkOrderResponse.data,
+              });
+              setError('Failed to load work order data');
             }
           } catch (err) {
-            console.error("Error fetching AI work order:", err);
+            console.error("[SensorAnalyzer] Error fetching AI work order:", err);
             setError(`Failed to load work order: ${err instanceof Error ? err.message : "Unknown error"}`);
           }
         }
@@ -213,11 +288,13 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
             else if (changePercent < -5) trend = "decreasing";
           }
 
-          // Count anomalies (critical status)
-          const anomalies = sensorReadings.filter((s) => s.status === "critical" || s.status === "warning").length;
+          // Check if this sensor is predicted to fail
+          const sensorName = sensorReadings[0]?.sensorName;
+          const isFailingPrediction = sensorName && failingSensors.has(sensorName);
+          const anomalies = isFailingPrediction ? 1 : 0;
 
-          // Calculate efficiency (inverse of anomaly rate)
-          const efficiency = Math.round((1 - anomalies / sensorReadings.length) * 100);
+          // Calculate efficiency based on prediction
+          const efficiency = isFailingPrediction ? 75 : 100; // Show 75% if failing, 100% if normal
 
           setAnalytics({
             sensorId: selectedSensor,
@@ -234,7 +311,7 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
         console.error("Error calculating analytics:", err);
       }
     }
-  }, [selectedSensor, sensorData, timeRange]);
+  }, [selectedSensor, sensorData, timeRange, failingSensors]);
 
   const handleRefresh = useCallback(async () => {
     if (workOrderInfo && workOrderInfo.gteSystemId) {
@@ -257,9 +334,48 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
         });
 
         if (sensorResponse.success && sensorResponse.data) {
-          const mappedSensorData = mapDatabricksSensorDataArrayToSensorDataArray(
-            sensorResponse.data as DatabricksSensorData[],
-          );
+          // Process predictions to determine failing sensors
+          const predictions = (sensorResponse as any).predictions || [];
+          const failing = new Set<string>();
+          
+          predictions.forEach((pred: any) => {
+            if (pred.prediction && pred.prediction !== 'ok' && pred.prediction.trim() !== '') {
+              failing.add(pred.prediction);
+            }
+          });
+          
+          console.log(`[SensorAnalyzer Refresh] Failing sensors:`, Array.from(failing));
+          setFailingSensors(failing);
+          
+          // Map sensor data
+          const mappedSensorData = sensorResponse.data.flatMap((reading: any) => {
+            const timestamp = new Date(reading.timestamp * 1000);
+            const turbineId = reading.turbine_id;
+            
+            const sensors = [
+              { name: "sensor_A", value: reading.sensor_A },
+              { name: "sensor_B", value: reading.sensor_B },
+              { name: "sensor_C", value: reading.sensor_C },
+              { name: "sensor_D", value: reading.sensor_D },
+              { name: "sensor_E", value: reading.sensor_E },
+              { name: "sensor_F", value: reading.sensor_F },
+              { name: "energy", value: reading.energy },
+            ];
+            
+            return sensors.map((sensor) => ({
+              id: `${turbineId}-${sensor.name}-${reading.timestamp}`,
+              sensorId: `${turbineId}-${sensor.name}`,
+              sensorName: sensor.name,
+              sensorType: (sensor.name === 'energy' ? 'power' : 'temperature') as import('../types').SensorType,
+              value: sensor.value,
+              unit: sensor.name === 'energy' ? 'kW' : '°C',
+              timestamp: timestamp,
+              status: 'normal' as const,
+              location: turbineId,
+              systemId: turbineId,
+            }));
+          });
+          
           setSensorData(mappedSensorData);
           setDataSource(sensorResponse.source || "Unknown");
         }
@@ -270,21 +386,6 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
       }
     }
   }, [workOrderInfo]);
-
-  const handleCreateAIWorkOrder = useCallback(async () => {
-    try {
-      // Use mock ship ID for demonstration
-      const shipId = "SHIP_001";
-      const gteSystemId = selectedSystem || "GTE_001";
-
-      await createAIWorkOrder(dispatch, shipId, gteSystemId);
-
-      // Show success message
-      console.log("AI work order created successfully!");
-    } catch (error) {
-      console.error("Failed to create AI work order:", error);
-    }
-  }, [dispatch, selectedSystem]);
 
   const getStatusColor = (status: SensorStatus) => {
     switch (status) {
@@ -333,14 +434,33 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
 
   // Generate chart data for selected sensor
   const chartData = useMemo(() => {
-    if (!selectedSensor || sensorData.length === 0) return null;
+    if (!selectedSensor || sensorData.length === 0) {
+      console.log('[SensorAnalyzer] chartData: No sensor selected or no data available', {
+        selectedSensor,
+        sensorDataLength: sensorData.length
+      });
+      return null;
+    }
 
     // Get all readings for the selected sensor
     const sensorReadings = sensorData
       .filter((s) => s.sensorId === selectedSensor)
       .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 
-    if (sensorReadings.length === 0) return null;
+    console.log('[SensorAnalyzer] chartData: Filtered readings', {
+      selectedSensor,
+      totalSensorData: sensorData.length,
+      matchingReadings: sensorReadings.length,
+      uniqueSensorIds: Array.from(new Set(sensorData.map(s => s.sensorId))),
+    });
+
+    if (sensorReadings.length === 0) {
+      console.warn('[SensorAnalyzer] chartData: No readings found for selected sensor', {
+        selectedSensor,
+        availableSensors: Array.from(new Set(sensorData.map(s => s.sensorId))),
+      });
+      return null;
+    }
 
     const firstSensor = sensorReadings[0];
     const hasCritical = sensorReadings.some((s) => s.status === "critical");
@@ -348,7 +468,7 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
 
     return {
       labels: sensorReadings.map((reading) => {
-        return reading.timestamp.toLocaleTimeString("en-US", {
+        return reading.timestamp.toLocaleString("en-US", {
           month: "short",
           day: "numeric",
           hour: "2-digit",
@@ -492,21 +612,20 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
           )}
         </Box>
         <Box sx={{ display: "flex", gap: 1 }}>
-          <Tooltip title="Refresh Data">
-            <IconButton onClick={handleRefresh} color="primary">
-              <RefreshIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Create AI Work Order">
-            <IconButton onClick={handleCreateAIWorkOrder} color="warning">
-              <BuildIcon />
-            </IconButton>
+          <Tooltip title="Refresh Data" arrow>
+            <span>
+              <IconButton onClick={handleRefresh} color="primary">
+                <RefreshIcon />
+              </IconButton>
+            </span>
           </Tooltip>
           {onClose && (
-            <Tooltip title="Close">
-              <IconButton onClick={onClose} color="secondary">
-                <CloseIcon />
-              </IconButton>
+            <Tooltip title="Close" arrow>
+              <span>
+                <IconButton onClick={onClose} color="secondary">
+                  <CloseIcon />
+                </IconButton>
+              </span>
             </Tooltip>
           )}
         </Box>
@@ -671,21 +790,36 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
       </Paper>
 
       {/* Sensor Grid */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        {Array.from(new Set(sensorData.map((s) => s.sensorId)))
-          .map((sensorId) => {
-            // Get the latest reading for this sensor
-            const sensorReadings = sensorData
-              .filter((s) => s.sensorId === sensorId)
-              .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-            const latestSensor = sensorReadings[0];
+      {sensorData.length === 0 ? (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <Typography variant="body1" sx={{ fontWeight: 600 }}>
+            No Sensor Data Available
+          </Typography>
+          <Typography variant="body2">
+            No sensor data was loaded for this work order. This could be because:
+            <ul>
+              <li>The work order has no associated turbine/system ID</li>
+              <li>No sensor readings exist for the specified time period</li>
+              <li>There was an error loading data from the database</li>
+            </ul>
+            Please check the console for more details or try refreshing the page.
+          </Typography>
+        </Alert>
+      ) : (
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          {Array.from(new Set(sensorData.map((s) => s.sensorId)))
+            .map((sensorId) => {
+              // Get the latest reading for this sensor
+              const sensorReadings = sensorData
+                .filter((s) => s.sensorId === sensorId)
+                .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+              const latestSensor = sensorReadings[0];
 
-            if (!latestSensor) return null;
+              if (!latestSensor) return null;
 
-            // Count critical and warning readings
-            const criticalCount = sensorReadings.filter((s) => s.status === "critical").length;
-            const warningCount = sensorReadings.filter((s) => s.status === "warning").length;
-            const overallStatus = criticalCount > 0 ? "critical" : warningCount > 0 ? "warning" : "normal";
+            // Determine chip status based on predictions
+            const isFailing = failingSensors.has(latestSensor.sensorName);
+            const overallStatus = isFailing ? "critical" : "normal";
 
             return (
               <Grid item xs={12} sm={6} md={4} key={sensorId}>
@@ -742,9 +876,7 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                       sx={{ 
                         fontWeight: 700, 
                         mb: 1.5,
-                        color: overallStatus === "critical" ? "error.main" : 
-                               overallStatus === "warning" ? "warning.main" : 
-                               "success.main",
+                        color: overallStatus === "critical" ? "error.main" : "success.main",
                       }}
                     >
                       {latestSensor.value.toFixed(2)} <Typography component="span" variant="h5" color="text.secondary">{latestSensor.unit}</Typography>
@@ -760,7 +892,7 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                         {sensorReadings.length} readings
                       </Typography>
                     </Box>
-                    {(criticalCount > 0 || warningCount > 0) && (
+                    {isFailing && (
                       <Box sx={{ 
                         mt: 1.5, 
                         p: 1, 
@@ -770,9 +902,7 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                         borderColor: "error.200",
                       }}>
                         <Typography variant="caption" display="block" sx={{ color: "error.dark", fontWeight: 600 }}>
-                          ⚠️ {criticalCount > 0 && `${criticalCount} critical`}
-                          {criticalCount > 0 && warningCount > 0 && ", "}
-                          {warningCount > 0 && `${warningCount} warning`}
+                          ⚠️ Sensor failure predicted
                         </Typography>
                       </Box>
                     )}
@@ -790,7 +920,8 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
               </Grid>
             );
           })}
-      </Grid>
+        </Grid>
+      )}
 
       {/* Analytics and Chart */}
       {selectedSensor && analytics && (
@@ -916,7 +1047,7 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
           </Paper>
 
           {/* Chart */}
-          {chartData && (
+          {chartData ? (
             <Paper sx={{ p: 2, height: 400 }}>
               <Typography
                 variant="h6"
@@ -927,8 +1058,32 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
               </Typography>
               <Line data={chartData} options={chartOptions} />
             </Paper>
+          ) : (
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                No Chart Data Available
+              </Typography>
+              <Typography variant="body2">
+                The selected sensor "{selectedSensor}" has no matching data points in the loaded dataset. 
+                This may occur if the sensor data failed to load properly or if there's a mismatch in sensor identifiers. 
+                Try refreshing the data or selecting a different sensor.
+              </Typography>
+            </Alert>
           )}
         </>
+      )}
+      
+      {/* No sensor selected message */}
+      {selectedSensor && !analytics && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="body1" sx={{ fontWeight: 600 }}>
+            Loading Analytics...
+          </Typography>
+          <Typography variant="body2">
+            Analytics are being calculated for the selected sensor. If this message persists, 
+            there may be insufficient data to generate analytics.
+          </Typography>
+        </Alert>
       )}
     </Box>
   );
