@@ -50,7 +50,7 @@ interface NotificationItem {
 export const NotificationButton = () => {
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const [expanded, setExpanded] = useState(false);
-  
+
   const notifications: NotificationItem[] = useSelector(
     (state: RootState) => state.notifications.notifications,
   );
@@ -64,9 +64,12 @@ export const NotificationButton = () => {
   );
   const hasCriticalAlerts = criticalNotifications.length > 0;
 
-  const handleClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
-  }, []);
+  const handleClick = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      setAnchorEl(event.currentTarget);
+    },
+    [],
+  );
 
   const handleClose = useCallback(() => {
     setAnchorEl(null);
@@ -125,8 +128,8 @@ export const NotificationButton = () => {
     }
   };
 
-  const displayedNotifications = expanded 
-    ? notifications.slice(0, 10) 
+  const displayedNotifications = expanded
+    ? notifications.slice(0, 10)
     : notifications.slice(0, 3);
 
   return (
@@ -208,7 +211,7 @@ export const NotificationButton = () => {
             >
               {hasCriticalAlerts ? "Critical Alerts" : "Notifications"}
             </Typography>
-            
+
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               {unreadCount > 0 && (
                 <Chip
@@ -218,7 +221,7 @@ export const NotificationButton = () => {
                   sx={{ fontWeight: 600 }}
                 />
               )}
-              
+
               {notifications.length > 3 && (
                 <IconButton
                   size="small"
@@ -250,7 +253,9 @@ export const NotificationButton = () => {
                   <React.Fragment key={notification.id}>
                     <ListItem
                       sx={{
-                        bgcolor: notification.read ? "action.hover" : "background.paper",
+                        bgcolor: notification.read
+                          ? "action.hover"
+                          : "background.paper",
                         cursor: notification.read ? "default" : "pointer",
                         "&:hover": {
                           bgcolor: "action.hover",
@@ -265,7 +270,7 @@ export const NotificationButton = () => {
                       <ListItemIcon sx={{ minWidth: 40 }}>
                         {getTypeIcon(notification.type)}
                       </ListItemIcon>
-                      
+
                       <ListItemText
                         primary={
                           <Typography
@@ -287,8 +292,15 @@ export const NotificationButton = () => {
                             >
                               {notification.message}
                             </Typography>
-                            
-                            <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+
+                            <Box
+                              sx={{
+                                display: "flex",
+                                gap: 1,
+                                alignItems: "center",
+                                flexWrap: "wrap",
+                              }}
+                            >
                               <Chip
                                 label={notification.category}
                                 size="small"
@@ -315,13 +327,15 @@ export const NotificationButton = () => {
                                 color="text.secondary"
                                 sx={{ fontSize: "0.75rem" }}
                               >
-                                {new Date(notification.timestamp).toLocaleString()}
+                                {new Date(
+                                  notification.timestamp,
+                                ).toLocaleString()}
                               </Typography>
                             </Box>
                           </Box>
                         }
                       />
-                      
+
                       <IconButton
                         size="small"
                         onClick={(e) => {
@@ -333,7 +347,7 @@ export const NotificationButton = () => {
                         <Close fontSize="small" />
                       </IconButton>
                     </ListItem>
-                    
+
                     {index < displayedNotifications.length - 1 && <Divider />}
                   </React.Fragment>
                 ))}
@@ -362,7 +376,7 @@ export const NotificationButton = () => {
                   Mark All Read
                 </Button>
               )}
-              
+
               <Button
                 size="small"
                 onClick={handleClearAll}

@@ -1,4 +1,11 @@
-import type { SensorData, SensorSystem, SensorAnalytics, SensorType, SensorStatus, SystemStatus } from "../types";
+import type {
+  SensorData,
+  SensorSystem,
+  SensorAnalytics,
+  SensorType,
+  SensorStatus,
+  SystemStatus,
+} from "../types";
 
 // Mock sensor data generator
 export class SensorDataService {
@@ -62,15 +69,69 @@ export class SensorDataService {
   }
 
   private generateSystemSensors(systemId: string): SensorData[] {
-    const sensorTypes: { type: SensorType; name: string; unit: string; baseValue: number; variance: number }[] = [
-      { type: "temperature", name: "Exhaust Temperature", unit: "°C", baseValue: 450, variance: 50 },
-      { type: "pressure", name: "Compressor Pressure", unit: "PSI", baseValue: 150, variance: 20 },
-      { type: "vibration", name: "Rotor Vibration", unit: "mm/s", baseValue: 2.5, variance: 1.5 },
-      { type: "rpm", name: "Rotor Speed", unit: "RPM", baseValue: 12000, variance: 1000 },
-      { type: "oil_level", name: "Oil Level", unit: "%", baseValue: 85, variance: 10 },
-      { type: "fuel_flow", name: "Fuel Flow Rate", unit: "GPH", baseValue: 45, variance: 10 },
-      { type: "voltage", name: "Generator Voltage", unit: "V", baseValue: 480, variance: 20 },
-      { type: "current", name: "Generator Current", unit: "A", baseValue: 125, variance: 25 },
+    const sensorTypes: {
+      type: SensorType;
+      name: string;
+      unit: string;
+      baseValue: number;
+      variance: number;
+    }[] = [
+      {
+        type: "temperature",
+        name: "Exhaust Temperature",
+        unit: "°C",
+        baseValue: 450,
+        variance: 50,
+      },
+      {
+        type: "pressure",
+        name: "Compressor Pressure",
+        unit: "PSI",
+        baseValue: 150,
+        variance: 20,
+      },
+      {
+        type: "vibration",
+        name: "Rotor Vibration",
+        unit: "mm/s",
+        baseValue: 2.5,
+        variance: 1.5,
+      },
+      {
+        type: "rpm",
+        name: "Rotor Speed",
+        unit: "RPM",
+        baseValue: 12000,
+        variance: 1000,
+      },
+      {
+        type: "oil_level",
+        name: "Oil Level",
+        unit: "%",
+        baseValue: 85,
+        variance: 10,
+      },
+      {
+        type: "fuel_flow",
+        name: "Fuel Flow Rate",
+        unit: "GPH",
+        baseValue: 45,
+        variance: 10,
+      },
+      {
+        type: "voltage",
+        name: "Generator Voltage",
+        unit: "V",
+        baseValue: 480,
+        variance: 20,
+      },
+      {
+        type: "current",
+        name: "Generator Current",
+        unit: "A",
+        baseValue: 125,
+        variance: 25,
+      },
     ];
 
     return sensorTypes.map((sensor, index) => ({
@@ -81,18 +142,19 @@ export class SensorDataService {
       value: this.generateSensorValue(sensor.baseValue, sensor.variance),
       unit: sensor.unit,
       timestamp: new Date(),
-      status: this.determineSensorStatus(sensor.baseValue, sensor.variance),
-      location: this.systems.find(s => s.id === systemId)?.location || "Unknown",
+      status: this.determineSensorStatus(),
+      location:
+        this.systems.find((s) => s.id === systemId)?.location || "Unknown",
       system: systemId,
     }));
   }
 
   private generateSensorValue(baseValue: number, variance: number): number {
     const randomFactor = (Math.random() - 0.5) * 2; // -1 to 1
-    return Math.round((baseValue + (randomFactor * variance)) * 100) / 100;
+    return Math.round((baseValue + randomFactor * variance) * 100) / 100;
   }
 
-  private determineSensorStatus(baseValue: number, variance: number): SensorStatus {
+  private determineSensorStatus(): SensorStatus {
     const random = Math.random();
     if (random < 0.05) return "critical";
     if (random < 0.15) return "warning";
@@ -102,16 +164,22 @@ export class SensorDataService {
 
   public getSensorData(systemId?: string, sensorId?: string): SensorData[] {
     let filteredData = [...this.sensorData];
-    
+
     if (systemId) {
-      filteredData = filteredData.filter(sensor => sensor.system === systemId);
+      filteredData = filteredData.filter(
+        (sensor) => sensor.system === systemId,
+      );
     }
-    
+
     if (sensorId) {
-      filteredData = filteredData.filter(sensor => sensor.sensorId === sensorId);
+      filteredData = filteredData.filter(
+        (sensor) => sensor.sensorId === sensorId,
+      );
     }
-    
-    return filteredData.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+    return filteredData.sort(
+      (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
+    );
   }
 
   public getSystems(): SensorSystem[] {
@@ -119,26 +187,37 @@ export class SensorDataService {
   }
 
   public getSystemById(systemId: string): SensorSystem | undefined {
-    return this.systems.find(system => system.id === systemId);
+    return this.systems.find((system) => system.id === systemId);
   }
 
-  public getSensorAnalytics(sensorId: string, timeRange: string = "24h"): SensorAnalytics {
-    const sensor = this.sensorData.find(s => s.sensorId === sensorId);
+  public getSensorAnalytics(
+    sensorId: string,
+    timeRange: string = "24h",
+  ): SensorAnalytics {
+    const sensor = this.sensorData.find((s) => s.sensorId === sensorId);
     if (!sensor) {
       throw new Error(`Sensor ${sensorId} not found`);
     }
 
     // Generate mock analytics data
-    const values = Array.from({ length: 100 }, () => this.generateSensorValue(sensor.value, sensor.value * 0.1));
-    const averageValue = values.reduce((sum, val) => sum + val, 0) / values.length;
+    const values = Array.from({ length: 100 }, () =>
+      this.generateSensorValue(sensor.value, sensor.value * 0.1),
+    );
+    const averageValue =
+      values.reduce((sum, val) => sum + val, 0) / values.length;
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
-    
+
     // Determine trend
-    const firstHalf = values.slice(0, 50).reduce((sum, val) => sum + val, 0) / 50;
+    const firstHalf =
+      values.slice(0, 50).reduce((sum, val) => sum + val, 0) / 50;
     const secondHalf = values.slice(50).reduce((sum, val) => sum + val, 0) / 50;
-    const trend = secondHalf > firstHalf * 1.05 ? "increasing" : 
-                  secondHalf < firstHalf * 0.95 ? "decreasing" : "stable";
+    const trend =
+      secondHalf > firstHalf * 1.05
+        ? "increasing"
+        : secondHalf < firstHalf * 0.95
+          ? "decreasing"
+          : "stable";
 
     return {
       sensorId,
@@ -152,30 +231,40 @@ export class SensorDataService {
     };
   }
 
-  public startRealTimeUpdates(callback: (data: SensorData[]) => void, interval: number = 5000) {
+  public startRealTimeUpdates(
+    callback: (data: SensorData[]) => void,
+    interval: number = 5000,
+  ) {
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
     }
 
     this.updateInterval = setInterval(() => {
       // Update sensor values
-      this.sensorData = this.sensorData.map(sensor => ({
+      this.sensorData = this.sensorData.map((sensor) => ({
         ...sensor,
         value: this.generateSensorValue(sensor.value, sensor.value * 0.05),
         timestamp: new Date(),
-        status: this.determineSensorStatus(sensor.value, sensor.value * 0.1),
+        status: this.determineSensorStatus(),
       }));
 
       // Update system status based on sensor statuses
-      this.systems = this.systems.map(system => {
-        const systemSensors = this.sensorData.filter(s => s.system === system.id);
-        const criticalSensors = systemSensors.filter(s => s.status === "critical").length;
-        const warningSensors = systemSensors.filter(s => s.status === "warning").length;
-        
+      this.systems = this.systems.map((system) => {
+        const systemSensors = this.sensorData.filter(
+          (s) => s.system === system.id,
+        );
+        const criticalSensors = systemSensors.filter(
+          (s) => s.status === "critical",
+        ).length;
+        const warningSensors = systemSensors.filter(
+          (s) => s.status === "warning",
+        ).length;
+
         let status: SystemStatus = "operational";
         if (criticalSensors > 0) status = "critical";
         else if (warningSensors > 2) status = "degraded";
-        else if (systemSensors.some(s => s.status === "offline")) status = "offline";
+        else if (systemSensors.some((s) => s.status === "offline"))
+          status = "offline";
 
         return { ...system, status };
       });
@@ -192,7 +281,7 @@ export class SensorDataService {
   }
 
   public getHistoricalData(sensorId: string, hours: number = 24): SensorData[] {
-    const sensor = this.sensorData.find(s => s.sensorId === sensorId);
+    const sensor = this.sensorData.find((s) => s.sensorId === sensorId);
     if (!sensor) return [];
 
     const historicalData: SensorData[] = [];
@@ -200,22 +289,23 @@ export class SensorDataService {
     const interval = (hours * 60 * 60 * 1000) / 100; // 100 data points
 
     for (let i = 0; i < 100; i++) {
-      const timestamp = new Date(now.getTime() - (i * interval));
+      const timestamp = new Date(now.getTime() - i * interval);
       const value = this.generateSensorValue(sensor.value, sensor.value * 0.1);
-      
+
       historicalData.push({
         ...sensor,
         id: `${sensor.id}-historical-${i}`,
         value,
         timestamp,
-        status: this.determineSensorStatus(value, sensor.value * 0.1),
+        status: this.determineSensorStatus(),
       });
     }
 
-    return historicalData.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    return historicalData.sort(
+      (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+    );
   }
 }
 
 // Export singleton instance
 export const sensorDataService = SensorDataService.getInstance();
-

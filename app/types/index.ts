@@ -353,7 +353,11 @@ export interface Asset {
   performanceMetrics?: readonly PerformanceMetric[];
 }
 
-export type AssetStatus = "Operational" | "Maintenance Required" | "Down" | "Retired";
+export type AssetStatus =
+  | "Operational"
+  | "Maintenance Required"
+  | "Down"
+  | "Retired";
 
 // Maintenance Schedule Types
 export interface MaintenanceSchedule {
@@ -374,7 +378,12 @@ export interface MaintenanceSchedule {
   createdByUser?: User;
 }
 
-export type ScheduleStatus = "Scheduled" | "In Progress" | "Completed" | "Cancelled" | "Overdue";
+export type ScheduleStatus =
+  | "Scheduled"
+  | "In Progress"
+  | "Completed"
+  | "Cancelled"
+  | "Overdue";
 
 // Performance Metric Types
 export interface PerformanceMetric {
@@ -435,8 +444,21 @@ export interface SensorAnalytics {
   sensorData?: SensorData;
 }
 
-export type SensorType = "temperature" | "pressure" | "vibration" | "rpm" | "oil_level" | "fuel_flow" | "voltage" | "current";
-export type SensorStatus = "normal" | "warning" | "critical" | "maintenance" | "offline";
+export type SensorType =
+  | "temperature"
+  | "pressure"
+  | "vibration"
+  | "rpm"
+  | "oil_level"
+  | "fuel_flow"
+  | "voltage"
+  | "current";
+export type SensorStatus =
+  | "normal"
+  | "warning"
+  | "critical"
+  | "maintenance"
+  | "offline";
 export type SystemStatus = "operational" | "degraded" | "critical" | "offline";
 
 // Chart and Analytics Types

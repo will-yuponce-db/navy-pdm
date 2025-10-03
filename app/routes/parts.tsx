@@ -6,8 +6,8 @@ import type { Part } from "~/types";
 
 export function meta() {
   return [
-    { title: "Parts Management" },
-    { name: "description", content: "Navy PDM Parts Management System" },
+    { title: "Inventory" },
+    { name: "description", content: "Navy PDM Inventory Management System" },
   ];
 }
 
@@ -37,7 +37,7 @@ export default function Parts() {
     <Box sx={{ p: 3 }}>
       <Box sx={{ mb: 3 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Parts Management
+          Inventory
         </Typography>
         <Typography variant="body1" color="text.secondary">
           Manage inventory, track stock levels, and monitor part availability

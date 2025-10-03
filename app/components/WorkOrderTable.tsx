@@ -343,14 +343,20 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
     setSelected(newSelected);
   };
 
-  const handleRowDoubleClick = (workOrderId: string, creationSource: string) => {
+  const handleRowDoubleClick = (
+    workOrderId: string,
+    creationSource: string,
+  ) => {
     // Only navigate to sensor analyzer for AI work orders
-    if (creationSource === 'ai') {
+    if (creationSource === "ai") {
       navigate(`/sensor-analyzer?workOrderId=${workOrderId}`);
     }
   };
 
-  const handleSensorAnalyzerClick = (event: React.MouseEvent, workOrderId: string) => {
+  const handleSensorAnalyzerClick = (
+    event: React.MouseEvent,
+    workOrderId: string,
+  ) => {
     event.stopPropagation();
     navigate(`/sensor-analyzer?workOrderId=${workOrderId}`);
   };
@@ -630,171 +636,183 @@ const WorkOrderTable = memo((props: WorkOrderTableProps) => {
             <SkeletonLoader variant="table" rows={5} columns={10} />
           ) : (
             <Table
-            sx={tableStyles.patterns.responsiveTable}
-            aria-labelledby="tableTitle"
-            aria-describedby="table-description"
-            size="medium"
-            role="table"
-          >
-            <EnhancedTableHead
-              numSelected={selected.length}
-              order={order}
-              orderBy={orderBy}
-              onSelectAllClick={handleSelectAllClick}
-              onRequestSort={handleRequestSort}
-              rowCount={filteredWorkOrders.length}
-            />
-            <TableBody>
-              {paginatedData.map((row, index) => {
-                const isItemSelected = selected.includes(row.wo.toString());
-                const labelId = `enhanced-table-checkbox-${index}`;
+              sx={tableStyles.patterns.responsiveTable}
+              aria-labelledby="tableTitle"
+              aria-describedby="table-description"
+              size="medium"
+              role="table"
+            >
+              <EnhancedTableHead
+                numSelected={selected.length}
+                order={order}
+                orderBy={orderBy}
+                onSelectAllClick={handleSelectAllClick}
+                onRequestSort={handleRequestSort}
+                rowCount={filteredWorkOrders.length}
+              />
+              <TableBody>
+                {paginatedData.map((row, index) => {
+                  const isItemSelected = selected.includes(row.wo.toString());
+                  const labelId = `enhanced-table-checkbox-${index}`;
 
-                return (
-                  <TableRow
-                    key={row.wo}
-                    hover
-                    onClick={(event) => handleClick(event, row.wo.toString())}
-                    onDoubleClick={() => handleRowDoubleClick(row.wo.toString(), row.creationSource)}
-                    role="checkbox"
-                    aria-checked={isItemSelected}
-                    tabIndex={-1}
-                    selected={isItemSelected}
-                    sx={{ cursor: "pointer" }}
-                  >
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        color="primary"
-                        checked={isItemSelected}
-                        inputProps={{
-                          "aria-label": `Select work order ${row.wo}`,
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell
-                      component="th"
-                      id={labelId}
-                      scope="row"
-                      padding="none"
+                  return (
+                    <TableRow
+                      key={row.wo}
+                      hover
+                      onClick={(event) => handleClick(event, row.wo.toString())}
+                      onDoubleClick={() =>
+                        handleRowDoubleClick(
+                          row.wo.toString(),
+                          row.creationSource,
+                        )
+                      }
+                      role="checkbox"
+                      aria-checked={isItemSelected}
+                      tabIndex={-1}
+                      selected={isItemSelected}
+                      sx={{ cursor: "pointer" }}
                     >
-                      {row.wo}
-                    </TableCell>
-                    <TableCell>{row.ship?.name || 'N/A'}</TableCell>
-                    <TableCell>{row.ship?.homeport || 'N/A'}</TableCell>
-                    <TableCell>{row.gteSystem?.model || 'N/A'}</TableCell>
-                    <TableCell>{row.fm}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={row.priority}
-                        color={getPriorityColor(row.priority)}
-                        variant="outlined"
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={row.status}
-                        color={getStatusColor(row.status)}
-                        onClick={(e) => handleStatusClick(e, row.wo)}
-                        clickable
-                        sx={{ cursor: "pointer" }}
-                        aria-label={`Change status of work order ${row.wo} from ${row.status}`}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            // Create a synthetic mouse event for keyboard navigation
-                            const syntheticEvent = {
-                              ...e,
-                              button: 0,
-                              buttons: 1,
-                              clientX: 0,
-                              clientY: 0,
-                              screenX: 0,
-                              screenY: 0,
-                              pageX: 0,
-                              pageY: 0,
-                              relatedTarget: null,
-                              movementX: 0,
-                              movementY: 0,
-                              altKey: e.altKey,
-                              ctrlKey: e.ctrlKey,
-                              metaKey: e.metaKey,
-                              shiftKey: e.shiftKey,
-                              getModifierState: e.getModifierState,
-                              nativeEvent: e.nativeEvent,
-                              currentTarget: e.currentTarget,
-                              target: e.target,
-                              bubbles: true,
-                              cancelable: true,
-                              defaultPrevented: false,
-                              eventPhase: 2,
-                              isTrusted: false,
-                              preventDefault: () => {},
-                              stopPropagation: () => {},
-                              stopImmediatePropagation: () => {},
-                              timeStamp: Date.now(),
-                              type: "click",
-                            } as unknown as React.MouseEvent<HTMLElement>;
-                            handleStatusClick(syntheticEvent, row.wo);
-                          }
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={row.creationSource === 'ai' ? 'AI' : 'Manual'}
-                        color={row.creationSource === 'ai' ? 'warning' : 'default'}
-                        variant="outlined"
-                        size="small"
-                        sx={{
-                          fontWeight: 'bold',
-                          textTransform: 'uppercase'
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>{row.eta} days</TableCell>
-                    <TableCell>
-                      {row.partsRequired ? (
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            maxWidth: 200,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          color="primary"
+                          checked={isItemSelected}
+                          inputProps={{
+                            "aria-label": `Select work order ${row.wo}`,
                           }}
-                        >
-                          {row.partsRequired}
-                        </Typography>
-                      ) : (
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontStyle: "italic" }}
-                        >
-                          No parts required
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {row.creationSource === 'ai' && (
-                        <Tooltip title="Open Sensor Analyzer">
-                          <IconButton
-                            size="small"
-                            onClick={(event) => handleSensorAnalyzerClick(event, row.wo.toString())}
-                            color="primary"
-                            aria-label={`Open sensor analyzer for work order ${row.wo}`}
+                        />
+                      </TableCell>
+                      <TableCell
+                        component="th"
+                        id={labelId}
+                        scope="row"
+                        padding="none"
+                      >
+                        {row.wo}
+                      </TableCell>
+                      <TableCell>{row.ship?.name || "N/A"}</TableCell>
+                      <TableCell>{row.ship?.homeport || "N/A"}</TableCell>
+                      <TableCell>{row.gteSystem?.model || "N/A"}</TableCell>
+                      <TableCell>{row.fm}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={row.priority}
+                          color={getPriorityColor(row.priority)}
+                          variant="outlined"
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={row.status}
+                          color={getStatusColor(row.status)}
+                          onClick={(e) => handleStatusClick(e, row.wo)}
+                          clickable
+                          sx={{ cursor: "pointer" }}
+                          aria-label={`Change status of work order ${row.wo} from ${row.status}`}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              // Create a synthetic mouse event for keyboard navigation
+                              const syntheticEvent = {
+                                ...e,
+                                button: 0,
+                                buttons: 1,
+                                clientX: 0,
+                                clientY: 0,
+                                screenX: 0,
+                                screenY: 0,
+                                pageX: 0,
+                                pageY: 0,
+                                relatedTarget: null,
+                                movementX: 0,
+                                movementY: 0,
+                                altKey: e.altKey,
+                                ctrlKey: e.ctrlKey,
+                                metaKey: e.metaKey,
+                                shiftKey: e.shiftKey,
+                                getModifierState: e.getModifierState,
+                                nativeEvent: e.nativeEvent,
+                                currentTarget: e.currentTarget,
+                                target: e.target,
+                                bubbles: true,
+                                cancelable: true,
+                                defaultPrevented: false,
+                                eventPhase: 2,
+                                isTrusted: false,
+                                preventDefault: () => {},
+                                stopPropagation: () => {},
+                                stopImmediatePropagation: () => {},
+                                timeStamp: Date.now(),
+                                type: "click",
+                              } as unknown as React.MouseEvent<HTMLElement>;
+                              handleStatusClick(syntheticEvent, row.wo);
+                            }
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={row.creationSource === "ai" ? "AI" : "Manual"}
+                          color={
+                            row.creationSource === "ai" ? "warning" : "default"
+                          }
+                          variant="outlined"
+                          size="small"
+                          sx={{
+                            fontWeight: "bold",
+                            textTransform: "uppercase",
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>{row.eta} days</TableCell>
+                      <TableCell>
+                        {row.partsRequired ? (
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              maxWidth: 200,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
                           >
-                            <Analytics />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                            {row.partsRequired}
+                          </Typography>
+                        ) : (
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontStyle: "italic" }}
+                          >
+                            No parts required
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {row.creationSource === "ai" && (
+                          <Tooltip title="Open Sensor Analyzer">
+                            <IconButton
+                              size="small"
+                              onClick={(event) =>
+                                handleSensorAnalyzerClick(
+                                  event,
+                                  row.wo.toString(),
+                                )
+                              }
+                              color="primary"
+                              aria-label={`Open sensor analyzer for work order ${row.wo}`}
+                            >
+                              <Analytics />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           )}
         </TableContainer>
         <TablePagination

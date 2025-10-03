@@ -22,12 +22,42 @@ function seedDatabase() {
   console.log(`Database: ${dbPath}`);
 
   try {
+    // Add lat/long columns to ships table if they don't exist
+    try {
+      db.exec(`ALTER TABLE ships ADD COLUMN lat REAL`);
+      db.exec(`ALTER TABLE ships ADD COLUMN long REAL`);
+      console.log('Added lat/long columns to ships table');
+    } catch (err) {
+      // Columns may already exist, that's OK
+      if (!err.message.includes('duplicate column name')) {
+        console.log('Ships table columns:', err.message);
+      }
+    }
+
+    // Create parts_requisitions table if it doesn't exist
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS parts_requisitions (
+        id TEXT PRIMARY KEY,
+        order_number TEXT NOT NULL,
+        part_type TEXT NOT NULL,
+        quantity_shipped INTEGER NOT NULL,
+        stock_location_id TEXT NOT NULL,
+        stock_location TEXT NOT NULL,
+        designator_id TEXT NOT NULL,
+        designator TEXT NOT NULL,
+        ship_name TEXT NOT NULL,
+        ship_designation TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    `);
+
     // Clear existing data in reverse order of dependencies
     db.exec('DELETE FROM work_orders');
     db.exec('DELETE FROM gte_systems');
     db.exec('DELETE FROM users');
     db.exec('DELETE FROM ships');
     db.exec('DELETE FROM parts');
+    db.exec('DELETE FROM parts_requisitions');
 
     // Seed Ships
     const shipsData = [
@@ -37,7 +67,9 @@ function seedDatabase() {
         designation: 'CVN-78',
         class: 'Gerald R. Ford',
         homeport: 'Norfolk, VA',
-        status: 'Active'
+        status: 'Active',
+        lat: 36.8508,
+        long: -76.2859  // Norfolk, VA coordinates
       },
       {
         id: 'SHIP_002',
@@ -45,7 +77,9 @@ function seedDatabase() {
         designation: 'CVN-72',
         class: 'Nimitz',
         homeport: 'San Diego, CA',
-        status: 'Active'
+        status: 'Active',
+        lat: 32.7157,
+        long: -117.1611  // San Diego, CA coordinates
       },
       {
         id: 'SHIP_003',
@@ -53,7 +87,9 @@ function seedDatabase() {
         designation: 'CVN-76',
         class: 'Nimitz',
         homeport: 'Yokosuka, Japan',
-        status: 'Deployed'
+        status: 'Deployed',
+        lat: 35.2839,
+        long: 139.6625  // Yokosuka, Japan coordinates
       },
       {
         id: 'SHIP_004',
@@ -61,17 +97,19 @@ function seedDatabase() {
         designation: 'CVN-75',
         class: 'Nimitz',
         homeport: 'Norfolk, VA',
-        status: 'Maintenance'
+        status: 'Maintenance',
+        lat: 36.9308,
+        long: -76.2359  // Norfolk, VA (slightly offset)
       }
     ];
 
     const insertShip = db.prepare(`
-      INSERT INTO ships (id, name, designation, class, homeport, status)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO ships (id, name, designation, class, homeport, status, lat, long)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     for (const ship of shipsData) {
-      insertShip.run(ship.id, ship.name, ship.designation, ship.class, ship.homeport, ship.status);
+      insertShip.run(ship.id, ship.name, ship.designation, ship.class, ship.homeport, ship.status, ship.lat, ship.long);
     }
 
     console.log(`Created ${shipsData.length} ships`);
@@ -569,8 +607,68 @@ function seedDatabase() {
 
     console.log(`Created ${workOrdersData.length} work orders`);
 
+    // Seed Parts Requisitions (sample data from Databricks ai_part_orders)
+    const partsRequisitionsData = [
+      { stock_location_id: 'supply_1', designator_id: '1445245338', type: 'Filter - Fuel / Oil', qty_shipped: 1, stock_location: 'FLC Jacksonville', designator: 'USS Frank E. Petersen, Jr. (DDG-121)', order_number: 'PR-000003' },
+      { stock_location_id: 'supply_1', designator_id: '749690999', type: 'Filter - Fuel / Oil', qty_shipped: 1, stock_location: 'FLC Jacksonville', designator: 'USS Carl M. Levin (DDG-120)', order_number: 'PR-000008' },
+      { stock_location_id: 'supply_2', designator_id: '435531056', type: 'Filter - Fuel / Oil', qty_shipped: 1, stock_location: 'FLC Norfolk', designator: 'USS Mason (DDG-87)', order_number: 'PR-000013' },
+      { stock_location_id: 'supply_2', designator_id: '607191898', type: 'Filter - Fuel / Oil', qty_shipped: 1, stock_location: 'FLC Norfolk', designator: 'USS Delbert D. Black (DDG-119)', order_number: 'PR-000015' },
+      { stock_location_id: 'supply_3', designator_id: '1094377107', type: 'Filter - Fuel / Oil', qty_shipped: 1, stock_location: 'FLC Pearl Harbor', designator: 'USS Stockdale (DDG-106)', order_number: 'PR-000017' },
+      { stock_location_id: 'supply_3', designator_id: '1178652587', type: 'Filter - Fuel / Oil', qty_shipped: 2, stock_location: 'FLC Pearl Harbor', designator: 'USS Curtis Wilbur (DDG-54)', order_number: 'PR-000018' },
+      { stock_location_id: 'supply_1', designator_id: '1445245338', type: 'Seal', qty_shipped: 1, stock_location: 'FLC Jacksonville', designator: 'USS Frank E. Petersen, Jr. (DDG-121)', order_number: 'PR-000003' },
+      { stock_location_id: 'supply_2', designator_id: '435531056', type: 'Seal', qty_shipped: 1, stock_location: 'FLC Norfolk', designator: 'USS Mason (DDG-87)', order_number: 'PR-000013' },
+      { stock_location_id: 'supply_5', designator_id: '1264960554', type: 'Seal', qty_shipped: 1, stock_location: 'FLC San Diego', designator: 'USS Oscar Austin (DDG-79)', order_number: 'PR-000034' },
+      { stock_location_id: 'supply_2', designator_id: '1445245338', type: 'Vane - Turbine', qty_shipped: 1, stock_location: 'FLC Norfolk', designator: 'USS Frank E. Petersen, Jr. (DDG-121)', order_number: 'PR-000010' },
+      { stock_location_id: 'supply_3', designator_id: '1339654734', type: 'Vane - Turbine', qty_shipped: 1, stock_location: 'FLC Pearl Harbor', designator: 'USS Chung-Hoon (DDG-93)', order_number: 'PR-000019' },
+      { stock_location_id: 'supply_4', designator_id: '165243599', type: 'Vane - Turbine', qty_shipped: 1, stock_location: 'FLC Puget Sound', designator: 'USS Stout (DDG-55)', order_number: 'PR-000026' },
+      { stock_location_id: 'supply_1', designator_id: '1445245338', type: 'controller card #2 - ECU', qty_shipped: 1, stock_location: 'FLC Jacksonville', designator: 'USS Frank E. Petersen, Jr. (DDG-121)', order_number: 'PR-000003' },
+      { stock_location_id: 'supply_4', designator_id: '1012403573', type: 'controller card #2 - ECU', qty_shipped: 1, stock_location: 'FLC Puget Sound', designator: 'USS Truxtun (DDG-103)', order_number: 'PR-000023' },
+      { stock_location_id: 'supply_5', designator_id: '827415159', type: 'controller card #2 - ECU', qty_shipped: 1, stock_location: 'FLC San Diego', designator: 'USS Ramage (DDG-61)', order_number: 'PR-000041' },
+      { stock_location_id: 'supply_1', designator_id: '1445245338', type: 'Blade - Turbine', qty_shipped: 1, stock_location: 'FLC Jacksonville', designator: 'USS Frank E. Petersen, Jr. (DDG-121)', order_number: 'PR-000003' },
+      { stock_location_id: 'supply_3', designator_id: '1339654734', type: 'Blade - Turbine', qty_shipped: 1, stock_location: 'FLC Pearl Harbor', designator: 'USS Chung-Hoon (DDG-93)', order_number: 'PR-000019' },
+      { stock_location_id: 'supply_1', designator_id: '1094377107', type: 'Fuel Nozzle', qty_shipped: 1, stock_location: 'FLC Jacksonville', designator: 'USS Stockdale (DDG-106)', order_number: 'PR-000001' },
+      { stock_location_id: 'supply_2', designator_id: '435531056', type: 'Fuel Nozzle', qty_shipped: 1, stock_location: 'FLC Norfolk', designator: 'USS Mason (DDG-87)', order_number: 'PR-000013' },
+      { stock_location_id: 'supply_5', designator_id: '1264960554', type: 'Fuel Nozzle', qty_shipped: 1, stock_location: 'FLC San Diego', designator: 'USS Oscar Austin (DDG-79)', order_number: 'PR-000034' },
+      { stock_location_id: 'supply_1', designator_id: '1445245338', type: 'Valve - Fuel / Oil', qty_shipped: 1, stock_location: 'FLC Jacksonville', designator: 'USS Frank E. Petersen, Jr. (DDG-121)', order_number: 'PR-000003' },
+      { stock_location_id: 'supply_2', designator_id: '549097139', type: 'Valve - Fuel / Oil', qty_shipped: 1, stock_location: 'FLC Norfolk', designator: 'USS Donald Cook (DDG-75)', order_number: 'PR-000014' },
+      { stock_location_id: 'supply_1', designator_id: '1445245338', type: 'Pump - Fuel', qty_shipped: 1, stock_location: 'FLC Jacksonville', designator: 'USS Frank E. Petersen, Jr. (DDG-121)', order_number: 'PR-000003' },
+      { stock_location_id: 'supply_3', designator_id: '1178652587', type: 'Pump - Fuel', qty_shipped: 1, stock_location: 'FLC Pearl Harbor', designator: 'USS Curtis Wilbur (DDG-54)', order_number: 'PR-000018' },
+      { stock_location_id: 'supply_1', designator_id: '130463565', type: 'controller card #1 - ECU', qty_shipped: 1, stock_location: 'FLC Jacksonville', designator: 'USS Forrest Sherman (DDG-98)', order_number: 'PR-000002' },
+      { stock_location_id: 'supply_2', designator_id: '435531056', type: 'controller card #1 - ECU', qty_shipped: 1, stock_location: 'FLC Norfolk', designator: 'USS Mason (DDG-87)', order_number: 'PR-000013' },
+      { stock_location_id: 'supply_5', designator_id: '1264960554', type: 'controller card #1 - ECU', qty_shipped: 1, stock_location: 'FLC San Diego', designator: 'USS Oscar Austin (DDG-79)', order_number: 'PR-000034' },
+    ];
+
+    const insertPartsRequisition = db.prepare(`
+      INSERT INTO parts_requisitions (id, order_number, part_type, quantity_shipped, stock_location_id, stock_location, designator_id, designator, ship_name, ship_designation, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const req of partsRequisitionsData) {
+      // Parse ship name and designation
+      const match = req.designator.match(/^(.+?)\s*\(([^)]+)\)$/);
+      const shipName = match ? match[1].trim() : req.designator;
+      const shipDesignation = match ? match[2].trim() : '';
+      const id = `${req.order_number}-${req.designator_id}-${req.type}`;
+      
+      insertPartsRequisition.run(
+        id,
+        req.order_number,
+        req.type,
+        req.qty_shipped,
+        req.stock_location_id,
+        req.stock_location,
+        req.designator_id,
+        req.designator,
+        shipName,
+        shipDesignation,
+        new Date().toISOString()
+      );
+    }
+
+    console.log(`Created ${partsRequisitionsData.length} parts requisitions`);
+
     console.log('Database seeded successfully!');
-    console.log(`Created ${shipsData.length} ships, ${usersData.length} users, ${gteSystemsData.length} GTE systems, ${partsData.length} parts, and ${workOrdersData.length} work orders`);
+    console.log(`Created ${shipsData.length} ships, ${usersData.length} users, ${gteSystemsData.length} GTE systems, ${partsData.length} parts, ${workOrdersData.length} work orders, and ${partsRequisitionsData.length} parts requisitions`);
 
   } catch (error) {
     console.error('Error seeding database:', error);

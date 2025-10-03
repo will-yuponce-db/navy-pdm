@@ -421,8 +421,8 @@ export const UserManagement: React.FC = () => {
           }}
         >
           <Typography variant="h6">User Management</Typography>
-          <Button 
-            startIcon={<Add />} 
+          <Button
+            startIcon={<Add />}
             variant="contained"
             onClick={() => {
               console.log("Add User clicked");
@@ -476,7 +476,7 @@ export const UserManagement: React.FC = () => {
                       }
                       sx={{ mr: 1 }}
                     />
-                    <IconButton 
+                    <IconButton
                       onClick={() => {
                         handleEditUser(user);
                         console.log("Edit user clicked for:", user.id);
@@ -558,7 +558,7 @@ export const UserManagement: React.FC = () => {
             )}
           </DialogContent>
           <DialogActions>
-            <Button 
+            <Button
               onClick={() => {
                 setIsEditDialogOpen(false);
                 console.log("Cancel edit user dialog");
@@ -566,7 +566,7 @@ export const UserManagement: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               variant="contained"
               onClick={() => {
                 console.log("Save user changes");

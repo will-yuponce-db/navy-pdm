@@ -107,7 +107,7 @@ const NavComponent = memo(() => {
         handleDrawerClose();
         return;
       }
-      
+
       // Open user guide with Ctrl+? or Cmd+?
       if ((event.ctrlKey || event.metaKey) && event.key === "?") {
         event.preventDefault();
@@ -152,7 +152,7 @@ const NavComponent = memo(() => {
           <Typography variant="h6" noWrap component="h1" sx={{ flexGrow: 1 }}>
             {appHeader}
           </Typography>
-          
+
           {/* Notifications, Help and Keyboard Shortcuts */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <NotificationButton />
@@ -168,7 +168,9 @@ const NavComponent = memo(() => {
               color="inherit"
               onClick={() => {
                 // Show keyboard shortcuts help
-                alert("Keyboard Shortcuts:\n\nCtrl+1: Work Orders\nCtrl+2: Assets\nCtrl+3: Parts\nCtrl+4: Readiness\nCtrl+N: New Work Order\nCtrl+R: Refresh\nCtrl+H: Home\nCtrl+?: User Guide");
+                alert(
+                  "Keyboard Shortcuts:\n\nCtrl+1: Work Orders\nCtrl+2: Assets\nCtrl+3: Parts\nCtrl+4: Readiness\nCtrl+N: New Work Order\nCtrl+R: Refresh\nCtrl+H: Home\nCtrl+?: User Guide",
+                );
               }}
               aria-label="Show keyboard shortcuts"
               size="small"
@@ -266,7 +268,7 @@ const NavComponent = memo(() => {
         >
           <Outlet />
         </Box>
-        
+
         {/* User Guide */}
         <UserGuide open={guideOpen} onClose={closeGuide} />
       </Main>

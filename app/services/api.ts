@@ -289,9 +289,9 @@ export const partsApi = {
 
 // Enhanced Databricks SQL API with better error handling
 export const databricksApi = {
-  health: async (): Promise<{ 
-    status: string; 
-    timestamp: string; 
+  health: async (): Promise<{
+    status: string;
+    timestamp: string;
     details?: Record<string, unknown>;
     diagnostics?: Record<string, unknown>;
     recommendations?: string[];
@@ -299,18 +299,21 @@ export const databricksApi = {
     return apiRequest("/databricks/health");
   },
 
-  test: async (): Promise<{ 
-    success: boolean; 
-    message: string; 
+  test: async (): Promise<{
+    success: boolean;
+    message: string;
     data?: unknown;
     diagnostics?: Record<string, unknown>;
   }> => {
     return apiRequest("/databricks/test");
   },
 
-  query: async (query: string, options?: Record<string, unknown>): Promise<{ 
-    success: boolean; 
-    data: unknown[]; 
+  query: async (
+    query: string,
+    options?: Record<string, unknown>,
+  ): Promise<{
+    success: boolean;
+    data: unknown[];
     rowCount: number;
     diagnostics?: Record<string, unknown>;
     recommendations?: string[];
@@ -329,8 +332,12 @@ export const databricksApi = {
     return apiRequest("/databricks/databases");
   },
 
-  getTables: async (databaseName: string): Promise<{ success: boolean; data: unknown[]; database: string }> => {
-    return apiRequest(`/databricks/databases/${encodeURIComponent(databaseName)}/tables`);
+  getTables: async (
+    databaseName: string,
+  ): Promise<{ success: boolean; data: unknown[]; database: string }> => {
+    return apiRequest(
+      `/databricks/databases/${encodeURIComponent(databaseName)}/tables`,
+    );
   },
 
   getParts: async (params?: {
@@ -339,11 +346,13 @@ export const databricksApi = {
     category?: string;
     condition?: string;
     search?: string;
-  }): Promise<PaginatedResponse<Part> & { 
-    diagnostics?: Record<string, unknown>;
-    fallback?: boolean;
-    recommendations?: string[];
-  }> => {
+  }): Promise<
+    PaginatedResponse<Part> & {
+      diagnostics?: Record<string, unknown>;
+      fallback?: boolean;
+      recommendations?: string[];
+    }
+  > => {
     const queryParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -354,7 +363,9 @@ export const databricksApi = {
     }
 
     const queryString = queryParams.toString();
-    return apiRequest(`/databricks/parts${queryString ? `?${queryString}` : ""}`);
+    return apiRequest(
+      `/databricks/parts${queryString ? `?${queryString}` : ""}`,
+    );
   },
 
   getAIWorkOrders: async (params?: {
@@ -362,8 +373,8 @@ export const databricksApi = {
     offset?: number;
     priority?: string;
     homeLocation?: string;
-  }): Promise<{ 
-    success: boolean; 
+  }): Promise<{
+    success: boolean;
     data: unknown[];
     total: number;
     diagnostics?: Record<string, unknown>;
@@ -378,15 +389,21 @@ export const databricksApi = {
     }
 
     const queryString = queryParams.toString();
-    return apiRequest(`/databricks/ai-work-orders${queryString ? `?${queryString}` : ""}`);
+    return apiRequest(
+      `/databricks/ai-work-orders${queryString ? `?${queryString}` : ""}`,
+    );
   },
 
-  getAIWorkOrderById: async (workOrderId: string): Promise<{ 
-    success: boolean; 
+  getAIWorkOrderById: async (
+    workOrderId: string,
+  ): Promise<{
+    success: boolean;
     data: unknown;
     diagnostics?: Record<string, unknown>;
   }> => {
-    return apiRequest(`/databricks/ai-work-orders/${encodeURIComponent(workOrderId)}`);
+    return apiRequest(
+      `/databricks/ai-work-orders/${encodeURIComponent(workOrderId)}`,
+    );
   },
 
   getShipStatus: async (params?: {
@@ -396,8 +413,8 @@ export const databricksApi = {
     homeLocation?: string;
     turbineId?: string;
     operable?: boolean;
-  }): Promise<{ 
-    success: boolean; 
+  }): Promise<{
+    success: boolean;
     data: unknown[];
     total: number;
     limit: number;
@@ -417,14 +434,96 @@ export const databricksApi = {
     }
 
     const queryString = queryParams.toString();
-    return apiRequest(`/databricks/ship-status${queryString ? `?${queryString}` : ""}`);
+    return apiRequest(
+      `/databricks/ship-status${queryString ? `?${queryString}` : ""}`,
+    );
   },
 
-  getShipStatusByTurbineId: async (turbineId: string): Promise<{ 
-    success: boolean; 
+  getShipStatusByTurbineId: async (
+    turbineId: string,
+  ): Promise<{
+    success: boolean;
     data: unknown;
     diagnostics?: Record<string, unknown>;
   }> => {
-    return apiRequest(`/databricks/ship-status/${encodeURIComponent(turbineId)}`);
+    return apiRequest(
+      `/databricks/ship-status/${encodeURIComponent(turbineId)}`,
+    );
+  },
+
+  getPartsRequisitions: async (params?: {
+    limit?: number;
+    offset?: number;
+    partType?: string;
+    stockLocation?: string;
+    designator?: string;
+    orderNumber?: string;
+  }): Promise<{
+    success: boolean;
+    data: unknown[];
+    total: number;
+    limit: number;
+    offset: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+    diagnostics?: Record<string, unknown>;
+    recommendations?: string[];
+  }> => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+
+    const queryString = queryParams.toString();
+    return apiRequest(
+      `/databricks/parts-requisitions${queryString ? `?${queryString}` : ""}`,
+    );
+  },
+
+  getPartsRequisitionByOrderNumber: async (
+    orderNumber: string,
+  ): Promise<{
+    success: boolean;
+    data: unknown[];
+    diagnostics?: Record<string, unknown>;
+  }> => {
+    return apiRequest(
+      `/databricks/parts-requisitions/${encodeURIComponent(orderNumber)}`,
+    );
+  },
+
+  getPartsRequisitionsByDesignatorId: async (
+    designatorId: string,
+  ): Promise<{
+    success: boolean;
+    data: unknown[];
+    diagnostics?: Record<string, unknown>;
+  }> => {
+    return apiRequest(
+      `/databricks/parts-requisitions/ship/${encodeURIComponent(designatorId)}`,
+    );
+  },
+
+  createPartsRequisition: async (requisitionData: {
+    partType: string;
+    quantityShipped: number;
+    stockLocationId?: string;
+    stockLocation: string;
+    designatorId?: string;
+    designator: string;
+    orderNumber?: string;
+  }): Promise<{
+    success: boolean;
+    data: unknown;
+    message?: string;
+  }> => {
+    return apiRequest("/parts-requisitions", {
+      method: "POST",
+      body: JSON.stringify(requisitionData),
+    });
   },
 };

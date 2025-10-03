@@ -243,7 +243,14 @@ export default function QuickActions() {
             borderColor: "divider",
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: 1,
+            }}
+          >
             <Typography
               variant="caption"
               sx={{
@@ -273,13 +280,23 @@ export default function QuickActions() {
           </Box>
           <Typography
             variant="caption"
-            sx={{ color: "text.secondary", fontSize: "0.75rem", display: "block" }}
+            sx={{
+              color: "text.secondary",
+              fontSize: "0.75rem",
+              display: "block",
+            }}
           >
-            Ctrl+1: Work Orders • Ctrl+2: Assets • Ctrl+3: Parts • Ctrl+R: Refresh
+            Ctrl+1: Work Orders • Ctrl+2: Assets • Ctrl+3: Parts • Ctrl+R:
+            Refresh
           </Typography>
           <Typography
             variant="caption"
-            sx={{ color: "text.secondary", fontSize: "0.75rem", display: "block", mt: 0.5 }}
+            sx={{
+              color: "text.secondary",
+              fontSize: "0.75rem",
+              display: "block",
+              mt: 0.5,
+            }}
           >
             Ctrl+N: New Work Order • Ctrl+?: User Guide
           </Typography>

@@ -26,9 +26,14 @@ export const baseNavItems: {
     route: "/assets",
   },
   {
-    title: "Parts",
+    title: "Inventory",
     icon: "category",
     route: "/parts",
+  },
+  {
+    title: "Supply Orders",
+    icon: "receipt_long",
+    route: "/parts-requisition",
   },
   {
     title: "Maintenance Schedule",
@@ -75,6 +80,11 @@ export const spoNavItems = [
     route: "/analytics",
   },
   {
+    title: "Supply Orders",
+    icon: "receipt_long",
+    route: "/parts-requisition",
+  },
+  {
     title: "Maintenance Schedule",
     icon: "schedule",
     route: "/maintenance-schedule",
@@ -99,9 +109,14 @@ export const maintainerNavItems = [
     route: "/work-order",
   },
   {
-    title: "Parts & Inventory",
+    title: "Inventory",
     icon: "category",
     route: "/parts",
+  },
+  {
+    title: "Supply Orders",
+    icon: "receipt_long",
+    route: "/parts-requisition",
   },
   {
     title: "Asset Details",

@@ -1,956 +1,385 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Card,
   CardContent,
   Typography,
-  Chip,
-  IconButton,
-  Tooltip,
-  Badge,
-  Paper,
-  LinearProgress,
+  CircularProgress,
   Alert,
-  Grid,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Switch,
-  FormControlLabel,
-  Divider,
+  Chip,
 } from "@mui/material";
-import {
-  LocationOn,
-  Warning,
-  CheckCircle,
-  Error as ErrorIcon,
-  FlightTakeoff,
-  LocalShipping,
-  Refresh,
-  FilterList,
-} from "@mui/icons-material";
 
-// Dynamic imports for Leaflet components to avoid SSR issues
-let MapContainer: React.ComponentType<unknown>;
-let TileLayer: React.ComponentType<unknown>;
-let Marker: React.ComponentType<unknown>;
-let Popup: React.ComponentType<unknown>;
-let Polyline: React.ComponentType<unknown>;
-let useMap: () => unknown;
-let L: unknown;
+// API base URL
+const API_BASE_URL = "http://localhost:8000/api";
 
-// Load Leaflet components only on client side
-const loadLeafletComponents = async () => {
-  if (typeof window !== "undefined") {
-    const leafletModule = await import("leaflet");
-    const reactLeafletModule = await import("react-leaflet");
-
-    L = leafletModule.default;
-    MapContainer = reactLeafletModule.MapContainer;
-    TileLayer = reactLeafletModule.TileLayer;
-    Marker = reactLeafletModule.Marker;
-    Popup = reactLeafletModule.Popup;
-    Polyline = reactLeafletModule.Polyline;
-    useMap = reactLeafletModule.useMap;
-
-    // Import CSS
-    await import("leaflet/dist/leaflet.css");
-  }
-};
-
-interface Ship {
-  id: string;
-  name: string;
+interface Platform {
   designation: string;
-  latitude: number;
-  longitude: number;
-  status: "operational" | "maintenance" | "casrep" | "deployed";
-  healthScore: number;
-  lastUpdate: Date;
-  anomalies: number;
-  predictedFailures: number;
-  homeport: string;
-  gteCount: number;
-  maintenanceLevel: "S/F" | "I" | "D";
-}
-
-interface SupplyRoute {
+  name: string;
   id: string;
-  from: string;
-  to: string;
-  parts: string[];
-  eta: number;
-  status: "in-transit" | "delivered" | "pending";
-  priority: "routine" | "priority" | "casrep";
-  transportType: "air" | "ground" | "sea";
+  status: string;
+  homeport: string;
+  lat: number;
+  long: number;
+  open_work_orders: number;
 }
 
-// Mock data for ships and supply routes
-const mockShips: Ship[] = [
-  {
-    id: "1",
-    name: "USS Enterprise",
-    designation: "CVN-65",
-    latitude: 36.7783,
-    longitude: -119.4179,
-    status: "operational",
-    healthScore: 92,
-    lastUpdate: new Date(Date.now() - 300000),
-    anomalies: 2,
-    predictedFailures: 1,
-    homeport: "San Diego",
-    gteCount: 8,
-    maintenanceLevel: "S/F",
-  },
-  {
-    id: "2",
-    name: "USS Cole",
-    designation: "DDG-67",
-    latitude: 32.7157,
-    longitude: -117.1611,
-    status: "casrep",
-    healthScore: 45,
-    lastUpdate: new Date(Date.now() - 600000),
-    anomalies: 7,
-    predictedFailures: 3,
-    homeport: "Norfolk",
-    gteCount: 4,
-    maintenanceLevel: "I",
-  },
-  {
-    id: "3",
-    name: "USS Bainbridge",
-    designation: "DDG-96",
-    latitude: 25.7617,
-    longitude: -80.1918,
-    status: "maintenance",
-    healthScore: 78,
-    lastUpdate: new Date(Date.now() - 180000),
-    anomalies: 4,
-    predictedFailures: 2,
-    homeport: "Mayport",
-    gteCount: 4,
-    maintenanceLevel: "S/F",
-  },
-  {
-    id: "4",
-    name: "USS Arleigh Burke",
-    designation: "DDG-51",
-    latitude: 40.7128,
-    longitude: -74.006,
-    status: "deployed",
-    healthScore: 88,
-    lastUpdate: new Date(Date.now() - 120000),
-    anomalies: 1,
-    predictedFailures: 0,
-    homeport: "Norfolk",
-    gteCount: 4,
-    maintenanceLevel: "S/F",
-  },
-  {
-    id: "5",
-    name: "USS Defiant",
-    designation: "DDG-1000",
-    latitude: 47.6062,
-    longitude: -122.3321,
-    status: "operational",
-    healthScore: 95,
-    lastUpdate: new Date(Date.now() - 90000),
-    anomalies: 0,
-    predictedFailures: 0,
-    homeport: "Everett",
-    gteCount: 2,
-    maintenanceLevel: "S/F",
-  },
-];
+interface StockLocation {
+  stock_location_id: string;
+  stock_location: string;
+  lat: number;
+  long: number;
+  parts_count: number;
+  total_stock: number;
+}
 
-const mockSupplyRoutes: SupplyRoute[] = [
-  {
-    id: "1",
-    from: "RMC Norfolk",
-    to: "USS Cole",
-    parts: ["Turbine Blade Set", "Bearing Assembly"],
-    eta: 2,
-    status: "in-transit",
-    priority: "casrep",
-    transportType: "air",
-  },
-  {
-    id: "2",
-    from: "RMC San Diego",
-    to: "USS Bainbridge",
-    parts: ["Fuel Pump", "Control Valve"],
-    eta: 5,
-    status: "in-transit",
-    priority: "priority",
-    transportType: "ground",
-  },
-  {
-    id: "3",
-    from: "Supplier A",
-    to: "RMC Norfolk",
-    parts: ["Turbine Blade Set", "Seal Kit"],
-    eta: 7,
-    status: "pending",
-    priority: "routine",
-    transportType: "sea",
-  },
-];
+interface ShippingRoute {
+  id: string;
+  order_number: string;
+  type: string;
+  qty_shipped: number;
+  stock_location_id: string;
+  stock_name: string;
+  designator: string;
+  source_lat: number;
+  source_lng: number;
+  target_lat: number;
+  target_lng: number;
+  created_at: string;
+}
 
-const getStatusColor = (status: Ship["status"]) => {
-  switch (status) {
-    case "operational":
-      return "success";
-    case "maintenance":
-      return "warning";
-    case "casrep":
-      return "error";
-    case "deployed":
-      return "info";
-    default:
-      return "default";
-  }
-};
-
-const getStatusIcon = (status: Ship["status"]) => {
-  switch (status) {
-    case "operational":
-      return <CheckCircle />;
-    case "maintenance":
-      return <Warning />;
-    case "casrep":
-      return <ErrorIcon />;
-    case "deployed":
-      return <FlightTakeoff />;
-    default:
-      return <LocationOn />;
-  }
-};
-
-const getTransportIcon = (type: SupplyRoute["transportType"]) => {
-  switch (type) {
-    case "air":
-      return <FlightTakeoff />;
-    case "ground":
-      return <LocalShipping />;
-    case "sea":
-      return <LocalShipping />;
-    default:
-      return <LocalShipping />;
-  }
-};
-
-// Memoized icon cache to prevent recreating icons unnecessarily
-const iconCache = new Map<string, unknown>();
-
-// Create custom ship icons for different statuses (memoized)
-const createShipIcon = (status: Ship["status"], healthScore: number) => {
-  if (!L) return null;
-
-  // Create cache key based on status and health score range
-  const healthRange =
-    healthScore > 80 ? "high" : healthScore > 60 ? "medium" : "low";
-  const cacheKey = `${status}-${healthRange}`;
-
-  // Return cached icon if available
-  if (iconCache.has(cacheKey)) {
-    return iconCache.get(cacheKey);
-  }
-
-  const getIconColor = (status: Ship["status"]) => {
-    switch (status) {
-      case "operational":
-        return "#4caf50";
-      case "maintenance":
-        return "#ff9800";
-      case "casrep":
-        return "#f44336";
-      case "deployed":
-        return "#2196f3";
-      default:
-        return "#757575";
-    }
-  };
-
-  const iconColor = getIconColor(status);
-  const size = healthScore > 80 ? 25 : healthScore > 60 ? 20 : 15;
-
-  const icon = L.divIcon({
-    className: "custom-ship-icon",
-    html: `
-      <div style="
-        width: ${size}px;
-        height: ${size}px;
-        background-color: ${iconColor};
-        border: 2px solid white;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        position: relative;
-      ">
-        <div style="
-          width: ${size * 0.6}px;
-          height: ${size * 0.6}px;
-          background-color: white;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: ${size * 0.4}px;
-          color: ${iconColor};
-        ">⚓</div>
-      </div>
-    `,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -size / 2],
-  });
-
-  // Cache the icon
-  iconCache.set(cacheKey, icon);
-  return icon;
-};
-
-// Component to handle map events
-const MapEventHandler = ({ selectedShip }: { selectedShip: Ship | null }) => {
-  if (!useMap) return null;
-
-  const map = useMap();
+// Client-side only Map component
+function ClientOnlyMap({
+  platforms,
+  stockLocations,
+  shippingRoutes,
+}: {
+  platforms: Platform[];
+  stockLocations: StockLocation[];
+  shippingRoutes: ShippingRoute[];
+}) {
+  const [MapComponent, setMapComponent] = useState<any>(null);
 
   useEffect(() => {
-    if (selectedShip) {
-      map.setView([selectedShip.latitude, selectedShip.longitude], 8);
-    }
-  }, [selectedShip, map]);
+    // Dynamically import all Leaflet components
+    import("react-leaflet").then((module) => {
+      import("leaflet").then((L) => {
+        import("leaflet/dist/leaflet.css");
 
+        // Fix Leaflet default marker icons
+        delete (L.Icon.Default.prototype as any)._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl:
+            "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+          iconUrl:
+            "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+          shadowUrl:
+            "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+        });
+
+        // Custom icons
+        const platformIcon = new L.Icon({
+          iconUrl:
+            "data:image/svg+xml;base64," +
+            btoa(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+              <circle cx="16" cy="16" r="12" fill="#FF8C00" stroke="#fff" stroke-width="2"/>
+              <text x="16" y="20" font-size="14" text-anchor="middle" fill="#fff" font-weight="bold">S</text>
+            </svg>
+          `),
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+          popupAnchor: [0, -16],
+        });
+
+        const stockIcon = new L.Icon({
+          iconUrl:
+            "data:image/svg+xml;base64," +
+            btoa(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+              <circle cx="16" cy="16" r="12" fill="#00CCFF" stroke="#fff" stroke-width="2"/>
+              <text x="16" y="20" font-size="14" text-anchor="middle" fill="#fff" font-weight="bold">W</text>
+            </svg>
+          `),
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+          popupAnchor: [0, -16],
+        });
+
+        // Component to fit bounds
+        function FitBounds({ bounds }: { bounds: any }) {
+          const map = module.useMap();
+  useEffect(() => {
+            if (bounds) {
+              map.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 });
+    }
+          }, [bounds, map]);
   return null;
-};
+        }
 
-// Client-only map component (memoized to prevent unnecessary re-renders)
-const ClientOnlyMap = memo(
-  ({
-    mapCenter,
-    mapZoom,
-    filteredShips,
-    showSupplyRoutes,
-    supplyRoutes,
-    supplyRouteCoordinates,
-    selectedShip,
-    handleShipSelect,
-  }: {
-    mapCenter: [number, number];
-    mapZoom: number;
-    filteredShips: Ship[];
-    showSupplyRoutes: boolean;
-    supplyRoutes: SupplyRoute[];
-    supplyRouteCoordinates: Record<string, [number, number][]>;
-    selectedShip: Ship | null;
-    handleShipSelect: (ship: Ship) => void;
-  }) => {
-    const [isLoaded, setIsLoaded] = useState(false);
+        // Calculate bounds
+        const allPoints: [number, number][] = [
+          ...platforms.map((p) => [p.lat, p.long] as [number, number]),
+          ...stockLocations.map((s) => [s.lat, s.long] as [number, number]),
+        ];
+        const bounds = allPoints.length > 0 ? L.latLngBounds(allPoints) : null;
 
-    useEffect(() => {
-      loadLeafletComponents().then(() => {
-        setIsLoaded(true);
-      });
-    }, []);
-
-    if (!isLoaded || typeof window === "undefined") {
-      return (
-        <Box
-          sx={{
-            height: 400,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background:
-              "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)",
-            borderRadius: 2,
-            border: "1px solid rgba(255,255,255,0.1)",
-          }}
-        >
-          <Typography variant="h6" sx={{ color: "text.secondary" }}>
-            Loading map...
-          </Typography>
-        </Box>
-      );
-    }
-
-    return (
-      <MapContainer
-        center={mapCenter}
-        zoom={mapZoom}
+        // Create the map component
+        const Map = () => (
+          <module.MapContainer
+            center={[34.5, -112.0]}
+            zoom={4}
         style={{ height: "100%", width: "100%" }}
-        zoomControl={false}
+            scrollWheelZoom={true}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            <module.TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {/* Ship Markers */}
-        {filteredShips.map((ship) => {
-          const icon = createShipIcon(ship.status, ship.healthScore);
-          if (!icon) return null;
+            <FitBounds bounds={bounds} />
 
-          return (
-            <Marker
-              key={ship.id}
-              position={[ship.latitude, ship.longitude]}
-              icon={icon}
-              eventHandlers={{
-                click: () => handleShipSelect(ship),
-              }}
-            >
-              <Popup>
+            {/* Platform Markers */}
+            {platforms.map((platform) => (
+              <module.Marker
+                key={platform.id}
+                position={[platform.lat, platform.long]}
+                icon={platformIcon}
+              >
+                <module.Popup>
                 <Box sx={{ minWidth: 200 }}>
                   <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-                    {ship.name}
+                      {platform.designation}
                   </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 1 }}
-                  >
-                    {ship.designation} • {ship.homeport}
-                  </Typography>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      mb: 1,
-                    }}
-                  >
-                    {getStatusIcon(ship.status)}
-                    <Chip
-                      label={ship.status}
-                      size="small"
-                      color={getStatusColor(ship.status)}
-                      variant="outlined"
-                    />
+                    <Typography variant="body2">
+                      <strong>Name:</strong> {platform.name}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Status:</strong> {platform.status}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Homeport:</strong> {platform.homeport}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Open Work Orders:</strong>{" "}
+                      {platform.open_work_orders}
+                    </Typography>
                   </Box>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    Health Score: <strong>{ship.healthScore}%</strong>
+                </module.Popup>
+              </module.Marker>
+            ))}
+
+            {/* Stock Location Markers */}
+            {stockLocations.map((location) => (
+              <module.Marker
+                key={location.stock_location_id}
+                position={[location.lat, location.long]}
+                icon={stockIcon}
+              >
+                <module.Popup>
+                  <Box sx={{ minWidth: 200 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                      {location.stock_location}
                   </Typography>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    Anomalies: <strong>{ship.anomalies}</strong>
+                    <Typography variant="body2">
+                      <strong>ID:</strong> {location.stock_location_id}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Parts Count:</strong> {location.parts_count}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Total Stock:</strong> {location.total_stock}
+                    </Typography>
+                  </Box>
+                </module.Popup>
+              </module.Marker>
+            ))}
+
+            {/* Shipping Route Polylines */}
+            {shippingRoutes.map((route) => (
+              <module.Polyline
+                key={route.id}
+                positions={[
+                  [route.source_lat, route.source_lng],
+                  [route.target_lat, route.target_lng],
+                ]}
+                pathOptions={{
+                  color: "#3CDC82",
+                  weight: Math.max(2, Math.min(route.qty_shipped / 10, 8)),
+                  opacity: 0.6,
+                }}
+              >
+                <module.Popup>
+                  <Box sx={{ minWidth: 200 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                      Shipment: {route.order_number}
                   </Typography>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    Predicted Failures:{" "}
-                    <strong>{ship.predictedFailures}</strong>
+                    <Typography variant="body2">
+                      <strong>From:</strong> {route.stock_name}
                   </Typography>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    GTE Count: <strong>{ship.gteCount}</strong>
+                    <Typography variant="body2">
+                      <strong>To:</strong> {route.designator}
                   </Typography>
-                  <Typography variant="body2" sx={{ mb: 1 }}>
-                    Maintenance Level: <strong>{ship.maintenanceLevel}</strong>
+                    <Typography variant="body2">
+                      <strong>Type:</strong> {route.type}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Last Update: {ship.lastUpdate.toLocaleTimeString()}
+                    <Typography variant="body2">
+                      <strong>Quantity:</strong> {route.qty_shipped}
+                  </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ fontSize: "0.75rem", mt: 1 }}
+                    >
+                      {new Date(route.created_at).toLocaleString()}
                   </Typography>
                 </Box>
-              </Popup>
-            </Marker>
-          );
-        })}
+                </module.Popup>
+              </module.Polyline>
+            ))}
+          </module.MapContainer>
+        );
 
-        {/* Supply Routes */}
-        {showSupplyRoutes &&
-          supplyRoutes.map((route) => {
-            const coordinates = supplyRouteCoordinates[route.id];
-            if (!coordinates) return null;
-
-            const getRouteColor = (priority: SupplyRoute["priority"]) => {
-              switch (priority) {
-                case "casrep":
-                  return "#f44336";
-                case "priority":
-                  return "#ff9800";
-                case "routine":
-                  return "#4caf50";
-                default:
-                  return "#757575";
-              }
-            };
-
-            return (
-              <Polyline
-                key={route.id}
-                positions={coordinates}
-                color={getRouteColor(route.priority)}
-                weight={3}
-                opacity={0.7}
-                dashArray={route.status === "in-transit" ? "10, 10" : undefined}
-              />
-            );
-          })}
-
-        <MapEventHandler
-          selectedShip={selectedShip}
-          onShipSelect={handleShipSelect}
-        />
-      </MapContainer>
-    );
-  },
-);
-
-ClientOnlyMap.displayName = "ClientOnlyMap";
-
-export default function FleetMap() {
-  const [ships, setShips] = useState<Ship[]>(mockShips);
-  const [supplyRoutes] = useState<SupplyRoute[]>(mockSupplyRoutes);
-  const [selectedShip, setSelectedShip] = useState<Ship | null>(null);
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [showSupplyRoutes, setShowSupplyRoutes] = useState(true);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([
-    36.7783, -119.4179,
-  ]);
-  const [mapZoom, setMapZoom] = useState(4);
-
-  // Optimized real-time updates with reduced frequency and batched changes
-  useEffect(() => {
-    if (!autoRefresh) return;
-
-    const interval = setInterval(() => {
-      setShips((prevShips) => {
-        // Batch all updates in a single state change
-        const updatedShips = prevShips.map((ship) => {
-          const randomChange = (Math.random() - 0.5) * 1.5; // Reduced change magnitude
-          const newHealthScore = Math.max(
-            0,
-            Math.min(100, ship.healthScore + randomChange),
-          );
-
-          // Only update anomalies occasionally to reduce unnecessary re-renders
-          const shouldUpdateAnomalies = Math.random() > 0.98; // Reduced from 0.95
-
-          return {
-            ...ship,
-            healthScore: newHealthScore,
-            lastUpdate: new Date(),
-            anomalies: shouldUpdateAnomalies
-              ? Math.max(0, ship.anomalies + (Math.random() > 0.5 ? 1 : -1))
-              : ship.anomalies,
-          };
-        });
-
-        return updatedShips;
+        setMapComponent(() => Map);
       });
-    }, 10000); // Increased interval from 5s to 10s
+    });
+  }, [platforms, stockLocations, shippingRoutes]);
 
-    return () => clearInterval(interval);
-  }, [autoRefresh]);
-
-  const filteredShips = useMemo(
-    () =>
-      ships.filter(
-        (ship) => filterStatus === "all" || ship.status === filterStatus,
-      ),
-    [ships, filterStatus],
-  );
-
-  // Virtual rendering: only show markers when zoomed in enough
-  const shouldShowMarkers = mapZoom >= 3;
-  const visibleShips = useMemo(
-    () => (shouldShowMarkers ? filteredShips : []),
-    [shouldShowMarkers, filteredShips],
-  );
-
-  // Add coordinates for supply routes (simplified for demo)
-  const supplyRouteCoordinates = useMemo(() => {
-    const routeCoords: { [key: string]: [number, number][] } = {
-      "1": [
-        [36.7783, -119.4179],
-        [32.7157, -117.1611],
-      ], // Norfolk to USS Cole
-      "2": [
-        [32.7157, -117.1611],
-        [25.7617, -80.1918],
-      ], // San Diego to USS Bainbridge
-      "3": [
-        [40.7128, -74.006],
-        [36.7783, -119.4179],
-      ], // Supplier to Norfolk
-    };
-    return routeCoords;
-  }, []);
-
-  // Debounced ship selection to prevent rapid state changes
-  const [debounceTimeout, setDebounceTimeout] = useState<NodeJS.Timeout | null>(
-    null,
-  );
-
-  const handleShipSelect = useCallback(
-    (ship: Ship) => {
-      // Clear existing timeout
-      if (debounceTimeout) {
-        clearTimeout(debounceTimeout);
-      }
-
-      // Set new timeout for debounced execution
-      const timeout = setTimeout(() => {
-        setSelectedShip(ship);
-        setMapCenter([ship.latitude, ship.longitude]);
-        setMapZoom(8);
-      }, 150); // 150ms debounce
-
-      setDebounceTimeout(timeout);
-    },
-    [debounceTimeout],
-  );
-
-  // Cleanup debounce timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimeout) {
-        clearTimeout(debounceTimeout);
-      }
-    };
-  }, [debounceTimeout]);
-
-  const fleetStats = useMemo(
-    () => ({
-      total: ships.length,
-      operational: ships.filter((s) => s.status === "operational").length,
-      maintenance: ships.filter((s) => s.status === "maintenance").length,
-      casrep: ships.filter((s) => s.status === "casrep").length,
-      deployed: ships.filter((s) => s.status === "deployed").length,
-      avgHealthScore: Math.round(
-        ships.reduce((sum, ship) => sum + ship.healthScore, 0) / ships.length,
-      ),
-      totalAnomalies: ships.reduce((sum, ship) => sum + ship.anomalies, 0),
-      totalPredictedFailures: ships.reduce(
-        (sum, ship) => sum + ship.predictedFailures,
-        0,
-      ),
-    }),
-    [ships],
-  );
-
-  return (
-    <Box sx={{ width: "100%", height: "100vh", p: 2 }}>
-      <style>
-        {`
-          .custom-ship-icon {
-            background: transparent !important;
-            border: none !important;
-          }
-          .leaflet-popup-content-wrapper {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-          }
-          .leaflet-popup-tip {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-          }
-        `}
-      </style>
+  if (!MapComponent) {
+            return (
       <Box
         sx={{
           display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          gap: 2,
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100%",
         }}
       >
-        {/* Left Panel - Fleet Overview */}
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-            height: "100%",
-          }}
-        >
-          {/* Fleet Stats */}
-          <Card
-            sx={{
-              background:
-                "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 3,
-              boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-            }}
-          >
-            <CardContent>
-              <Typography
-                variant="h5"
-                sx={{
-                  fontWeight: 700,
-                  mb: 2,
-                  background:
-                    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                  backgroundClip: "text",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                Fleet Overview
-              </Typography>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
-              <Box sx={{ display: "flex", gap: 2 }}>
-                <Box sx={{ flex: 1, textAlign: "center" }}>
-                  <Typography
-                    variant="h3"
-                    sx={{ fontWeight: 800, color: "primary.main" }}
-                  >
-                    {fleetStats.total}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Ships
-                  </Typography>
+  return <MapComponent />;
+}
+
+export default function FleetMap() {
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [stockLocations, setStockLocations] = useState<StockLocation[]>([]);
+  const [shippingRoutes, setShippingRoutes] = useState<ShippingRoute[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  // Ensure we're on the client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isClient) return;
+
+    const fetchMapData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch all map data in parallel
+        const [platformsRes, stockRes, routesRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/map/platforms`),
+          fetch(`${API_BASE_URL}/map/stock-locations`),
+          fetch(`${API_BASE_URL}/map/shipping-routes`),
+        ]);
+
+        if (!platformsRes.ok || !stockRes.ok || !routesRes.ok) {
+          throw new Error("Failed to fetch map data");
+        }
+
+        const [platformsData, stockData, routesData] = await Promise.all([
+          platformsRes.json(),
+          stockRes.json(),
+          routesRes.json(),
+        ]);
+
+        if (
+          !platformsData.success ||
+          !stockData.success ||
+          !routesData.success
+        ) {
+          throw new Error(
+            platformsData.error || stockData.error || routesData.error
+          );
+        }
+
+        setPlatforms(platformsData.data);
+        setStockLocations(stockData.data);
+        setShippingRoutes(routesData.data);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching map data:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load map data"
+        );
+        setLoading(false);
+      }
+    };
+
+    fetchMapData();
+  }, [isClient]);
+
+  // Don't render on server-side
+  if (!isClient) {
+  return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <CircularProgress />
                 </Box>
-                <Box sx={{ flex: 1, textAlign: "center" }}>
-                  <Typography
-                    variant="h3"
-                    sx={{ fontWeight: 800, color: "success.main" }}
-                  >
-                    {fleetStats.avgHealthScore}%
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Avg Health
-                  </Typography>
-                </Box>
-              </Box>
+    );
+  }
 
-              <Box sx={{ mt: 2 }}>
-                <LinearProgress
-                  variant="determinate"
-                  value={fleetStats.avgHealthScore}
-                  sx={{
-                    height: 8,
-                    borderRadius: 4,
-                    background: "rgba(255,255,255,0.1)",
-                    "& .MuiLinearProgress-bar": {
-                      background:
-                        "linear-gradient(90deg, #4caf50 0%, #388e3c 100%)",
-                      borderRadius: 4,
-                    },
-                  }}
-                />
-              </Box>
-
-              <Box sx={{ mt: 2, display: "flex", gap: 1, flexWrap: "wrap" }}>
-                <Chip
-                  label={`${fleetStats.operational} Operational`}
-                  color="success"
-                  size="small"
-                />
-                <Chip
-                  label={`${fleetStats.maintenance} Maintenance`}
-                  color="warning"
-                  size="small"
-                />
-                <Chip
-                  label={`${fleetStats.casrep} CASREP`}
-                  color="error"
-                  size="small"
-                />
-                <Chip
-                  label={`${fleetStats.deployed} Deployed`}
-                  color="info"
-                  size="small"
-                />
-              </Box>
-            </CardContent>
-          </Card>
-
-          {/* Critical Alerts */}
-          <Card
-            sx={{
-              background:
-                "linear-gradient(135deg, rgba(183, 28, 28, 0.1) 0%, rgba(183, 28, 28, 0.05) 100%)",
-              backdropFilter: "blur(20px)",
-              border: "2px solid rgba(183, 28, 28, 0.4)",
-              borderRadius: 3,
-              boxShadow: "0 8px 32px rgba(183, 28, 28, 0.2)",
-              backgroundColor: "error.light",
-            }}
-          >
-            <CardContent>
-              <Typography
-                variant="h6"
-                sx={{
-                  fontWeight: 700,
-                  color: "text.primary",
-                  mb: 2,
-                  padding: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                }}
-              >
-                <Warning />
-                Critical Alerts
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              <Alert severity="error" sx={{ mb: 1 }}>
-                <Typography variant="body2">
-                  <strong>{fleetStats.totalAnomalies} Active Anomalies</strong>{" "}
-                  detected across fleet
-                </Typography>
-              </Alert>
-              <Alert severity="warning" sx={{ mb: 1 }}>
-                <Typography variant="body2">
-                  <strong>
-                    {fleetStats.totalPredictedFailures} Predicted Failures
-                  </strong>{" "}
-                  in next 30 days
-                </Typography>
-              </Alert>
-              <Alert severity="info">
-                <Typography variant="body2">
-                  <strong>3 Supply Routes</strong> in progress
-                </Typography>
-              </Alert>
-            </CardContent>
-          </Card>
-
-          {/* Ship List */}
-          <Card
-            sx={{
-              flex: 1,
-              background:
-                "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 3,
-              boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-            }}
-          >
-            <CardContent
-              sx={{ height: "100%", display: "flex", flexDirection: "column" }}
-            >
+  if (loading) {
+    return (
               <Box
                 sx={{
                   display: "flex",
+          justifyContent: "center",
                   alignItems: "center",
-                  justifyContent: "space-between",
-                  mb: 2,
-                }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Fleet Status
-                </Typography>
-                <Box sx={{ display: "flex", gap: 1 }}>
-                  <Tooltip title="Auto Refresh">
-                    <IconButton
-                      size="small"
-                      onClick={() => setAutoRefresh(!autoRefresh)}
-                      color={autoRefresh ? "primary" : "default"}
-                    >
-                      <Refresh />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Filter">
-                    <IconButton size="small">
-                      <FilterList />
-                    </IconButton>
-                  </Tooltip>
+          height: "100vh",
+        }}
+      >
+        <CircularProgress />
                 </Box>
-              </Box>
+    );
+  }
 
-              <Box sx={{ flex: 1, overflow: "auto" }}>
-                {filteredShips.map((ship) => (
-                  <Paper
-                    key={ship.id}
-                    sx={{
-                      p: 2,
-                      mb: 1,
-                      cursor: "pointer",
-                      background:
-                        selectedShip?.id === ship.id
-                          ? "rgba(102, 126, 234, 0.1)"
-                          : "rgba(255,255,255,0.05)",
-                      border:
-                        selectedShip?.id === ship.id
-                          ? "2px solid rgba(102, 126, 234, 0.3)"
-                          : "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: 2,
-                      transition: "all 0.2s ease-in-out",
-                      "&:hover": {
-                        background: "rgba(102, 126, 234, 0.1)",
-                        border: "1px solid rgba(102, 126, 234, 0.3)",
-                        transform: "translateY(-2px)",
-                      },
-                    }}
-                    onClick={() => handleShipSelect(ship)}
-                  >
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">
+          <Typography variant="h6">Error Loading Map</Typography>
+          <Typography>{error}</Typography>
+        </Alert>
+              </Box>
+    );
+  }
+
+  return (
                     <Box
                       sx={{
+        width: "100%",
+        height: "100vh",
                         display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                      >
-                        <Badge
-                          badgeContent={ship.anomalies}
-                          color="error"
-                          invisible={ship.anomalies === 0}
-                        >
-                          {getStatusIcon(ship.status)}
-                        </Badge>
-                        <Box>
-                          <Typography
-                            variant="subtitle2"
-                            sx={{ fontWeight: 600 }}
-                          >
-                            {ship.name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {ship.designation} • {ship.homeport}
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <Box sx={{ textAlign: "right" }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {ship.healthScore}%
-                        </Typography>
-                        <Chip
-                          label={ship.status}
-                          size="small"
-                          color={getStatusColor(ship.status)}
-                          variant="outlined"
-                        />
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ mt: 1 }}>
-                      <LinearProgress
-                        variant="determinate"
-                        value={ship.healthScore}
-                        color={
-                          ship.healthScore > 80
-                            ? "success"
-                            : ship.healthScore > 60
-                              ? "warning"
-                              : "error"
-                        }
-                        sx={{ height: 4, borderRadius: 2 }}
-                      />
-                    </Box>
-                  </Paper>
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
-
-        {/* Right Panel - Map and Supply Routes */}
-        <Box sx={{ flex: 1 }}>
+        flexDirection: "column",
+      }}
+    >
+      {/* Header Stats */}
           <Card
             sx={{
-              height: "100%",
+          m: 2,
               background:
                 "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)",
               backdropFilter: "blur(20px)",
@@ -959,323 +388,47 @@ export default function FleetMap() {
               boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
             }}
           >
-            <CardContent
-              sx={{ height: "100%", display: "flex", flexDirection: "column" }}
-            >
+        <CardContent>
               <Typography
                 variant="h5"
                 sx={{
                   fontWeight: 700,
                   mb: 2,
-                  background:
-                    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                   backgroundClip: "text",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                 }}
               >
-                Fleet Map & Supply Routes
+            Fleet Logistics Map
               </Typography>
-
-              {/* Interactive Map */}
-              <Box
-                sx={{
-                  flex: 1,
-                  borderRadius: 2,
-                  overflow: "hidden",
-                  position: "relative",
-                  border: "2px solid rgba(255,255,255,0.1)",
-                }}
-              >
-                <ClientOnlyMap
-                  mapCenter={mapCenter}
-                  mapZoom={mapZoom}
-                  filteredShips={visibleShips}
-                  showSupplyRoutes={showSupplyRoutes}
-                  supplyRoutes={supplyRoutes}
-                  supplyRouteCoordinates={supplyRouteCoordinates}
-                  selectedShip={selectedShip}
-                  handleShipSelect={handleShipSelect}
-                />
-
-                {/* Map Controls */}
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: 10,
-                    right: 10,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 1,
-                  }}
-                >
-                  <Paper
-                    sx={{
-                      p: 1,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 1,
-                    }}
-                  >
-                    <Tooltip title="Show Supply Routes">
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={showSupplyRoutes}
-                            onChange={(e) =>
-                              setShowSupplyRoutes(e.target.checked)
-                            }
-                            size="small"
-                          />
-                        }
-                        label="Routes"
-                        sx={{ m: 0 }}
-                      />
-                    </Tooltip>
-                    <Tooltip title="Filter Ships">
-                      <FormControl size="small" sx={{ minWidth: 120 }}>
-                        <InputLabel>Status</InputLabel>
-                        <Select
-                          value={filterStatus}
-                          onChange={(e) => setFilterStatus(e.target.value)}
-                          label="Status"
-                          size="small"
-                        >
-                          <MenuItem value="all">All Ships</MenuItem>
-                          <MenuItem value="operational">Operational</MenuItem>
-                          <MenuItem value="maintenance">Maintenance</MenuItem>
-                          <MenuItem value="casrep">CASREP</MenuItem>
-                          <MenuItem value="deployed">Deployed</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Tooltip>
-                  </Paper>
-                </Box>
-
-                {/* Map Legend */}
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: 10,
-                    left: 10,
-                    background: "rgba(255, 255, 255, 0.95)",
-                    backdropFilter: "blur(10px)",
-                    borderRadius: 2,
-                    p: 2,
-                    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
-                    maxWidth: 200,
-                    zIndex: 1000,
-                  }}
-                >
-                  <Typography
-                    variant="subtitle2"
-                    sx={{ fontWeight: 700, mb: 1 }}
-                  >
-                    Legend
-                  </Typography>
-                  <Box
-                    sx={{ display: "flex", flexDirection: "column", gap: 1 }}
-                  >
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Box
-                        sx={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: "50%",
-                          backgroundColor: "#4caf50",
-                          border: "1px solid white",
-                        }}
-                      />
-                      <Typography variant="caption">Operational</Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Box
-                        sx={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: "50%",
-                          backgroundColor: "#ff9800",
-                          border: "1px solid white",
-                        }}
-                      />
-                      <Typography variant="caption">Maintenance</Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Box
-                        sx={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: "50%",
-                          backgroundColor: "#f44336",
-                          border: "1px solid white",
-                        }}
-                      />
-                      <Typography variant="caption">CASREP</Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Box
-                        sx={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: "50%",
-                          backgroundColor: "#2196f3",
-                          border: "1px solid white",
-                        }}
-                      />
-                      <Typography variant="caption">Deployed</Typography>
-                    </Box>
-                    <Box
-                      sx={{
-                        mt: 1,
-                        pt: 1,
-                        borderTop: "1px solid rgba(0,0,0,0.1)",
-                      }}
-                    >
-                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                        Supply Routes:
-                      </Typography>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1,
-                          mt: 0.5,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            width: 20,
-                            height: 2,
-                            backgroundColor: "#f44336",
-                          }}
-                        />
-                        <Typography variant="caption">CASREP</Typography>
-                      </Box>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1,
-                          mt: 0.5,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            width: 20,
-                            height: 2,
-                            backgroundColor: "#ff9800",
-                          }}
-                        />
-                        <Typography variant="caption">Priority</Typography>
-                      </Box>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1,
-                          mt: 0.5,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            width: 20,
-                            height: 2,
-                            backgroundColor: "#4caf50",
-                          }}
-                        />
-                        <Typography variant="caption">Routine</Typography>
-                      </Box>
-                    </Box>
-                  </Box>
-                </Box>
-              </Box>
-
-              {/* Supply Routes Summary */}
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-                  Supply Routes Summary
-                </Typography>
-                <Grid container spacing={2}>
-                  {supplyRoutes.map((route) => (
-                    <Grid item xs={12} sm={6} md={4} key={route.id}>
-                      <Paper
-                        sx={{
-                          p: 2,
-                          background: "rgba(255,255,255,0.05)",
-                          border: "1px solid rgba(255,255,255,0.1)",
-                          borderRadius: 2,
-                          transition: "all 0.2s ease-in-out",
-                          "&:hover": {
-                            background: "rgba(255,255,255,0.1)",
-                            transform: "translateY(-2px)",
-                            boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
-                          },
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1,
-                            mb: 1,
-                          }}
-                        >
-                          {getTransportIcon(route.transportType)}
-                          <Typography
-                            variant="subtitle2"
+          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+            <Chip
+              label={`${platforms.length} Platforms`}
+              color="primary"
                             sx={{ fontWeight: 600 }}
-                          >
-                            {route.from} → {route.to}
-                          </Typography>
-                        </Box>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ mb: 1 }}
-                        >
-                          ETA: {route.eta} days
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ mb: 1 }}
-                        >
-                          Parts: {route.parts.join(", ")}
-                        </Typography>
-                        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            />
                           <Chip
-                            label={route.priority}
-                            size="small"
-                            color={
-                              route.priority === "casrep"
-                                ? "error"
-                                : route.priority === "priority"
-                                  ? "warning"
-                                  : "default"
-                            }
-                            variant="outlined"
+              label={`${stockLocations.length} Stock Locations`}
+              color="info"
+              sx={{ fontWeight: 600 }}
                           />
                           <Chip
-                            label={route.status}
-                            size="small"
-                            color={
-                              route.status === "in-transit"
-                                ? "info"
-                                : route.status === "delivered"
-                                  ? "success"
-                                  : "default"
-                            }
-                            variant="outlined"
-                          />
-                        </Box>
-                      </Paper>
-                    </Grid>
-                  ))}
-                </Grid>
+              label={`${shippingRoutes.length} Shipping Routes`}
+              color="success"
+              sx={{ fontWeight: 600 }}
+            />
               </Box>
             </CardContent>
           </Card>
-        </Box>
+
+      {/* Leaflet Map */}
+      <Box sx={{ flex: 1, position: "relative", minHeight: 0 }}>
+        <ClientOnlyMap
+          platforms={platforms}
+          stockLocations={stockLocations}
+          shippingRoutes={shippingRoutes}
+        />
       </Box>
     </Box>
   );

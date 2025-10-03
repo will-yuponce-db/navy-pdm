@@ -47,22 +47,84 @@ export const getStockStatus = (
 // Thunk actions for parts operations with notifications
 export const fetchParts = createAsyncThunk(
   "parts/fetchParts",
-  async (params?: {
-    page?: number;
-    limit?: number;
-    category?: string;
-    condition?: string;
-    search?: string;
-  }) => {
+  async (
+    params?: {
+      page?: number;
+      limit?: number;
+      category?: string;
+      condition?: string;
+      search?: string;
+    },
+    { dispatch },
+  ) => {
     try {
       // Try Databricks parts endpoint first
+      console.log("Attempting to fetch parts from Databricks...");
       const response = await databricksApi.getParts(params);
+
+      console.log("Successfully fetched parts from Databricks");
+
+      // Optionally notify user about successful Databricks connection (suppress for frequent updates)
+      if (response.fallback) {
+        dispatch(
+          addNotification({
+            type: "warning",
+            title: "Data Source: Local Database",
+            message:
+              "Parts data loaded from local database (Databricks fallback).",
+            priority: "low",
+            category: "system",
+          }),
+        );
+      }
+
       return response.items;
-    } catch (error) {
-      console.warn('Databricks parts API failed, falling back to local API:', error);
-      // Fallback to local API if Databricks is unavailable
-      const response = await partsApi.getAll(params);
-      return response.items;
+    } catch (databricksError) {
+      // Databricks failed, fallback to local SQLite database
+      console.warn(
+        "Databricks parts API failed, falling back to local SQLite API:",
+        databricksError,
+      );
+
+      try {
+        console.log("Attempting to fetch parts from local SQLite database...");
+        const response = await partsApi.getAll(params);
+
+        console.log("Successfully fetched parts from SQLite");
+
+        // Notify user about fallback to SQLite
+        dispatch(
+          addNotification({
+            type: "warning",
+            title: "Data Source: Local Database",
+            message: `Databricks unavailable. Loaded ${response.items.length} parts from local database.`,
+            priority: "medium",
+            category: "system",
+          }),
+        );
+
+        return response.items;
+      } catch (sqliteError) {
+        // Both databases failed
+        console.error(
+          "Both Databricks and SQLite failed for parts:",
+          sqliteError,
+        );
+
+        dispatch(
+          addNotification({
+            type: "error",
+            title: "Database Connection Failed",
+            message: "Unable to fetch parts from any data source.",
+            priority: "high",
+            category: "system",
+          }),
+        );
+
+        throw new Error(
+          `Failed to fetch parts from both Databricks and SQLite: ${databricksError instanceof Error ? databricksError.message : "Unknown error"}`,
+        );
+      }
     }
   },
 );
@@ -203,17 +265,50 @@ export const reorderPartWithNotification = createAsyncThunk(
       throw new Error(`Part ${id} not found`);
     }
 
-    dispatch(
-      addNotification({
-        type: "success",
-        title: "Reorder Request Submitted",
-        message: `Reorder request for ${quantity} units of ${part.name} (${part.id}) has been submitted to ${part.supplier}`,
-        priority: "medium",
-        category: "update",
-      }),
-    );
+    try {
+      // Create a supply requisition/order
+      const orderNumber = `PR-${Date.now().toString().slice(-6)}`;
 
-    return { id, quantity };
+      const requisitionData = {
+        partType: part.name,
+        quantityShipped: quantity,
+        stockLocationId: part.stockLocationId || "supply_1",
+        stockLocation: part.location,
+        designatorId: part.id, // Using part ID as designator for now
+        designator: `${part.system} System`, // Using system as designator
+        orderNumber: orderNumber,
+      };
+
+      // Submit the requisition
+      await databricksApi.createPartsRequisition(requisitionData);
+
+      dispatch(
+        addNotification({
+          type: "success",
+          title: "Supply Order Created",
+          message: `Supply order ${orderNumber} created for ${quantity} units of ${part.name} from ${part.location}. View in Supply Orders tab.`,
+          priority: "medium",
+          category: "update",
+        }),
+      );
+
+      return { id, quantity, orderNumber };
+    } catch (error) {
+      console.error("Failed to create supply requisition:", error);
+
+      // Still notify user but indicate it's pending
+      dispatch(
+        addNotification({
+          type: "warning",
+          title: "Reorder Request Pending",
+          message: `Reorder request for ${quantity} units of ${part.name} is pending. Backend connection required to create supply order.`,
+          priority: "medium",
+          category: "update",
+        }),
+      );
+
+      return { id, quantity, orderNumber: null };
+    }
   },
 );
 

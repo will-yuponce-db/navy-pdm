@@ -146,6 +146,10 @@ export const links: Route.LinksFunction = () => [
     rel: "stylesheet",
     href: "https://fonts.googleapis.com/icon?family=Material+Icons",
   },
+  {
+    rel: "stylesheet",
+    href: "https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css",
+  },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -257,7 +261,7 @@ function AppContent() {
   // Initialize sample notifications on client side only after hydration
   // Use a ref to track if we've already initialized to prevent re-adding after clearing
   const hasInitialized = useRef(false);
-  
+
   useEffect(() => {
     if (isClient && notifications.length === 0 && !hasInitialized.current) {
       SAMPLE_NOTIFICATIONS.forEach((notification) => {

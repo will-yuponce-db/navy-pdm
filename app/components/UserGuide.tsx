@@ -43,11 +43,16 @@ const guideSteps = [
           Welcome to the Navy Predictive Maintenance System
         </Typography>
         <Typography variant="body1" paragraph>
-          This system helps you manage fleet maintenance, work orders, and asset tracking
-          efficiently. Let&apos;s take a quick tour of the key features.
+          This system helps you manage fleet maintenance, work orders, and asset
+          tracking efficiently. Let&apos;s take a quick tour of the key
+          features.
         </Typography>
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 2 }}>
-          <Chip icon={<Analytics />} label="Real-time Analytics" color="primary" />
+          <Chip
+            icon={<Analytics />}
+            label="Real-time Analytics"
+            color="primary"
+          />
           <Chip icon={<Security />} label="Secure Access" color="secondary" />
           <Chip icon={<Speed />} label="Fast Performance" color="success" />
         </Box>
@@ -65,7 +70,14 @@ const guideSteps = [
         <Typography variant="body1" paragraph>
           Use keyboard shortcuts to navigate quickly:
         </Typography>
-        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mt: 2 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 2,
+            mt: 2,
+          }}
+        >
           <Card variant="outlined">
             <CardContent sx={{ p: 2 }}>
               <Typography variant="subtitle2" gutterBottom>
@@ -109,13 +121,16 @@ const guideSteps = [
           </Typography>
           <Box component="ul" sx={{ pl: 2 }}>
             <Typography component="li" variant="body2">
-              <strong>Double-click</strong> any work order to open sensor analysis
+              <strong>Double-click</strong> any work order to open sensor
+              analysis
             </Typography>
             <Typography component="li" variant="body2">
-              <strong>Click status chips</strong> to quickly update work order status
+              <strong>Click status chips</strong> to quickly update work order
+              status
             </Typography>
             <Typography component="li" variant="body2">
-              Use <strong>search and filters</strong> to find specific work orders
+              Use <strong>search and filters</strong> to find specific work
+              orders
             </Typography>
             <Typography component="li" variant="body2">
               <strong>Select multiple items</strong> for bulk operations
@@ -134,7 +149,8 @@ const guideSteps = [
           Mobile-Friendly Design
         </Typography>
         <Typography variant="body1" paragraph>
-          The system is fully responsive and works great on tablets and mobile devices:
+          The system is fully responsive and works great on tablets and mobile
+          devices:
         </Typography>
         <Box sx={{ mt: 2 }}>
           <Typography variant="subtitle2" gutterBottom>
@@ -190,15 +206,18 @@ const guideSteps = [
         </Box>
         <Divider sx={{ my: 2 }} />
         <Typography variant="body2" color="text.secondary">
-          💡 <strong>Tip:</strong> You can always access this guide by clicking the help icon
-          in the navigation or pressing Ctrl+? (Cmd+? on Mac).
+          💡 <strong>Tip:</strong> You can always access this guide by clicking
+          the help icon in the navigation or pressing Ctrl+? (Cmd+? on Mac).
         </Typography>
       </Box>
     ),
   },
 ];
 
-export const UserGuide: React.FC<UserGuideProps> = ({ open = false, onClose }) => {
+export const UserGuide: React.FC<UserGuideProps> = ({
+  open = false,
+  onClose,
+}) => {
   const [activeStep, setActiveStep] = useState(0);
   const [isOpen, setIsOpen] = useState(open);
 
@@ -240,7 +259,13 @@ export const UserGuide: React.FC<UserGuideProps> = ({ open = false, onClose }) =
         },
       }}
     >
-      <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Help color="primary" />
           <Typography variant="h6">User Guide</Typography>
@@ -267,8 +292,14 @@ export const UserGuide: React.FC<UserGuideProps> = ({ open = false, onClose }) =
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        backgroundColor: activeStep >= index ? "primary.main" : "action.disabled",
-                        color: activeStep >= index ? "primary.contrastText" : "action.disabled",
+                        backgroundColor:
+                          activeStep >= index
+                            ? "primary.main"
+                            : "action.disabled",
+                        color:
+                          activeStep >= index
+                            ? "primary.contrastText"
+                            : "action.disabled",
                       }}
                     >
                       {step.icon}
@@ -290,10 +321,16 @@ export const UserGuide: React.FC<UserGuideProps> = ({ open = false, onClose }) =
                     </Button>
                     <Button
                       variant="contained"
-                      onClick={activeStep === guideSteps.length - 1 ? handleReset : handleNext}
+                      onClick={
+                        activeStep === guideSteps.length - 1
+                          ? handleReset
+                          : handleNext
+                      }
                       size="small"
                     >
-                      {activeStep === guideSteps.length - 1 ? "Restart" : "Next"}
+                      {activeStep === guideSteps.length - 1
+                        ? "Restart"
+                        : "Next"}
                     </Button>
                   </Box>
                 </StepContent>
@@ -307,7 +344,11 @@ export const UserGuide: React.FC<UserGuideProps> = ({ open = false, onClose }) =
         <Button onClick={handleClose} variant="outlined">
           Close Guide
         </Button>
-        <Button onClick={handleReset} variant="text" disabled={activeStep === 0}>
+        <Button
+          onClick={handleReset}
+          variant="text"
+          disabled={activeStep === 0}
+        >
           Start Over
         </Button>
       </DialogActions>

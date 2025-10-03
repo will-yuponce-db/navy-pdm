@@ -389,7 +389,7 @@ const PartsTable: React.FC<PartsTableProps> = ({ onEditPart, onAddPart }) => {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button 
+          <Button
             onClick={() => {
               setDeleteDialogOpen(false);
               console.log("Cancel delete part");

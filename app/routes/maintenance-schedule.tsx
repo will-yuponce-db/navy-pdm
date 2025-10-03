@@ -14,9 +14,6 @@ import {
   TableRow,
   Paper,
   IconButton,
-  Tooltip,
-  Badge,
-  Modal,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -30,7 +27,6 @@ import {
   Alert,
   Tabs,
   Tab,
-  Fab,
   Menu,
   ListItemIcon,
   ListItemText,
@@ -44,20 +40,15 @@ import {
   Build,
   Warning,
   CheckCircle,
-  Pending,
   MoreVert,
   FilterList,
   CalendarToday,
   Person,
-  AttachMoney,
-  AccessTime,
-  Assignment,
 } from "@mui/icons-material";
 import { tableStyles } from "../utils/tableStyles";
 import type {
   MaintenanceSchedule,
   MaintenanceScheduleType,
-  MaintenanceFrequency,
   MaintenanceScheduleStatus,
   Priority,
   CreateMaintenanceScheduleForm,
@@ -66,7 +57,10 @@ import type {
 export function meta() {
   return [
     { title: "Maintenance Schedule" },
-    { name: "description", content: "Navy PDM Maintenance Schedule Management" },
+    {
+      name: "description",
+      content: "Navy PDM Maintenance Schedule Management",
+    },
   ];
 }
 
@@ -228,10 +222,16 @@ export default function MaintenanceSchedule() {
   };
 
   // Filter schedules by status
-  const scheduledSchedules = mockSchedules.filter(s => s.status === "Scheduled");
-  const inProgressSchedules = mockSchedules.filter(s => s.status === "In Progress");
-  const overdueSchedules = mockSchedules.filter(s => s.status === "Overdue");
-  const completedSchedules = mockSchedules.filter(s => s.status === "Completed");
+  const scheduledSchedules = mockSchedules.filter(
+    (s) => s.status === "Scheduled",
+  );
+  const inProgressSchedules = mockSchedules.filter(
+    (s) => s.status === "In Progress",
+  );
+  const overdueSchedules = mockSchedules.filter((s) => s.status === "Overdue");
+  const completedSchedules = mockSchedules.filter(
+    (s) => s.status === "Completed",
+  );
 
   const getCurrentSchedules = () => {
     switch (activeTab) {
@@ -270,13 +270,13 @@ export default function MaintenanceSchedule() {
 
   const openEditModal = (scheduleId: string) => {
     setSelectedSchedule(scheduleId);
-    const schedule = mockSchedules.find(s => s.id === scheduleId);
+    const schedule = mockSchedules.find((s) => s.id === scheduleId);
     if (schedule) {
       setFormData({
         assetId: schedule.assetId,
         scheduleType: schedule.scheduleType,
         frequency: schedule.frequency,
-        nextDueDate: schedule.nextDueDate.toISOString().split('T')[0],
+        nextDueDate: schedule.nextDueDate.toISOString().split("T")[0],
         estimatedDuration: schedule.estimatedDuration,
         priority: schedule.priority,
         description: schedule.description,
@@ -328,7 +328,10 @@ export default function MaintenanceSchedule() {
     setSelectedSchedule(null);
   };
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, scheduleId: string) => {
+  const handleMenuOpen = (
+    event: React.MouseEvent<HTMLElement>,
+    scheduleId: string,
+  ) => {
     setAnchorEl(event.currentTarget);
     setSelectedRowId(scheduleId);
   };
@@ -341,7 +344,7 @@ export default function MaintenanceSchedule() {
   // Form validation
   const validateForm = () => {
     const errors: Record<string, string> = {};
-    
+
     if (!formData.assetId.trim()) {
       errors.assetId = "Asset is required";
     }
@@ -357,17 +360,20 @@ export default function MaintenanceSchedule() {
     if (formData.estimatedCost < 0) {
       errors.estimatedCost = "Estimated cost cannot be negative";
     }
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   // Handle form field changes
-  const handleFormChange = (field: string, value: string | number | string[]) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleFormChange = (
+    field: string,
+    value: string | number | string[],
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error for this field when user starts typing
     if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: "" }));
+      setFormErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
@@ -376,13 +382,13 @@ export default function MaintenanceSchedule() {
     if (!validateForm()) {
       return;
     }
-    
+
     // In a real application, this would create/update the schedule in the database
     console.log("Maintenance schedule saved:", formData);
-    
+
     // Show success message
     alert("Maintenance schedule saved successfully!");
-    
+
     if (editModalOpen) {
       closeEditModal();
     } else {
@@ -398,7 +404,9 @@ export default function MaintenanceSchedule() {
     closeDeleteModal();
   };
 
-  const selectedScheduleData = mockSchedules.find(s => s.id === selectedSchedule);
+  const selectedScheduleData = mockSchedules.find(
+    (s) => s.id === selectedSchedule,
+  );
 
   return (
     <Box sx={{ p: 3 }}>
@@ -415,14 +423,11 @@ export default function MaintenanceSchedule() {
           Maintenance Schedule
         </Typography>
         <Box sx={{ display: "flex", gap: 2 }}>
-          <Button 
-            variant="outlined" 
-            startIcon={<FilterList />}
-          >
+          <Button variant="outlined" startIcon={<FilterList />}>
             Filters
           </Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             startIcon={<Add />}
             onClick={openCreateModal}
           >
@@ -440,7 +445,9 @@ export default function MaintenanceSchedule() {
                 <Schedule color="info" />
                 <Box>
                   <Typography variant="h6">Scheduled</Typography>
-                  <Typography variant="h4">{scheduledSchedules.length}</Typography>
+                  <Typography variant="h4">
+                    {scheduledSchedules.length}
+                  </Typography>
                 </Box>
               </Box>
             </CardContent>
@@ -453,7 +460,9 @@ export default function MaintenanceSchedule() {
                 <Build color="warning" />
                 <Box>
                   <Typography variant="h6">In Progress</Typography>
-                  <Typography variant="h4">{inProgressSchedules.length}</Typography>
+                  <Typography variant="h4">
+                    {inProgressSchedules.length}
+                  </Typography>
                 </Box>
               </Box>
             </CardContent>
@@ -466,7 +475,9 @@ export default function MaintenanceSchedule() {
                 <Warning color="error" />
                 <Box>
                   <Typography variant="h6">Overdue</Typography>
-                  <Typography variant="h4">{overdueSchedules.length}</Typography>
+                  <Typography variant="h4">
+                    {overdueSchedules.length}
+                  </Typography>
                 </Box>
               </Box>
             </CardContent>
@@ -479,7 +490,9 @@ export default function MaintenanceSchedule() {
                 <CheckCircle color="success" />
                 <Box>
                   <Typography variant="h6">Completed</Typography>
-                  <Typography variant="h4">{completedSchedules.length}</Typography>
+                  <Typography variant="h4">
+                    {completedSchedules.length}
+                  </Typography>
                 </Box>
               </Box>
             </CardContent>
@@ -489,25 +502,28 @@ export default function MaintenanceSchedule() {
 
       {/* Tabs */}
       <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
-        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
-          <Tab 
-            label={`Scheduled (${scheduledSchedules.length})`} 
-            icon={<Schedule />} 
+        <Tabs
+          value={activeTab}
+          onChange={(e, newValue) => setActiveTab(newValue)}
+        >
+          <Tab
+            label={`Scheduled (${scheduledSchedules.length})`}
+            icon={<Schedule />}
             iconPosition="start"
           />
-          <Tab 
-            label={`In Progress (${inProgressSchedules.length})`} 
-            icon={<Build />} 
+          <Tab
+            label={`In Progress (${inProgressSchedules.length})`}
+            icon={<Build />}
             iconPosition="start"
           />
-          <Tab 
-            label={`Overdue (${overdueSchedules.length})`} 
-            icon={<Warning />} 
+          <Tab
+            label={`Overdue (${overdueSchedules.length})`}
+            icon={<Warning />}
             iconPosition="start"
           />
-          <Tab 
-            label={`Completed (${completedSchedules.length})`} 
-            icon={<CheckCircle />} 
+          <Tab
+            label={`Completed (${completedSchedules.length})`}
+            icon={<CheckCircle />}
             iconPosition="start"
           />
         </Tabs>
@@ -618,34 +634,40 @@ export default function MaintenanceSchedule() {
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
-        <MenuItem onClick={() => {
-          if (selectedRowId) {
-            openDetailsModal(selectedRowId);
-            handleMenuClose();
-          }
-        }}>
+        <MenuItem
+          onClick={() => {
+            if (selectedRowId) {
+              openDetailsModal(selectedRowId);
+              handleMenuClose();
+            }
+          }}
+        >
           <ListItemIcon>
             <Visibility fontSize="small" />
           </ListItemIcon>
           <ListItemText>View Details</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => {
-          if (selectedRowId) {
-            openEditModal(selectedRowId);
-            handleMenuClose();
-          }
-        }}>
+        <MenuItem
+          onClick={() => {
+            if (selectedRowId) {
+              openEditModal(selectedRowId);
+              handleMenuClose();
+            }
+          }}
+        >
           <ListItemIcon>
             <Edit fontSize="small" />
           </ListItemIcon>
           <ListItemText>Edit</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => {
-          if (selectedRowId) {
-            openDeleteModal(selectedRowId);
-            handleMenuClose();
-          }
-        }}>
+        <MenuItem
+          onClick={() => {
+            if (selectedRowId) {
+              openDeleteModal(selectedRowId);
+              handleMenuClose();
+            }
+          }}
+        >
           <ListItemIcon>
             <Delete fontSize="small" />
           </ListItemIcon>
@@ -670,7 +692,9 @@ export default function MaintenanceSchedule() {
                   <Select
                     value={formData.assetId}
                     label="Asset"
-                    onChange={(e) => handleFormChange("assetId", e.target.value)}
+                    onChange={(e) =>
+                      handleFormChange("assetId", e.target.value)
+                    }
                     error={!!formErrors.assetId}
                   >
                     <MenuItem value="DDG-51-001">USS Arleigh Burke</MenuItem>
@@ -686,7 +710,9 @@ export default function MaintenanceSchedule() {
                   <Select
                     value={formData.scheduleType}
                     label="Schedule Type"
-                    onChange={(e) => handleFormChange("scheduleType", e.target.value)}
+                    onChange={(e) =>
+                      handleFormChange("scheduleType", e.target.value)
+                    }
                   >
                     <MenuItem value="Preventive">Preventive</MenuItem>
                     <MenuItem value="Predictive">Predictive</MenuItem>
@@ -703,7 +729,9 @@ export default function MaintenanceSchedule() {
                   <Select
                     value={formData.frequency}
                     label="Frequency"
-                    onChange={(e) => handleFormChange("frequency", e.target.value)}
+                    onChange={(e) =>
+                      handleFormChange("frequency", e.target.value)
+                    }
                   >
                     <MenuItem value="Daily">Daily</MenuItem>
                     <MenuItem value="Weekly">Weekly</MenuItem>
@@ -722,7 +750,9 @@ export default function MaintenanceSchedule() {
                   label="Next Due Date"
                   type="date"
                   value={formData.nextDueDate}
-                  onChange={(e) => handleFormChange("nextDueDate", e.target.value)}
+                  onChange={(e) =>
+                    handleFormChange("nextDueDate", e.target.value)
+                  }
                   error={!!formErrors.nextDueDate}
                   helperText={formErrors.nextDueDate}
                   InputLabelProps={{ shrink: true }}
@@ -735,7 +765,12 @@ export default function MaintenanceSchedule() {
                   label="Estimated Duration (hours)"
                   type="number"
                   value={formData.estimatedDuration}
-                  onChange={(e) => handleFormChange("estimatedDuration", parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleFormChange(
+                      "estimatedDuration",
+                      parseInt(e.target.value) || 0,
+                    )
+                  }
                   error={!!formErrors.estimatedDuration}
                   helperText={formErrors.estimatedDuration}
                   inputProps={{ min: 1 }}
@@ -748,7 +783,9 @@ export default function MaintenanceSchedule() {
                   <Select
                     value={formData.priority}
                     label="Priority"
-                    onChange={(e) => handleFormChange("priority", e.target.value)}
+                    onChange={(e) =>
+                      handleFormChange("priority", e.target.value)
+                    }
                   >
                     <MenuItem value="Routine">Routine</MenuItem>
                     <MenuItem value="Urgent">Urgent</MenuItem>
@@ -761,7 +798,9 @@ export default function MaintenanceSchedule() {
                   fullWidth
                   label="Description"
                   value={formData.description}
-                  onChange={(e) => handleFormChange("description", e.target.value)}
+                  onChange={(e) =>
+                    handleFormChange("description", e.target.value)
+                  }
                   error={!!formErrors.description}
                   helperText={formErrors.description}
                   multiline
@@ -774,7 +813,9 @@ export default function MaintenanceSchedule() {
                   fullWidth
                   label="Assigned Technician"
                   value={formData.assignedTechnician}
-                  onChange={(e) => handleFormChange("assignedTechnician", e.target.value)}
+                  onChange={(e) =>
+                    handleFormChange("assignedTechnician", e.target.value)
+                  }
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -783,7 +824,12 @@ export default function MaintenanceSchedule() {
                   label="Estimated Cost ($)"
                   type="number"
                   value={formData.estimatedCost}
-                  onChange={(e) => handleFormChange("estimatedCost", parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleFormChange(
+                      "estimatedCost",
+                      parseInt(e.target.value) || 0,
+                    )
+                  }
                   error={!!formErrors.estimatedCost}
                   helperText={formErrors.estimatedCost}
                   inputProps={{ min: 0 }}
@@ -814,8 +860,8 @@ export default function MaintenanceSchedule() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeCreateModal}>Cancel</Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={handleFormSubmit}
             disabled={Object.keys(formErrors).length > 0}
           >
@@ -841,7 +887,9 @@ export default function MaintenanceSchedule() {
                   <Select
                     value={formData.assetId}
                     label="Asset"
-                    onChange={(e) => handleFormChange("assetId", e.target.value)}
+                    onChange={(e) =>
+                      handleFormChange("assetId", e.target.value)
+                    }
                     error={!!formErrors.assetId}
                   >
                     <MenuItem value="DDG-51-001">USS Arleigh Burke</MenuItem>
@@ -857,7 +905,9 @@ export default function MaintenanceSchedule() {
                   <Select
                     value={formData.scheduleType}
                     label="Schedule Type"
-                    onChange={(e) => handleFormChange("scheduleType", e.target.value)}
+                    onChange={(e) =>
+                      handleFormChange("scheduleType", e.target.value)
+                    }
                   >
                     <MenuItem value="Preventive">Preventive</MenuItem>
                     <MenuItem value="Predictive">Predictive</MenuItem>
@@ -874,7 +924,9 @@ export default function MaintenanceSchedule() {
                   <Select
                     value={formData.frequency}
                     label="Frequency"
-                    onChange={(e) => handleFormChange("frequency", e.target.value)}
+                    onChange={(e) =>
+                      handleFormChange("frequency", e.target.value)
+                    }
                   >
                     <MenuItem value="Daily">Daily</MenuItem>
                     <MenuItem value="Weekly">Weekly</MenuItem>
@@ -893,7 +945,9 @@ export default function MaintenanceSchedule() {
                   label="Next Due Date"
                   type="date"
                   value={formData.nextDueDate}
-                  onChange={(e) => handleFormChange("nextDueDate", e.target.value)}
+                  onChange={(e) =>
+                    handleFormChange("nextDueDate", e.target.value)
+                  }
                   error={!!formErrors.nextDueDate}
                   helperText={formErrors.nextDueDate}
                   InputLabelProps={{ shrink: true }}
@@ -906,7 +960,12 @@ export default function MaintenanceSchedule() {
                   label="Estimated Duration (hours)"
                   type="number"
                   value={formData.estimatedDuration}
-                  onChange={(e) => handleFormChange("estimatedDuration", parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleFormChange(
+                      "estimatedDuration",
+                      parseInt(e.target.value) || 0,
+                    )
+                  }
                   error={!!formErrors.estimatedDuration}
                   helperText={formErrors.estimatedDuration}
                   inputProps={{ min: 1 }}
@@ -919,7 +978,9 @@ export default function MaintenanceSchedule() {
                   <Select
                     value={formData.priority}
                     label="Priority"
-                    onChange={(e) => handleFormChange("priority", e.target.value)}
+                    onChange={(e) =>
+                      handleFormChange("priority", e.target.value)
+                    }
                   >
                     <MenuItem value="Routine">Routine</MenuItem>
                     <MenuItem value="Urgent">Urgent</MenuItem>
@@ -932,7 +993,9 @@ export default function MaintenanceSchedule() {
                   fullWidth
                   label="Description"
                   value={formData.description}
-                  onChange={(e) => handleFormChange("description", e.target.value)}
+                  onChange={(e) =>
+                    handleFormChange("description", e.target.value)
+                  }
                   error={!!formErrors.description}
                   helperText={formErrors.description}
                   multiline
@@ -945,7 +1008,9 @@ export default function MaintenanceSchedule() {
                   fullWidth
                   label="Assigned Technician"
                   value={formData.assignedTechnician}
-                  onChange={(e) => handleFormChange("assignedTechnician", e.target.value)}
+                  onChange={(e) =>
+                    handleFormChange("assignedTechnician", e.target.value)
+                  }
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -954,7 +1019,12 @@ export default function MaintenanceSchedule() {
                   label="Estimated Cost ($)"
                   type="number"
                   value={formData.estimatedCost}
-                  onChange={(e) => handleFormChange("estimatedCost", parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleFormChange(
+                      "estimatedCost",
+                      parseInt(e.target.value) || 0,
+                    )
+                  }
                   error={!!formErrors.estimatedCost}
                   helperText={formErrors.estimatedCost}
                   inputProps={{ min: 0 }}
@@ -985,8 +1055,8 @@ export default function MaintenanceSchedule() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeEditModal}>Cancel</Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={handleFormSubmit}
             disabled={Object.keys(formErrors).length > 0}
           >
@@ -1002,86 +1072,127 @@ export default function MaintenanceSchedule() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>
-          Schedule Details - {selectedScheduleData?.id}
-        </DialogTitle>
+        <DialogTitle>Schedule Details - {selectedScheduleData?.id}</DialogTitle>
         <DialogContent>
           {selectedScheduleData && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <Box>
-                <Typography variant="h6" gutterBottom>Basic Information</Typography>
-                <Typography><strong>Schedule ID:</strong> {selectedScheduleData.id}</Typography>
-                <Typography><strong>Asset:</strong> {selectedScheduleData.assetName} ({selectedScheduleData.assetId})</Typography>
-                <Typography><strong>Type:</strong> 
-                  <Chip 
-                    label={selectedScheduleData.scheduleType} 
-                    color={getScheduleTypeColor(selectedScheduleData.scheduleType)} 
-                    size="small" 
+                <Typography variant="h6" gutterBottom>
+                  Basic Information
+                </Typography>
+                <Typography>
+                  <strong>Schedule ID:</strong> {selectedScheduleData.id}
+                </Typography>
+                <Typography>
+                  <strong>Asset:</strong> {selectedScheduleData.assetName} (
+                  {selectedScheduleData.assetId})
+                </Typography>
+                <Typography>
+                  <strong>Type:</strong>
+                  <Chip
+                    label={selectedScheduleData.scheduleType}
+                    color={getScheduleTypeColor(
+                      selectedScheduleData.scheduleType,
+                    )}
+                    size="small"
                     sx={{ ml: 1 }}
                   />
                 </Typography>
-                <Typography><strong>Frequency:</strong> {selectedScheduleData.frequency}</Typography>
-                <Typography><strong>Status:</strong> 
-                  <Chip 
-                    label={selectedScheduleData.status} 
-                    color={getStatusColor(selectedScheduleData.status)} 
-                    size="small" 
+                <Typography>
+                  <strong>Frequency:</strong> {selectedScheduleData.frequency}
+                </Typography>
+                <Typography>
+                  <strong>Status:</strong>
+                  <Chip
+                    label={selectedScheduleData.status}
+                    color={getStatusColor(selectedScheduleData.status)}
+                    size="small"
                     sx={{ ml: 1 }}
                   />
                 </Typography>
-                <Typography><strong>Priority:</strong> 
-                  <Chip 
-                    label={selectedScheduleData.priority} 
-                    color={getPriorityColor(selectedScheduleData.priority)} 
-                    size="small" 
+                <Typography>
+                  <strong>Priority:</strong>
+                  <Chip
+                    label={selectedScheduleData.priority}
+                    color={getPriorityColor(selectedScheduleData.priority)}
+                    size="small"
                     sx={{ ml: 1 }}
                   />
                 </Typography>
-              </Box>
-              
-              <Box>
-                <Typography variant="h6" gutterBottom>Schedule Details</Typography>
-                <Typography><strong>Next Due Date:</strong> {selectedScheduleData.nextDueDate.toLocaleDateString()}</Typography>
-                {selectedScheduleData.lastCompleted && (
-                  <Typography><strong>Last Completed:</strong> {selectedScheduleData.lastCompleted.toLocaleDateString()}</Typography>
-                )}
-                <Typography><strong>Estimated Duration:</strong> {selectedScheduleData.estimatedDuration} hours</Typography>
-                <Typography><strong>Assigned Technician:</strong> {selectedScheduleData.assignedTechnician || "Unassigned"}</Typography>
-                <Typography><strong>Estimated Cost:</strong> ${selectedScheduleData.estimatedCost.toLocaleString()}</Typography>
               </Box>
 
               <Box>
-                <Typography variant="h6" gutterBottom>Description</Typography>
+                <Typography variant="h6" gutterBottom>
+                  Schedule Details
+                </Typography>
+                <Typography>
+                  <strong>Next Due Date:</strong>{" "}
+                  {selectedScheduleData.nextDueDate.toLocaleDateString()}
+                </Typography>
+                {selectedScheduleData.lastCompleted && (
+                  <Typography>
+                    <strong>Last Completed:</strong>{" "}
+                    {selectedScheduleData.lastCompleted.toLocaleDateString()}
+                  </Typography>
+                )}
+                <Typography>
+                  <strong>Estimated Duration:</strong>{" "}
+                  {selectedScheduleData.estimatedDuration} hours
+                </Typography>
+                <Typography>
+                  <strong>Assigned Technician:</strong>{" "}
+                  {selectedScheduleData.assignedTechnician || "Unassigned"}
+                </Typography>
+                <Typography>
+                  <strong>Estimated Cost:</strong> $
+                  {selectedScheduleData.estimatedCost.toLocaleString()}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  Description
+                </Typography>
                 <Typography>{selectedScheduleData.description}</Typography>
               </Box>
 
-              {selectedScheduleData.partsRequired && selectedScheduleData.partsRequired.length > 0 && (
-                <Box>
-                  <Typography variant="h6" gutterBottom>Parts Required</Typography>
-                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                    {selectedScheduleData.partsRequired.map((part, index) => (
-                      <Chip
-                        key={index}
-                        label={part}
-                        size="small"
-                        variant="outlined"
-                      />
-                    ))}
+              {selectedScheduleData.partsRequired &&
+                selectedScheduleData.partsRequired.length > 0 && (
+                  <Box>
+                    <Typography variant="h6" gutterBottom>
+                      Parts Required
+                    </Typography>
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                      {selectedScheduleData.partsRequired.map((part, index) => (
+                        <Chip
+                          key={index}
+                          label={part}
+                          size="small"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Box>
                   </Box>
-                </Box>
-              )}
+                )}
 
               {selectedScheduleData.notes && (
                 <Box>
-                  <Typography variant="h6" gutterBottom>Notes</Typography>
+                  <Typography variant="h6" gutterBottom>
+                    Notes
+                  </Typography>
                   <Typography>{selectedScheduleData.notes}</Typography>
                 </Box>
               )}
 
               {selectedScheduleData.workOrderId && (
                 <Box>
-                  <Typography variant="h6" gutterBottom>Related Work Order</Typography>
-                  <Typography><strong>Work Order ID:</strong> {selectedScheduleData.workOrderId}</Typography>
+                  <Typography variant="h6" gutterBottom>
+                    Related Work Order
+                  </Typography>
+                  <Typography>
+                    <strong>Work Order ID:</strong>{" "}
+                    {selectedScheduleData.workOrderId}
+                  </Typography>
                 </Box>
               )}
             </Box>
@@ -1089,8 +1200,8 @@ export default function MaintenanceSchedule() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDetailsModal}>Close</Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={() => {
               closeDetailsModal();
               if (selectedSchedule) {
@@ -1113,23 +1224,26 @@ export default function MaintenanceSchedule() {
         <DialogTitle>Delete Maintenance Schedule</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete this maintenance schedule? This action cannot be undone.
+            Are you sure you want to delete this maintenance schedule? This
+            action cannot be undone.
           </Typography>
           {selectedScheduleData && (
             <Box sx={{ mt: 2, p: 2, bgcolor: "grey.100", borderRadius: 1 }}>
-              <Typography variant="subtitle2"><strong>Schedule ID:</strong> {selectedScheduleData.id}</Typography>
-              <Typography variant="subtitle2"><strong>Asset:</strong> {selectedScheduleData.assetName}</Typography>
-              <Typography variant="subtitle2"><strong>Description:</strong> {selectedScheduleData.description}</Typography>
+              <Typography variant="subtitle2">
+                <strong>Schedule ID:</strong> {selectedScheduleData.id}
+              </Typography>
+              <Typography variant="subtitle2">
+                <strong>Asset:</strong> {selectedScheduleData.assetName}
+              </Typography>
+              <Typography variant="subtitle2">
+                <strong>Description:</strong> {selectedScheduleData.description}
+              </Typography>
             </Box>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDeleteModal}>Cancel</Button>
-          <Button 
-            variant="contained" 
-            color="error"
-            onClick={handleDelete}
-          >
+          <Button variant="contained" color="error" onClick={handleDelete}>
             Delete
           </Button>
         </DialogActions>
@@ -1137,4 +1251,3 @@ export default function MaintenanceSchedule() {
     </Box>
   );
 }
-

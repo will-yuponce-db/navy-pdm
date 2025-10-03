@@ -60,7 +60,7 @@ export class EnhancedErrorBoundary extends Component<Props, State> {
 
     // Log error to monitoring service
     this.props.onError?.(error, errorInfo);
-    
+
     // Log to console in development
     if (process.env.NODE_ENV === "development") {
       console.error("Error caught by boundary:", error, errorInfo);
@@ -97,7 +97,7 @@ export class EnhancedErrorBoundary extends Component<Props, State> {
 
     // In a real application, this would send to your error reporting service
     console.log("Bug report:", bugReport);
-    
+
     // For now, copy to clipboard
     navigator.clipboard.writeText(JSON.stringify(bugReport, null, 2));
     alert("Error details copied to clipboard. Please send this to support.");
@@ -125,14 +125,17 @@ export class EnhancedErrorBoundary extends Component<Props, State> {
         >
           <Card sx={{ maxWidth: 600, width: "100%" }}>
             <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}
+              >
                 <ErrorIcon color="error" sx={{ fontSize: 40 }} />
                 <Box>
                   <Typography variant="h5" component="h1" gutterBottom>
                     Something went wrong
                   </Typography>
                   <Typography variant="body1" color="text.secondary">
-                    We&apos;re sorry, but something unexpected happened. Our team has been notified.
+                    We&apos;re sorry, but something unexpected happened. Our
+                    team has been notified.
                   </Typography>
                 </Box>
               </Box>
@@ -180,7 +183,7 @@ export class EnhancedErrorBoundary extends Component<Props, State> {
                   >
                     {expanded ? "Hide" : "Show"} Technical Details
                   </Button>
-                  
+
                   <Collapse in={expanded}>
                     <Box
                       sx={{
@@ -199,8 +202,12 @@ export class EnhancedErrorBoundary extends Component<Props, State> {
                       <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>
                         {error?.stack}
                       </pre>
-                      
-                      <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+
+                      <Typography
+                        variant="subtitle2"
+                        gutterBottom
+                        sx={{ mt: 2 }}
+                      >
                         Component Stack:
                       </Typography>
                       <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>
@@ -216,13 +223,25 @@ export class EnhancedErrorBoundary extends Component<Props, State> {
                   <strong>What you can do:</strong>
                 </Typography>
                 <Box component="ul" sx={{ mt: 1, pl: 2 }}>
-                  <Typography component="li" variant="body2" color="info.contrastText">
+                  <Typography
+                    component="li"
+                    variant="body2"
+                    color="info.contrastText"
+                  >
                     Try refreshing the page or going back to the previous page
                   </Typography>
-                  <Typography component="li" variant="body2" color="info.contrastText">
+                  <Typography
+                    component="li"
+                    variant="body2"
+                    color="info.contrastText"
+                  >
                     Check your internet connection
                   </Typography>
-                  <Typography component="li" variant="body2" color="info.contrastText">
+                  <Typography
+                    component="li"
+                    variant="body2"
+                    color="info.contrastText"
+                  >
                     Contact support if the problem persists
                   </Typography>
                 </Box>
@@ -263,7 +282,7 @@ export const useErrorHandler = () => {
 // Higher-order component for error boundaries
 export const withErrorBoundary = <P extends object>(
   Component: React.ComponentType<P>,
-  errorBoundaryProps?: Omit<Props, "children">
+  errorBoundaryProps?: Omit<Props, "children">,
 ) => {
   const WrappedComponent = (props: P) => (
     <EnhancedErrorBoundary {...errorBoundaryProps}>

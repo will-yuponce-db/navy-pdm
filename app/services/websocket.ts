@@ -122,7 +122,10 @@ class WebSocketService {
 
   // Work order event handlers
   onWorkOrderUpdated(
-    callback: (data: { workOrder: any; changes: any }) => void,
+    callback: (data: {
+      workOrder: Record<string, unknown>;
+      changes: Record<string, unknown>;
+    }) => void,
   ): void {
     if (this.socket) {
       this.socket.on("workorder:updated", callback);

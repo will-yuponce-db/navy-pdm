@@ -41,7 +41,13 @@ import {
   Legend,
   Filler,
 } from "chart.js";
-import type { SensorAnalyzerProps, SensorData, SensorSystem, SensorAnalytics, SensorStatus } from "../types";
+import type {
+  SensorAnalyzerProps,
+  SensorData,
+  SensorSystem,
+  SensorAnalytics,
+  SensorStatus,
+} from "../types";
 import { sensorDataService } from "../services/sensorData";
 import { createAIWorkOrder } from "../utils/aiWorkOrderGenerator";
 import { useAppDispatch } from "../redux/hooks";
@@ -55,7 +61,7 @@ ChartJS.register(
   Title,
   ChartTooltip,
   Legend,
-  Filler
+  Filler,
 );
 
 const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
@@ -73,14 +79,17 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
   const [analytics, setAnalytics] = useState<SensorAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [workOrderInfo, setWorkOrderInfo] = useState<Record<string, unknown> | null>(null);
+  const [workOrderInfo, setWorkOrderInfo] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
 
   // Load initial data
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        
+
         // Load work order information if workOrderId is provided
         if (workOrderId) {
           // In a real app, this would fetch from the API
@@ -93,7 +102,7 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
             priority: "Urgent",
             status: "In Progress",
             symptoms: "Excessive vibration detected in main engine",
-            recommendedAction: "Inspect and replace vibration dampeners"
+            recommendedAction: "Inspect and replace vibration dampeners",
           };
           setWorkOrderInfo(mockWorkOrder);
         }
@@ -107,7 +116,9 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
           setSelectedSystem(systemId);
         } else if (systemsData.length > 0) {
           setSelectedSystem(systemsData[0].id);
-          const initialSensors = sensorDataService.getSensorData(systemsData[0].id);
+          const initialSensors = sensorDataService.getSensorData(
+            systemsData[0].id,
+          );
           setSensorData(initialSensors);
         }
       } catch (err) {
@@ -136,7 +147,10 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
   useEffect(() => {
     if (selectedSensor) {
       try {
-        const sensorAnalytics = sensorDataService.getSensorAnalytics(selectedSensor, timeRange);
+        const sensorAnalytics = sensorDataService.getSensorAnalytics(
+          selectedSensor,
+          timeRange,
+        );
         setAnalytics(sensorAnalytics);
       } catch (err) {
         console.error("Error loading analytics:", err);
@@ -169,9 +183,9 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
       // Use mock ship ID for demonstration
       const shipId = "SHIP_001";
       const gteSystemId = selectedSystem || "GTE_001";
-      
+
       await createAIWorkOrder(dispatch, shipId, gteSystemId);
-      
+
       // Show success message
       console.log("AI work order created successfully!");
     } catch (error) {
@@ -228,24 +242,38 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
   const chartData = useMemo(() => {
     if (!selectedSensor) return null;
 
-    const historicalData = sensorDataService.getHistoricalData(selectedSensor, 24);
-    const sensor = sensorData.find(s => s.sensorId === selectedSensor);
-    
+    const historicalData = sensorDataService.getHistoricalData(
+      selectedSensor,
+      24,
+    );
+    const sensor = sensorData.find((s) => s.sensorId === selectedSensor);
+
     if (!sensor || historicalData.length === 0) return null;
 
     return {
       labels: historicalData.map((_, index) => {
         const date = new Date(Date.now() - (23 - index) * 60 * 60 * 1000);
-        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        return date.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
       }),
       datasets: [
         {
           label: `${sensor.sensorName} (${sensor.unit})`,
-          data: historicalData.map(d => d.value),
-          borderColor: sensor.status === "critical" ? "#f44336" : 
-                      sensor.status === "warning" ? "#ff9800" : "#4caf50",
-          backgroundColor: sensor.status === "critical" ? "rgba(244, 67, 54, 0.1)" : 
-                          sensor.status === "warning" ? "rgba(255, 152, 0, 0.1)" : "rgba(76, 175, 80, 0.1)",
+          data: historicalData.map((d) => d.value),
+          borderColor:
+            sensor.status === "critical"
+              ? "#f44336"
+              : sensor.status === "warning"
+                ? "#ff9800"
+                : "#4caf50",
+          backgroundColor:
+            sensor.status === "critical"
+              ? "rgba(244, 67, 54, 0.1)"
+              : sensor.status === "warning"
+                ? "rgba(255, 152, 0, 0.1)"
+                : "rgba(76, 175, 80, 0.1)",
           fill: true,
           tension: 0.4,
         },
@@ -307,7 +335,14 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
   return (
     <Box sx={{ p: 3, height: "100vh", overflow: "auto" }}>
       {/* Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 3,
+        }}
+      >
         <Box>
           <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
             Work Order Evidence Package
@@ -341,42 +376,82 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
 
       {/* Work Order Summary */}
       {workOrderInfo && (
-        <Paper sx={{ p: 2, mb: 3, backgroundColor: "primary.50", border: "1px solid", borderColor: "primary.200" }}>
-          <Typography variant="h6" gutterBottom sx={{ color: "primary.main", fontWeight: 600 }}>
+        <Paper
+          sx={{
+            p: 2,
+            mb: 3,
+            backgroundColor: "primary.50",
+            border: "1px solid",
+            borderColor: "primary.200",
+          }}
+        >
+          <Typography
+            variant="h6"
+            gutterBottom
+            sx={{ color: "primary.main", fontWeight: 600 }}
+          >
             Work Order Summary
           </Typography>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={3}>
-              <Typography variant="body2" color="text.secondary">System</Typography>
-              <Typography variant="body1" sx={{ fontWeight: 600 }}>{workOrderInfo.gte}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                System
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                {workOrderInfo.gte}
+              </Typography>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Typography variant="body2" color="text.secondary">Failure Mode</Typography>
-              <Typography variant="body1" sx={{ fontWeight: 600 }}>{workOrderInfo.fm}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Failure Mode
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                {workOrderInfo.fm}
+              </Typography>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Typography variant="body2" color="text.secondary">Priority</Typography>
-              <Chip 
-                label={workOrderInfo.priority} 
-                color={workOrderInfo.priority === "CASREP" ? "error" : workOrderInfo.priority === "Urgent" ? "warning" : "default"}
+              <Typography variant="body2" color="text.secondary">
+                Priority
+              </Typography>
+              <Chip
+                label={workOrderInfo.priority}
+                color={
+                  workOrderInfo.priority === "CASREP"
+                    ? "error"
+                    : workOrderInfo.priority === "Urgent"
+                      ? "warning"
+                      : "default"
+                }
                 size="small"
               />
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Typography variant="body2" color="text.secondary">Status</Typography>
-              <Chip 
-                label={workOrderInfo.status} 
-                color={workOrderInfo.status === "In Progress" ? "primary" : "default"}
+              <Typography variant="body2" color="text.secondary">
+                Status
+              </Typography>
+              <Chip
+                label={workOrderInfo.status}
+                color={
+                  workOrderInfo.status === "In Progress" ? "primary" : "default"
+                }
                 size="small"
               />
             </Grid>
             <Grid item xs={12}>
-              <Typography variant="body2" color="text.secondary">Symptoms</Typography>
-              <Typography variant="body1" sx={{ fontWeight: 600 }}>{workOrderInfo.symptoms}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Symptoms
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                {workOrderInfo.symptoms}
+              </Typography>
             </Grid>
             <Grid item xs={12}>
-              <Typography variant="body2" color="text.secondary">Recommended Action</Typography>
-              <Typography variant="body1" sx={{ fontWeight: 600 }}>{workOrderInfo.recommendedAction}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Recommended Action
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                {workOrderInfo.recommendedAction}
+              </Typography>
             </Grid>
           </Grid>
         </Paper>
@@ -384,7 +459,11 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
 
       {/* Evidence Package Controls */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" gutterBottom sx={{ color: "primary.main", fontWeight: 600 }}>
+        <Typography
+          variant="h6"
+          gutterBottom
+          sx={{ color: "primary.main", fontWeight: 600 }}
+        >
           Sensor Evidence Analysis
         </Typography>
         <Grid container spacing={2} alignItems="center">
@@ -441,7 +520,11 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
       {/* System Overview */}
       {selectedSystem && (
         <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6" gutterBottom sx={{ color: "primary.main", fontWeight: 600 }}>
+          <Typography
+            variant="h6"
+            gutterBottom
+            sx={{ color: "primary.main", fontWeight: 600 }}
+          >
             System Overview - Evidence Context
           </Typography>
           <Grid container spacing={2}>
@@ -449,7 +532,13 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
               .filter((system) => system.id === selectedSystem)
               .map((system) => (
                 <Grid item xs={12} key={system.id}>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
                     <Box>
                       <Typography variant="h6">{system.name}</Typography>
                       <Typography variant="body2" color="text.secondary">
@@ -458,8 +547,13 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                     </Box>
                     <Chip
                       label={system.status.toUpperCase()}
-                      color={system.status === "operational" ? "success" : 
-                             system.status === "degraded" ? "warning" : "error"}
+                      color={
+                        system.status === "operational"
+                          ? "success"
+                          : system.status === "degraded"
+                            ? "warning"
+                            : "error"
+                      }
                       variant="outlined"
                     />
                   </Box>
@@ -473,18 +567,32 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {sensorData.map((sensor) => (
           <Grid item xs={12} sm={6} md={4} key={sensor.sensorId}>
-            <Card 
-              sx={{ 
+            <Card
+              sx={{
                 cursor: "pointer",
                 border: selectedSensor === sensor.sensorId ? 2 : 1,
-                borderColor: selectedSensor === sensor.sensorId ? "primary.main" : "divider",
-                "&:hover": { boxShadow: 4 }
+                borderColor:
+                  selectedSensor === sensor.sensorId
+                    ? "primary.main"
+                    : "divider",
+                "&:hover": { boxShadow: 4 },
               }}
               onClick={() => setSelectedSensor(sensor.sensorId)}
             >
               <CardContent>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
-                  <Typography variant="h6" component="div" sx={{ fontSize: "1rem" }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    mb: 1,
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    component="div"
+                    sx={{ fontSize: "1rem" }}
+                  >
                     {sensor.sensorName}
                   </Typography>
                   <Chip
@@ -494,7 +602,11 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                     size="small"
                   />
                 </Box>
-                <Typography variant="h4" component="div" sx={{ fontWeight: 700, mb: 1 }}>
+                <Typography
+                  variant="h4"
+                  component="div"
+                  sx={{ fontWeight: 700, mb: 1 }}
+                >
                   {sensor.value} {sensor.unit}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -514,13 +626,21 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
         <>
           {/* Analytics Summary */}
           <Paper sx={{ p: 2, mb: 3 }}>
-            <Typography variant="h6" gutterBottom sx={{ color: "primary.main", fontWeight: 600 }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ color: "primary.main", fontWeight: 600 }}
+            >
               Evidence Analysis Summary
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={3}>
                 <Box sx={{ textAlign: "center" }}>
-                  <Typography variant="h4" color="primary" sx={{ fontWeight: 700 }}>
+                  <Typography
+                    variant="h4"
+                    color="primary"
+                    sx={{ fontWeight: 700 }}
+                  >
                     {analytics.averageValue}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -530,7 +650,11 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
               </Grid>
               <Grid item xs={12} sm={3}>
                 <Box sx={{ textAlign: "center" }}>
-                  <Typography variant="h4" color="success.main" sx={{ fontWeight: 700 }}>
+                  <Typography
+                    variant="h4"
+                    color="success.main"
+                    sx={{ fontWeight: 700 }}
+                  >
                     {analytics.minValue}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -540,7 +664,11 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
               </Grid>
               <Grid item xs={12} sm={3}>
                 <Box sx={{ textAlign: "center" }}>
-                  <Typography variant="h4" color="error.main" sx={{ fontWeight: 700 }}>
+                  <Typography
+                    variant="h4"
+                    color="error.main"
+                    sx={{ fontWeight: 700 }}
+                  >
                     {analytics.maxValue}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -550,7 +678,14 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
               </Grid>
               <Grid item xs={12} sm={3}>
                 <Box sx={{ textAlign: "center" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 1 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      mb: 1,
+                    }}
+                  >
                     {getTrendIcon(analytics.trend)}
                     <Typography variant="h4" sx={{ fontWeight: 700, ml: 1 }}>
                       {analytics.trend}
@@ -566,7 +701,11 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
             <Grid container spacing={2}>
               <Grid item xs={12} sm={4}>
                 <Box sx={{ textAlign: "center" }}>
-                  <Typography variant="h5" color="warning.main" sx={{ fontWeight: 700 }}>
+                  <Typography
+                    variant="h5"
+                    color="warning.main"
+                    sx={{ fontWeight: 700 }}
+                  >
                     {analytics.anomalies}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -576,7 +715,11 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
               </Grid>
               <Grid item xs={12} sm={4}>
                 <Box sx={{ textAlign: "center" }}>
-                  <Typography variant="h5" color="info.main" sx={{ fontWeight: 700 }}>
+                  <Typography
+                    variant="h5"
+                    color="info.main"
+                    sx={{ fontWeight: 700 }}
+                  >
                     {analytics.efficiency}%
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -586,7 +729,11 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
               </Grid>
               <Grid item xs={12} sm={4}>
                 <Box sx={{ textAlign: "center" }}>
-                  <Typography variant="h5" color="text.primary" sx={{ fontWeight: 700 }}>
+                  <Typography
+                    variant="h5"
+                    color="text.primary"
+                    sx={{ fontWeight: 700 }}
+                  >
                     {timeRange}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -600,7 +747,11 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
           {/* Chart */}
           {chartData && (
             <Paper sx={{ p: 2, height: 400 }}>
-              <Typography variant="h6" gutterBottom sx={{ color: "primary.main", fontWeight: 600 }}>
+              <Typography
+                variant="h6"
+                gutterBottom
+                sx={{ color: "primary.main", fontWeight: 600 }}
+              >
                 Sensor Data Timeline - Evidence Package
               </Typography>
               <Line data={chartData} options={chartOptions} />

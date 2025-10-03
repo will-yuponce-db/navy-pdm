@@ -1,21 +1,32 @@
-import { Grid, Card, CardContent, Typography, Box, Chip, Button } from "@mui/material";
-import { 
-  Dashboard, 
-  Work, 
-  Category, 
-  Inventory2, 
-  Schedule, 
-  Description, 
+import {
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Chip,
+  Button,
+} from "@mui/material";
+import {
+  Dashboard,
+  Work,
+  Category,
+  Inventory2,
+  Schedule,
+  Description,
   PhoneAndroid,
   Assignment,
   Build,
-  Warning
+  Warning,
 } from "@mui/icons-material";
 
 export function meta() {
   return [
     { title: "Maintainer Dashboard" },
-    { name: "description", content: "Maintainer Dashboard for daily operations" },
+    {
+      name: "description",
+      content: "Maintainer Dashboard for daily operations",
+    },
   ];
 }
 
@@ -31,13 +42,28 @@ export default function MaintainerDashboard() {
     partsNeeded: [
       { part: "Hydraulic Filter", quantity: 2, priority: "High" },
       { part: "Engine Oil", quantity: 5, priority: "Medium" },
-      { part: "Brake Pads", quantity: 1, priority: "Low" }
+      { part: "Brake Pads", quantity: 1, priority: "Low" },
     ],
     recentWorkOrders: [
-      { id: "WO-2024-001", asset: "USS Example", task: "Engine Maintenance", status: "In Progress" },
-      { id: "WO-2024-002", asset: "USS Test", task: "Hydraulic System Check", status: "Completed" },
-      { id: "WO-2024-003", asset: "USS Demo", task: "Safety Inspection", status: "Pending" }
-    ]
+      {
+        id: "WO-2024-001",
+        asset: "USS Example",
+        task: "Engine Maintenance",
+        status: "In Progress",
+      },
+      {
+        id: "WO-2024-002",
+        asset: "USS Test",
+        task: "Hydraulic System Check",
+        status: "Completed",
+      },
+      {
+        id: "WO-2024-003",
+        asset: "USS Demo",
+        task: "Safety Inspection",
+        status: "Pending",
+      },
+    ],
   };
 
   const quickActions = [
@@ -46,56 +72,68 @@ export default function MaintainerDashboard() {
       count: data.assignedWorkOrders,
       icon: <Work />,
       route: "/work-order",
-      color: "primary"
+      color: "primary",
     },
     {
       title: "Parts Needed",
       count: data.pendingParts,
       icon: <Category />,
       route: "/parts",
-      color: "warning"
+      color: "warning",
     },
     {
       title: "Scheduled Tasks",
       count: data.scheduledMaintenance,
       icon: <Schedule />,
       route: "/maintenance-schedule",
-      color: "info"
+      color: "info",
     },
     {
       title: "Technical Docs",
       count: "12",
       icon: <Description />,
       route: "/docs",
-      color: "secondary"
-    }
+      color: "secondary",
+    },
   ];
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "High": return "error";
-      case "Medium": return "warning";
-      case "Low": return "success";
-      default: return "default";
+      case "High":
+        return "error";
+      case "Medium":
+        return "warning";
+      case "Low":
+        return "success";
+      default:
+        return "default";
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Completed": return "success";
-      case "In Progress": return "info";
-      case "Pending": return "warning";
-      default: return "default";
+      case "Completed":
+        return "success";
+      case "In Progress":
+        return "info";
+      case "Pending":
+        return "warning";
+      default:
+        return "default";
     }
   };
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Typography
+        variant="h4"
+        gutterBottom
+        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+      >
         <Dashboard />
         Maintainer Dashboard
       </Typography>
-      
+
       <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
         Your daily maintenance tasks and operational overview
       </Typography>
@@ -105,7 +143,13 @@ export default function MaintainerDashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
                 <Box>
                   <Typography variant="h6" component="div">
                     {data.assignedWorkOrders}
@@ -114,7 +158,7 @@ export default function MaintainerDashboard() {
                     Assigned Work Orders
                   </Typography>
                 </Box>
-                <Box sx={{ color: 'primary.main' }}>
+                <Box sx={{ color: "primary.main" }}>
                   <Assignment />
                 </Box>
               </Box>
@@ -125,7 +169,13 @@ export default function MaintainerDashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
                 <Box>
                   <Typography variant="h6" component="div">
                     {data.completedToday}
@@ -134,7 +184,7 @@ export default function MaintainerDashboard() {
                     Completed Today
                   </Typography>
                 </Box>
-                <Box sx={{ color: 'success.main' }}>
+                <Box sx={{ color: "success.main" }}>
                   <Build />
                 </Box>
               </Box>
@@ -145,7 +195,13 @@ export default function MaintainerDashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
                 <Box>
                   <Typography variant="h6" component="div">
                     {data.urgentTasks}
@@ -154,7 +210,7 @@ export default function MaintainerDashboard() {
                     Urgent Tasks
                   </Typography>
                 </Box>
-                <Box sx={{ color: 'error.main' }}>
+                <Box sx={{ color: "error.main" }}>
                   <Warning />
                 </Box>
               </Box>
@@ -165,7 +221,13 @@ export default function MaintainerDashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
                 <Box>
                   <Typography variant="h6" component="div">
                     {data.efficiency}%
@@ -174,7 +236,7 @@ export default function MaintainerDashboard() {
                     Efficiency Rating
                   </Typography>
                 </Box>
-                <Box sx={{ color: 'success.main' }}>
+                <Box sx={{ color: "success.main" }}>
                   <Dashboard />
                 </Box>
               </Box>
@@ -187,9 +249,15 @@ export default function MaintainerDashboard() {
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {quickActions.map((action, index) => (
           <Grid item xs={12} sm={6} md={3} key={index}>
-            <Card sx={{ cursor: 'pointer', '&:hover': { boxShadow: 3 } }}>
+            <Card sx={{ cursor: "pointer", "&:hover": { boxShadow: 3 } }}>
               <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
                   <Box>
                     <Typography variant="h6" component="div">
                       {action.count}
@@ -217,7 +285,15 @@ export default function MaintainerDashboard() {
                 Parts Needed
               </Typography>
               {data.partsNeeded.map((part, index) => (
-                <Box key={index} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Box
+                  key={index}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    mb: 2,
+                  }}
+                >
                   <Box>
                     <Typography variant="body2" fontWeight="medium">
                       {part.part}
@@ -226,8 +302,8 @@ export default function MaintainerDashboard() {
                       Qty: {part.quantity}
                     </Typography>
                   </Box>
-                  <Chip 
-                    label={part.priority} 
+                  <Chip
+                    label={part.priority}
                     color={getPriorityColor(part.priority)}
                     size="small"
                   />
@@ -248,7 +324,15 @@ export default function MaintainerDashboard() {
                 Recent Work Orders
               </Typography>
               {data.recentWorkOrders.map((workOrder, index) => (
-                <Box key={index} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Box
+                  key={index}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    mb: 2,
+                  }}
+                >
                   <Box>
                     <Typography variant="body2" fontWeight="medium">
                       {workOrder.id}
@@ -257,8 +341,8 @@ export default function MaintainerDashboard() {
                       {workOrder.asset} - {workOrder.task}
                     </Typography>
                   </Box>
-                  <Chip 
-                    label={workOrder.status} 
+                  <Chip
+                    label={workOrder.status}
                     color={getStatusColor(workOrder.status)}
                     size="small"
                   />
@@ -275,14 +359,18 @@ export default function MaintainerDashboard() {
       {/* Mobile Tools */}
       <Card>
         <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography
+            variant="h6"
+            gutterBottom
+            sx={{ display: "flex", alignItems: "center", gap: 1 }}
+          >
             <PhoneAndroid />
             Mobile Tools
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Access maintenance tools and documentation on your mobile device
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: "flex", gap: 2 }}>
             <Button variant="contained" startIcon={<Work />}>
               Work Orders
             </Button>

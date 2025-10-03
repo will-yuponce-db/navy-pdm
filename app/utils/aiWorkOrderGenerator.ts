@@ -52,17 +52,17 @@ export const generateAIWorkOrder = (
   createdBy?: string,
 ): Omit<WorkOrder, "wo" | "createdAt" | "updatedAt"> => {
   const sensorData = generateMockSensorData();
-  
+
   // Analyze sensor data to determine failure mode and recommendations
-  const criticalSensors = sensorData.filter(s => s.status === "critical");
-  const warningSensors = sensorData.filter(s => s.status === "warning");
-  
+  const criticalSensors = sensorData.filter((s) => s.status === "critical");
+  const warningSensors = sensorData.filter((s) => s.status === "warning");
+
   let fm = "System Anomaly Detected";
   let symptoms = "Multiple sensor readings indicate potential system issues.";
   let recommendedAction = "Perform comprehensive system inspection.";
   let priority: "Routine" | "Urgent" | "CASREP" = "Routine";
   let partsRequired = "";
-  
+
   if (criticalSensors.length > 0) {
     const criticalSensor = criticalSensors[0];
     fm = `${criticalSensor.sensorName} Critical Alert`;
@@ -78,7 +78,7 @@ export const generateAIWorkOrder = (
     priority = "Routine";
     partsRequired = "Monitoring equipment";
   }
-  
+
   return {
     shipId,
     gteSystemId,
@@ -99,17 +99,23 @@ export const generateAIWorkOrder = (
 
 // Function to create AI work order with notification
 export const createAIWorkOrder = async (
-  dispatch: any,
+  dispatch: (action: unknown) => unknown,
   shipId: string,
   gteSystemId?: string,
   assignedTo?: string,
   createdBy?: string,
 ) => {
-  const workOrderData = generateAIWorkOrder(shipId, gteSystemId, assignedTo, createdBy);
-  
+  const workOrderData = generateAIWorkOrder(
+    shipId,
+    gteSystemId,
+    assignedTo,
+    createdBy,
+  );
+
   // Import the action dynamically to avoid circular dependencies
-  const { addAIWorkOrderWithNotification } = await import("../redux/services/workOrderSlice");
-  
+  const { addAIWorkOrderWithNotification } = await import(
+    "../redux/services/workOrderSlice"
+  );
+
   return dispatch(addAIWorkOrderWithNotification(workOrderData));
 };
-

@@ -8,6 +8,7 @@ export default [
   route("/sensor-analyzer", "routes/sensor-analyzer.tsx"),
   route("/assets", "routes/assets.tsx"),
   route("/parts", "routes/parts.tsx"),
+  route("/parts-requisition", "routes/parts-requisition.tsx"),
   route("/maintenance-schedule", "routes/maintenance-schedule.tsx"),
   route("/spo-dashboard", "routes/spo-dashboard.tsx"),
   route("/maintainer-dashboard", "routes/maintainer-dashboard.tsx"),

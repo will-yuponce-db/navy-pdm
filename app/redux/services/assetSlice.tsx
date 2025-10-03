@@ -1,5 +1,9 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import type { Asset, AssetState } from '../../types';
+import {
+  createSlice,
+  createAsyncThunk,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
+import type { Asset, AssetState } from "../../types";
 
 // Mock data - in a real app, this would come from an API
 const mockAssets: Asset[] = [
@@ -20,7 +24,11 @@ const mockAssets: Asset[] = [
     systems: [
       { name: "Propulsion", status: "operational", lastCheck: "2024-01-10" },
       { name: "Navigation", status: "operational", lastCheck: "2024-01-12" },
-      { name: "Combat Systems", status: "operational", lastCheck: "2024-01-08" },
+      {
+        name: "Combat Systems",
+        status: "operational",
+        lastCheck: "2024-01-08",
+      },
       { name: "Communications", status: "degraded", lastCheck: "2024-01-05" },
     ],
   },
@@ -39,7 +47,11 @@ const mockAssets: Asset[] = [
     maintenanceCost: 2500000,
     fuelEfficiency: 72,
     systems: [
-      { name: "Nuclear Reactor", status: "operational", lastCheck: "2024-01-18" },
+      {
+        name: "Nuclear Reactor",
+        status: "operational",
+        lastCheck: "2024-01-18",
+      },
       { name: "Flight Deck", status: "degraded", lastCheck: "2024-01-15" },
       { name: "Catapult System", status: "critical", lastCheck: "2024-01-12" },
       { name: "Radar Systems", status: "operational", lastCheck: "2024-01-16" },
@@ -60,7 +72,11 @@ const mockAssets: Asset[] = [
     maintenanceCost: 1800000,
     fuelEfficiency: 94,
     systems: [
-      { name: "Nuclear Reactor", status: "operational", lastCheck: "2024-01-06" },
+      {
+        name: "Nuclear Reactor",
+        status: "operational",
+        lastCheck: "2024-01-06",
+      },
       { name: "Sonar Array", status: "operational", lastCheck: "2024-01-10" },
       { name: "Propulsion", status: "operational", lastCheck: "2024-01-08" },
       { name: "Life Support", status: "operational", lastCheck: "2024-01-09" },
@@ -84,28 +100,29 @@ const mockAssets: Asset[] = [
       { name: "Propulsion", status: "operational", lastCheck: "2023-12-18" },
       { name: "Well Deck", status: "operational", lastCheck: "2023-12-15" },
       { name: "Flight Deck", status: "degraded", lastCheck: "2023-12-12" },
-      { name: "Medical Facilities", status: "operational", lastCheck: "2023-12-20" },
+      {
+        name: "Medical Facilities",
+        status: "operational",
+        lastCheck: "2023-12-20",
+      },
     ],
   },
 ];
 
 // Async thunks
-export const fetchAssets = createAsyncThunk(
-  'assets/fetchAssets',
-  async () => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return mockAssets;
-  }
-);
+export const fetchAssets = createAsyncThunk("assets/fetchAssets", async () => {
+  // Simulate API call
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  return mockAssets;
+});
 
 export const updateAsset = createAsyncThunk(
-  'assets/updateAsset',
+  "assets/updateAsset",
   async (updatedAsset: Asset) => {
     // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 300));
     return updatedAsset;
-  }
+  },
 );
 
 // Initial state
@@ -118,7 +135,7 @@ const initialState: AssetState = {
 
 // Slice
 const assetSlice = createSlice({
-  name: 'assets',
+  name: "assets",
   initialState,
   reducers: {
     setSelectedAsset: (state, action: PayloadAction<Asset | null>) => {
@@ -141,7 +158,7 @@ const assetSlice = createSlice({
       })
       .addCase(fetchAssets.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to fetch assets';
+        state.error = action.error.message || "Failed to fetch assets";
       })
       // Update asset
       .addCase(updateAsset.pending, (state) => {
@@ -151,7 +168,9 @@ const assetSlice = createSlice({
       .addCase(updateAsset.fulfilled, (state, action) => {
         state.loading = false;
         const updatedAsset = action.payload;
-        const index = state.assets.findIndex(asset => asset.id === updatedAsset.id);
+        const index = state.assets.findIndex(
+          (asset) => asset.id === updatedAsset.id,
+        );
         if (index !== -1) {
           state.assets[index] = updatedAsset;
         }
@@ -162,11 +181,10 @@ const assetSlice = createSlice({
       })
       .addCase(updateAsset.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to update asset';
+        state.error = action.error.message || "Failed to update asset";
       });
   },
 });
 
 export const { setSelectedAsset, clearError } = assetSlice.actions;
 export default assetSlice.reducer;
-

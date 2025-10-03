@@ -17,7 +17,6 @@ import {
   IconButton,
   Tooltip,
   Badge,
-  Modal,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -32,17 +31,10 @@ import {
   Snackbar,
   InputAdornment,
   Autocomplete,
-  Tabs,
-  Tab,
   Pagination,
   Switch,
   FormControlLabel,
   Collapse,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Divider,
   CircularProgress,
   Skeleton,
 } from "@mui/material";
@@ -64,33 +56,25 @@ import {
   Refresh,
   TrendingUp,
   TrendingDown,
-  TrendingFlat,
   Assessment,
-  Timeline,
-  BarChart,
-  PieChart,
   ExpandMore,
   ExpandLess,
   Sort,
   ViewList,
   ViewModule,
-  Settings,
-  Notifications,
   Star,
   StarBorder,
 } from "@mui/icons-material";
 import { tableStyles } from "../utils/tableStyles";
 import WorkOrderModal from "../components/WorkOrderModal";
 import { useAppDispatch, useAppSelector } from "../redux/hooks";
-import { fetchAssets, updateAsset, setSelectedAsset } from "../redux/services/assetSlice";
+import {
+  fetchAssets,
+  updateAsset,
+  setSelectedAsset,
+} from "../redux/services/assetSlice";
 import { addNotification } from "../redux/services/notificationSlice";
-import type {
-  CreateMaintenanceScheduleForm,
-  MaintenanceScheduleType,
-  MaintenanceFrequency,
-  Priority,
-  Asset,
-} from "../types";
+import type { CreateMaintenanceScheduleForm, Asset } from "../types";
 
 export function meta() {
   return [
@@ -122,8 +106,8 @@ interface AssetFilters {
   readinessRange: [number, number];
   criticalIssuesRange: [number, number];
   sortBy: string;
-  sortOrder: 'asc' | 'desc';
-  viewMode: 'table' | 'cards' | 'analytics';
+  sortOrder: "asc" | "desc";
+  viewMode: "table" | "cards" | "analytics";
   showFavorites: boolean;
 }
 
@@ -137,44 +121,48 @@ interface AssetAnalytics {
   totalCriticalIssues: number;
   totalMaintenanceCost: number;
   avgFuelEfficiency: number;
-  readinessTrend: 'up' | 'down' | 'stable';
-  costTrend: 'up' | 'down' | 'stable';
+  readinessTrend: "up" | "down" | "stable";
+  costTrend: "up" | "down" | "stable";
 }
 
 export default function Assets() {
   const dispatch = useAppDispatch();
-  const { assets, loading, error, selectedAsset } = useAppSelector((state) => state.assets);
-  
+  const { assets, loading, selectedAsset } = useAppSelector(
+    (state) => state.assets,
+  );
+
   // Modal states
   const [workOrderModalOpen, setWorkOrderModalOpen] = useState(false);
   const [assetDetailsModalOpen, setAssetDetailsModalOpen] = useState(false);
-  const [maintenanceHistoryModalOpen, setMaintenanceHistoryModalOpen] = useState(false);
+  const [maintenanceHistoryModalOpen, setMaintenanceHistoryModalOpen] =
+    useState(false);
   const [editAssetModalOpen, setEditAssetModalOpen] = useState(false);
-  const [maintenanceScheduleModalOpen, setMaintenanceScheduleModalOpen] = useState(false);
+  const [maintenanceScheduleModalOpen, setMaintenanceScheduleModalOpen] =
+    useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
-  
+
   // Enhanced state management
   const [filters, setFilters] = useState<AssetFilters>({
-    search: '',
+    search: "",
     status: [],
     type: [],
     location: [],
     readinessRange: [0, 100],
     criticalIssuesRange: [0, 10],
-    sortBy: 'name',
-    sortOrder: 'asc',
-    viewMode: 'table',
+    sortBy: "name",
+    sortOrder: "asc",
+    viewMode: "table",
     showFavorites: false,
   });
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [expandedFilters, setExpandedFilters] = useState(false);
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
   const [analytics, setAnalytics] = useState<AssetAnalytics | null>(null);
-  
+
   // Edit form state
   const [editFormData, setEditFormData] = useState({
     name: "",
@@ -190,23 +178,28 @@ export default function Assets() {
     maintenanceCost: 0,
     fuelEfficiency: 0,
   });
-  const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
+  const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>(
+    {},
+  );
 
   // Maintenance schedule form state
-  const [scheduleFormData, setScheduleFormData] = useState<CreateMaintenanceScheduleForm>({
-    assetId: "",
-    scheduleType: "Preventive",
-    frequency: "Monthly",
-    nextDueDate: "",
-    estimatedDuration: 0,
-    priority: "Routine",
-    description: "",
-    assignedTechnician: "",
-    partsRequired: [],
-    estimatedCost: 0,
-    notes: "",
-  });
-  const [scheduleFormErrors, setScheduleFormErrors] = useState<Record<string, string>>({});
+  const [scheduleFormData, setScheduleFormData] =
+    useState<CreateMaintenanceScheduleForm>({
+      assetId: "",
+      scheduleType: "Preventive",
+      frequency: "Monthly",
+      nextDueDate: "",
+      estimatedDuration: 0,
+      priority: "Routine",
+      description: "",
+      assignedTechnician: "",
+      partsRequired: [],
+      estimatedCost: 0,
+      notes: "",
+    });
+  const [scheduleFormErrors, setScheduleFormErrors] = useState<
+    Record<string, string>
+  >({});
 
   // Fetch assets on component mount
   useEffect(() => {
@@ -227,16 +220,28 @@ export default function Assets() {
     if (assets.length > 0) {
       const analyticsData: AssetAnalytics = {
         totalAssets: assets.length,
-        operationalAssets: assets.filter(a => a.status === 'Operational').length,
-        maintenanceAssets: assets.filter(a => a.status === 'Maintenance').length,
-        deployedAssets: assets.filter(a => a.status === 'Deployed').length,
-        criticalAssets: assets.filter(a => a.status === 'Critical').length,
-        avgReadinessScore: Math.round(assets.reduce((sum, a) => sum + a.readinessScore, 0) / assets.length),
-        totalCriticalIssues: assets.reduce((sum, a) => sum + a.criticalIssues, 0),
-        totalMaintenanceCost: assets.reduce((sum, a) => sum + a.maintenanceCost, 0),
-        avgFuelEfficiency: Math.round(assets.reduce((sum, a) => sum + a.fuelEfficiency, 0) / assets.length),
-        readinessTrend: 'stable', // Would be calculated from historical data
-        costTrend: 'up', // Would be calculated from historical data
+        operationalAssets: assets.filter((a) => a.status === "Operational")
+          .length,
+        maintenanceAssets: assets.filter((a) => a.status === "Maintenance")
+          .length,
+        deployedAssets: assets.filter((a) => a.status === "Deployed").length,
+        criticalAssets: assets.filter((a) => a.status === "Critical").length,
+        avgReadinessScore: Math.round(
+          assets.reduce((sum, a) => sum + a.readinessScore, 0) / assets.length,
+        ),
+        totalCriticalIssues: assets.reduce(
+          (sum, a) => sum + a.criticalIssues,
+          0,
+        ),
+        totalMaintenanceCost: assets.reduce(
+          (sum, a) => sum + a.maintenanceCost,
+          0,
+        ),
+        avgFuelEfficiency: Math.round(
+          assets.reduce((sum, a) => sum + a.fuelEfficiency, 0) / assets.length,
+        ),
+        readinessTrend: "stable", // Would be calculated from historical data
+        costTrend: "up", // Would be calculated from historical data
       };
       setAnalytics(analyticsData);
     }
@@ -244,11 +249,11 @@ export default function Assets() {
 
   // Enhanced filtering and sorting
   const filteredAndSortedAssets = useMemo(() => {
-    const filtered = assets.filter(asset => {
+    const filtered = assets.filter((asset) => {
       // Search filter
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
-        const matchesSearch = 
+        const matchesSearch =
           asset.name.toLowerCase().includes(searchLower) ||
           asset.id.toLowerCase().includes(searchLower) ||
           asset.type.toLowerCase().includes(searchLower) ||
@@ -267,17 +272,26 @@ export default function Assets() {
       }
 
       // Location filter
-      if (filters.location.length > 0 && !filters.location.includes(asset.location)) {
+      if (
+        filters.location.length > 0 &&
+        !filters.location.includes(asset.location)
+      ) {
         return false;
       }
 
       // Readiness range filter
-      if (asset.readinessScore < filters.readinessRange[0] || asset.readinessScore > filters.readinessRange[1]) {
+      if (
+        asset.readinessScore < filters.readinessRange[0] ||
+        asset.readinessScore > filters.readinessRange[1]
+      ) {
         return false;
       }
 
       // Critical issues range filter
-      if (asset.criticalIssues < filters.criticalIssuesRange[0] || asset.criticalIssues > filters.criticalIssuesRange[1]) {
+      if (
+        asset.criticalIssues < filters.criticalIssuesRange[0] ||
+        asset.criticalIssues > filters.criticalIssuesRange[1]
+      ) {
         return false;
       }
 
@@ -291,30 +305,31 @@ export default function Assets() {
 
     // Sorting
     filtered.sort((a, b) => {
-      let aValue: any, bValue: any;
-      
+      let aValue: string | number;
+      let bValue: string | number;
+
       switch (filters.sortBy) {
-        case 'name':
+        case "name":
           aValue = a.name;
           bValue = b.name;
           break;
-        case 'status':
+        case "status":
           aValue = a.status;
           bValue = b.status;
           break;
-        case 'readiness':
+        case "readiness":
           aValue = a.readinessScore;
           bValue = b.readinessScore;
           break;
-        case 'criticalIssues':
+        case "criticalIssues":
           aValue = a.criticalIssues;
           bValue = b.criticalIssues;
           break;
-        case 'maintenanceCost':
+        case "maintenanceCost":
           aValue = a.maintenanceCost;
           bValue = b.maintenanceCost;
           break;
-        case 'operationalHours':
+        case "operationalHours":
           aValue = a.operationalHours;
           bValue = b.operationalHours;
           break;
@@ -323,14 +338,12 @@ export default function Assets() {
           bValue = b.name;
       }
 
-      if (typeof aValue === 'string') {
-        return filters.sortOrder === 'asc' 
+      if (typeof aValue === "string") {
+        return filters.sortOrder === "asc"
           ? aValue.localeCompare(bValue)
           : bValue.localeCompare(aValue);
       } else {
-        return filters.sortOrder === 'asc' 
-          ? aValue - bValue
-          : bValue - aValue;
+        return filters.sortOrder === "asc" ? aValue - bValue : bValue - aValue;
       }
     });
 
@@ -346,20 +359,29 @@ export default function Assets() {
   const totalPages = Math.ceil(filteredAndSortedAssets.length / itemsPerPage);
 
   // Get unique values for filter options
-  const filterOptions = useMemo(() => ({
-    statuses: [...new Set(assets.map(a => a.status))],
-    types: [...new Set(assets.map(a => a.type))],
-    locations: [...new Set(assets.map(a => a.location))],
-  }), [assets]);
+  const filterOptions = useMemo(
+    () => ({
+      statuses: [...new Set(assets.map((a) => a.status))],
+      types: [...new Set(assets.map((a) => a.type))],
+      locations: [...new Set(assets.map((a) => a.location))],
+    }),
+    [assets],
+  );
 
   // Enhanced handlers
-  const handleFilterChange = useCallback((key: keyof AssetFilters, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    setCurrentPage(1); // Reset to first page when filters change
-  }, []);
+  const handleFilterChange = useCallback(
+    (
+      key: keyof AssetFilters,
+      value: string | number | boolean | string[] | [number, number],
+    ) => {
+      setFilters((prev) => ({ ...prev, [key]: value }));
+      setCurrentPage(1); // Reset to first page when filters change
+    },
+    [],
+  );
 
   const handleToggleFavorite = useCallback((assetId: string) => {
-    setFavorites(prev => {
+    setFavorites((prev) => {
       const newFavorites = new Set(prev);
       if (newFavorites.has(assetId)) {
         newFavorites.delete(assetId);
@@ -371,7 +393,7 @@ export default function Assets() {
   }, []);
 
   const handleSelectAsset = useCallback((assetId: string) => {
-    setSelectedAssets(prev => {
+    setSelectedAssets((prev) => {
       const newSelected = new Set(prev);
       if (newSelected.has(assetId)) {
         newSelected.delete(assetId);
@@ -386,53 +408,72 @@ export default function Assets() {
     if (selectedAssets.size === paginatedAssets.length) {
       setSelectedAssets(new Set());
     } else {
-      setSelectedAssets(new Set(paginatedAssets.map(a => a.id)));
+      setSelectedAssets(new Set(paginatedAssets.map((a) => a.id)));
     }
   }, [selectedAssets.size, paginatedAssets]);
 
   const handleExportAssets = useCallback(() => {
-    const dataToExport = selectedAssets.size > 0 
-      ? assets.filter(a => selectedAssets.has(a.id))
-      : filteredAndSortedAssets;
-    
-    const csvContent = [
-      ['Name', 'ID', 'Type', 'Class', 'Status', 'Location', 'Readiness Score', 'Critical Issues', 'Maintenance Cost', 'Operational Hours', 'Fuel Efficiency', 'Last Maintenance', 'Next Maintenance'].join(','),
-      ...dataToExport.map(asset => [
-        `"${asset.name}"`,
-        `"${asset.id}"`,
-        `"${asset.type}"`,
-        `"${asset.class}"`,
-        `"${asset.status}"`,
-        `"${asset.location}"`,
-        asset.readinessScore,
-        asset.criticalIssues,
-        asset.maintenanceCost,
-        asset.operationalHours,
-        asset.fuelEfficiency,
-        `"${asset.lastMaintenance}"`,
-        `"${asset.nextMaintenance}"`
-      ].join(','))
-    ].join('\n');
+    const dataToExport =
+      selectedAssets.size > 0
+        ? assets.filter((a) => selectedAssets.has(a.id))
+        : filteredAndSortedAssets;
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csvContent = [
+      [
+        "Name",
+        "ID",
+        "Type",
+        "Class",
+        "Status",
+        "Location",
+        "Readiness Score",
+        "Critical Issues",
+        "Maintenance Cost",
+        "Operational Hours",
+        "Fuel Efficiency",
+        "Last Maintenance",
+        "Next Maintenance",
+      ].join(","),
+      ...dataToExport.map((asset) =>
+        [
+          `"${asset.name}"`,
+          `"${asset.id}"`,
+          `"${asset.type}"`,
+          `"${asset.class}"`,
+          `"${asset.status}"`,
+          `"${asset.location}"`,
+          asset.readinessScore,
+          asset.criticalIssues,
+          asset.maintenanceCost,
+          asset.operationalHours,
+          asset.fuelEfficiency,
+          `"${asset.lastMaintenance}"`,
+          `"${asset.nextMaintenance}"`,
+        ].join(","),
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `assets-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `assets-export-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-    
+
     // Show success notification
-    dispatch(addNotification({
-      id: Date.now().toString(),
-      type: "success",
-      title: "Export Complete",
-      message: `Successfully exported ${dataToExport.length} assets to CSV.`,
-      timestamp: new Date().toISOString(),
-      priority: "medium",
-      category: "update",
-      read: false,
-    }));
+    dispatch(
+      addNotification({
+        id: Date.now().toString(),
+        type: "success",
+        title: "Export Complete",
+        message: `Successfully exported ${dataToExport.length} assets to CSV.`,
+        timestamp: new Date().toISOString(),
+        priority: "medium",
+        category: "update",
+        read: false,
+      }),
+    );
   }, [selectedAssets, assets, filteredAndSortedAssets, dispatch]);
 
   const getStatusColor = (status: string) => {
@@ -450,7 +491,6 @@ export default function Assets() {
     }
   };
 
-
   const getReadinessColor = (score: number) => {
     if (score >= 90) return "success";
     if (score >= 75) return "warning";
@@ -466,9 +506,9 @@ export default function Assets() {
   // Modal handlers
   const openWorkOrderModal = () => setWorkOrderModalOpen(true);
   const closeWorkOrderModal = () => setWorkOrderModalOpen(false);
-  
+
   const openAssetDetailsModal = (assetId: string) => {
-    const asset = assets.find(a => a.id === assetId);
+    const asset = assets.find((a) => a.id === assetId);
     if (asset) {
       dispatch(setSelectedAsset(asset));
     }
@@ -478,9 +518,9 @@ export default function Assets() {
     setAssetDetailsModalOpen(false);
     dispatch(setSelectedAsset(null));
   };
-  
+
   const openMaintenanceHistoryModal = (assetId: string) => {
-    const asset = assets.find(a => a.id === assetId);
+    const asset = assets.find((a) => a.id === assetId);
     if (asset) {
       dispatch(setSelectedAsset(asset));
     }
@@ -490,9 +530,9 @@ export default function Assets() {
     setMaintenanceHistoryModalOpen(false);
     dispatch(setSelectedAsset(null));
   };
-  
+
   const openEditAssetModal = (assetId: string) => {
-    const asset = assets.find(a => a.id === assetId);
+    const asset = assets.find((a) => a.id === assetId);
     if (asset) {
       dispatch(setSelectedAsset(asset));
       setEditFormData({
@@ -535,7 +575,7 @@ export default function Assets() {
 
   // Maintenance schedule modal handlers
   const openMaintenanceScheduleModal = (assetId: string) => {
-    const asset = assets.find(a => a.id === assetId);
+    const asset = assets.find((a) => a.id === assetId);
     if (asset) {
       dispatch(setSelectedAsset(asset));
     }
@@ -583,7 +623,7 @@ export default function Assets() {
   // Form validation
   const validateEditForm = () => {
     const errors: Record<string, string> = {};
-    
+
     if (!editFormData.name.trim()) {
       errors.name = "Asset name is required";
     }
@@ -611,17 +651,17 @@ export default function Assets() {
     if (editFormData.fuelEfficiency < 0 || editFormData.fuelEfficiency > 100) {
       errors.fuelEfficiency = "Fuel efficiency must be between 0 and 100";
     }
-    
+
     setEditFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   // Handle form field changes
   const handleEditFormChange = (field: string, value: string | number) => {
-    setEditFormData(prev => ({ ...prev, [field]: value }));
+    setEditFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error for this field when user starts typing
     if (editFormErrors[field]) {
-      setEditFormErrors(prev => ({ ...prev, [field]: "" }));
+      setEditFormErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
@@ -630,47 +670,51 @@ export default function Assets() {
     if (!validateEditForm()) {
       return;
     }
-    
+
     if (!selectedAsset) {
       return;
     }
-    
+
     try {
       const updatedAsset: Asset = {
         ...selectedAsset,
         ...editFormData,
       };
-      
+
       await dispatch(updateAsset(updatedAsset)).unwrap();
-      
+
       // Show success notification
-      dispatch(addNotification({
-        id: Date.now().toString(),
-        type: "success",
-        title: "Asset Updated",
-        message: `${updatedAsset.name} has been updated successfully.`,
-        timestamp: new Date().toISOString(),
-        priority: "medium",
-        category: "update",
-        read: false,
-      }));
-      
+      dispatch(
+        addNotification({
+          id: Date.now().toString(),
+          type: "success",
+          title: "Asset Updated",
+          message: `${updatedAsset.name} has been updated successfully.`,
+          timestamp: new Date().toISOString(),
+          priority: "medium",
+          category: "update",
+          read: false,
+        }),
+      );
+
       setSnackbarMessage("Asset updated successfully!");
       setSnackbarOpen(true);
       closeEditAssetModal();
-    } catch (error) {
+    } catch {
       // Show error notification
-      dispatch(addNotification({
-        id: Date.now().toString(),
-        type: "error",
-        title: "Update Failed",
-        message: "Failed to update asset. Please try again.",
-        timestamp: new Date().toISOString(),
-        priority: "high",
-        category: "alert",
-        read: false,
-      }));
-      
+      dispatch(
+        addNotification({
+          id: Date.now().toString(),
+          type: "error",
+          title: "Update Failed",
+          message: "Failed to update asset. Please try again.",
+          timestamp: new Date().toISOString(),
+          priority: "high",
+          category: "alert",
+          read: false,
+        }),
+      );
+
       setSnackbarMessage("Failed to update asset. Please try again.");
       setSnackbarOpen(true);
     }
@@ -679,7 +723,7 @@ export default function Assets() {
   // Maintenance schedule form validation
   const validateScheduleForm = () => {
     const errors: Record<string, string> = {};
-    
+
     if (!scheduleFormData.description.trim()) {
       errors.description = "Description is required";
     }
@@ -692,17 +736,20 @@ export default function Assets() {
     if (scheduleFormData.estimatedCost < 0) {
       errors.estimatedCost = "Estimated cost cannot be negative";
     }
-    
+
     setScheduleFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   // Handle maintenance schedule form field changes
-  const handleScheduleFormChange = (field: string, value: string | number | string[]) => {
-    setScheduleFormData(prev => ({ ...prev, [field]: value }));
+  const handleScheduleFormChange = (
+    field: string,
+    value: string | number | string[],
+  ) => {
+    setScheduleFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error for this field when user starts typing
     if (scheduleFormErrors[field]) {
-      setScheduleFormErrors(prev => ({ ...prev, [field]: "" }));
+      setScheduleFormErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
@@ -711,13 +758,13 @@ export default function Assets() {
     if (!validateScheduleForm()) {
       return;
     }
-    
+
     // In a real application, this would create the maintenance schedule in the database
     console.log("Maintenance schedule created:", scheduleFormData);
-    
+
     // Show success message
     alert("Maintenance schedule created successfully!");
-    
+
     closeMaintenanceScheduleModal();
   };
 
@@ -744,36 +791,50 @@ export default function Assets() {
             {filters.search && ` matching "${filters.search}"`}
           </Typography>
         </Box>
-        
-        <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", width: { xs: "100%", md: "auto" } }}>
+
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            flexWrap: "wrap",
+            width: { xs: "100%", md: "auto" },
+          }}
+        >
           {/* View Mode Toggle */}
-          <Box sx={{ display: "flex", border: 1, borderColor: "divider", borderRadius: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 1,
+            }}
+          >
             <IconButton
               size="small"
-              onClick={() => handleFilterChange('viewMode', 'table')}
-              color={filters.viewMode === 'table' ? 'primary' : 'default'}
+              onClick={() => handleFilterChange("viewMode", "table")}
+              color={filters.viewMode === "table" ? "primary" : "default"}
             >
               <ViewList />
             </IconButton>
             <IconButton
               size="small"
-              onClick={() => handleFilterChange('viewMode', 'cards')}
-              color={filters.viewMode === 'cards' ? 'primary' : 'default'}
+              onClick={() => handleFilterChange("viewMode", "cards")}
+              color={filters.viewMode === "cards" ? "primary" : "default"}
             >
               <ViewModule />
             </IconButton>
             <IconButton
               size="small"
-              onClick={() => handleFilterChange('viewMode', 'analytics')}
-              color={filters.viewMode === 'analytics' ? 'primary' : 'default'}
+              onClick={() => handleFilterChange("viewMode", "analytics")}
+              color={filters.viewMode === "analytics" ? "primary" : "default"}
             >
               <Assessment />
             </IconButton>
           </Box>
 
           {/* Export Button */}
-          <Button 
-            variant="outlined" 
+          <Button
+            variant="outlined"
             startIcon={<Download />}
             onClick={handleExportAssets}
             disabled={filteredAndSortedAssets.length === 0}
@@ -782,32 +843,32 @@ export default function Assets() {
           </Button>
 
           {/* Refresh Button */}
-          <Button 
-            variant="outlined" 
+          <Button
+            variant="outlined"
             startIcon={loading ? <CircularProgress size={16} /> : <Refresh />}
             onClick={() => dispatch(fetchAssets())}
             disabled={loading}
           >
-            {loading ? 'Refreshing...' : 'Refresh'}
+            {loading ? "Refreshing..." : "Refresh"}
           </Button>
 
           {/* Action Buttons */}
-          <Button 
-            variant="outlined" 
+          <Button
+            variant="outlined"
             startIcon={<History />}
             onClick={() => setMaintenanceHistoryModalOpen(true)}
           >
             History
           </Button>
-          <Button 
-            variant="outlined" 
+          <Button
+            variant="outlined"
             startIcon={<Schedule />}
-            onClick={() => window.location.href = "/maintenance-schedule"}
+            onClick={() => (window.location.href = "/maintenance-schedule")}
           >
             Schedules
           </Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             startIcon={<Build />}
             onClick={openWorkOrderModal}
           >
@@ -819,8 +880,18 @@ export default function Assets() {
       {/* Enhanced Filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-            <Typography variant="h6" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: 2,
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{ display: "flex", alignItems: "center", gap: 1 }}
+            >
               <FilterList />
               Filters & Search
             </Typography>
@@ -837,7 +908,7 @@ export default function Assets() {
             <TextField
               placeholder="Search assets..."
               value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
+              onChange={(e) => handleFilterChange("search", e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -847,13 +918,13 @@ export default function Assets() {
               }}
               sx={{ minWidth: { xs: "100%", sm: 300 }, flex: 1 }}
             />
-            
+
             <FormControl sx={{ minWidth: { xs: "100%", sm: 120 } }}>
               <InputLabel>Sort By</InputLabel>
               <Select
                 value={filters.sortBy}
                 label="Sort By"
-                onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+                onChange={(e) => handleFilterChange("sortBy", e.target.value)}
               >
                 <MenuItem value="name">Name</MenuItem>
                 <MenuItem value="status">Status</MenuItem>
@@ -865,10 +936,20 @@ export default function Assets() {
             </FormControl>
 
             <IconButton
-              onClick={() => handleFilterChange('sortOrder', filters.sortOrder === 'asc' ? 'desc' : 'asc')}
+              onClick={() =>
+                handleFilterChange(
+                  "sortOrder",
+                  filters.sortOrder === "asc" ? "desc" : "asc",
+                )
+              }
               color="primary"
             >
-              <Sort sx={{ transform: filters.sortOrder === 'desc' ? 'rotate(180deg)' : 'none' }} />
+              <Sort
+                sx={{
+                  transform:
+                    filters.sortOrder === "desc" ? "rotate(180deg)" : "none",
+                }}
+              />
             </IconButton>
           </Box>
 
@@ -879,9 +960,13 @@ export default function Assets() {
                 multiple
                 options={filterOptions.statuses}
                 value={filters.status}
-                onChange={(_, value) => handleFilterChange('status', value)}
+                onChange={(_, value) => handleFilterChange("status", value)}
                 renderInput={(params) => (
-                  <TextField {...params} label="Status" placeholder="Select statuses" />
+                  <TextField
+                    {...params}
+                    label="Status"
+                    placeholder="Select statuses"
+                  />
                 )}
                 sx={{ minWidth: { xs: "100%", sm: 200 } }}
               />
@@ -890,9 +975,13 @@ export default function Assets() {
                 multiple
                 options={filterOptions.types}
                 value={filters.type}
-                onChange={(_, value) => handleFilterChange('type', value)}
+                onChange={(_, value) => handleFilterChange("type", value)}
                 renderInput={(params) => (
-                  <TextField {...params} label="Type" placeholder="Select types" />
+                  <TextField
+                    {...params}
+                    label="Type"
+                    placeholder="Select types"
+                  />
                 )}
                 sx={{ minWidth: { xs: "100%", sm: 200 } }}
               />
@@ -901,9 +990,13 @@ export default function Assets() {
                 multiple
                 options={filterOptions.locations}
                 value={filters.location}
-                onChange={(_, value) => handleFilterChange('location', value)}
+                onChange={(_, value) => handleFilterChange("location", value)}
                 renderInput={(params) => (
-                  <TextField {...params} label="Location" placeholder="Select locations" />
+                  <TextField
+                    {...params}
+                    label="Location"
+                    placeholder="Select locations"
+                  />
                 )}
                 sx={{ minWidth: { xs: "100%", sm: 200 } }}
               />
@@ -912,7 +1005,9 @@ export default function Assets() {
                 control={
                   <Switch
                     checked={filters.showFavorites}
-                    onChange={(e) => handleFilterChange('showFavorites', e.target.checked)}
+                    onChange={(e) =>
+                      handleFilterChange("showFavorites", e.target.checked)
+                    }
                   />
                 }
                 label="Favorites Only"
@@ -921,40 +1016,62 @@ export default function Assets() {
           </Collapse>
 
           {/* Active Filters */}
-          {(filters.status.length > 0 || filters.type.length > 0 || filters.location.length > 0 || filters.showFavorites) && (
+          {(filters.status.length > 0 ||
+            filters.type.length > 0 ||
+            filters.location.length > 0 ||
+            filters.showFavorites) && (
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-              <Typography variant="body2" color="text.secondary" sx={{ alignSelf: "center" }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ alignSelf: "center" }}
+              >
                 Active filters:
               </Typography>
-              {filters.status.map(status => (
+              {filters.status.map((status) => (
                 <Chip
                   key={status}
                   label={`Status: ${status}`}
                   size="small"
-                  onDelete={() => handleFilterChange('status', filters.status.filter(s => s !== status))}
+                  onDelete={() =>
+                    handleFilterChange(
+                      "status",
+                      filters.status.filter((s) => s !== status),
+                    )
+                  }
                 />
               ))}
-              {filters.type.map(type => (
+              {filters.type.map((type) => (
                 <Chip
                   key={type}
                   label={`Type: ${type}`}
                   size="small"
-                  onDelete={() => handleFilterChange('type', filters.type.filter(t => t !== type))}
+                  onDelete={() =>
+                    handleFilterChange(
+                      "type",
+                      filters.type.filter((t) => t !== type),
+                    )
+                  }
                 />
               ))}
-              {filters.location.map(location => (
+              {filters.location.map((location) => (
                 <Chip
                   key={location}
                   label={`Location: ${location}`}
                   size="small"
-                  onDelete={() => handleFilterChange('location', filters.location.filter(l => l !== location))}
+                  onDelete={() =>
+                    handleFilterChange(
+                      "location",
+                      filters.location.filter((l) => l !== location),
+                    )
+                  }
                 />
               ))}
               {filters.showFavorites && (
                 <Chip
                   label="Favorites Only"
                   size="small"
-                  onDelete={() => handleFilterChange('showFavorites', false)}
+                  onDelete={() => handleFilterChange("showFavorites", false)}
                 />
               )}
             </Box>
@@ -965,17 +1082,30 @@ export default function Assets() {
       {/* Enhanced Summary Cards */}
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, mb: 4 }}>
         <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
-          <Card sx={{ 
-            background: "linear-gradient(135deg, rgba(25, 118, 210, 0.1) 0%, rgba(25, 118, 210, 0.05) 100%)",
-            border: "1px solid rgba(25, 118, 210, 0.2)"
-          }}>
+          <Card
+            sx={{
+              background:
+                "linear-gradient(135deg, rgba(25, 118, 210, 0.1) 0%, rgba(25, 118, 210, 0.05) 100%)",
+              border: "1px solid rgba(25, 118, 210, 0.2)",
+            }}
+          >
             <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <DirectionsBoat color="primary" />
                   <Box>
-                    <Typography variant="h6" color="text.secondary">Total Assets</Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 700 }}>{totalAssets}</Typography>
+                    <Typography variant="h6" color="text.secondary">
+                      Total Assets
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                      {totalAssets}
+                    </Typography>
                   </Box>
                 </Box>
                 <Box sx={{ textAlign: "right" }}>
@@ -994,26 +1124,51 @@ export default function Assets() {
         </Box>
 
         <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
-          <Card sx={{ 
-            background: "linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%)",
-            border: "1px solid rgba(76, 175, 80, 0.2)"
-          }}>
+          <Card
+            sx={{
+              background:
+                "linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%)",
+              border: "1px solid rgba(76, 175, 80, 0.2)",
+            }}
+          >
             <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <CheckCircle color="success" />
                   <Box>
-                    <Typography variant="h6" color="text.secondary">Operational</Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 700 }}>{operationalAssets}</Typography>
+                    <Typography variant="h6" color="text.secondary">
+                      Operational
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                      {operationalAssets}
+                    </Typography>
                   </Box>
                 </Box>
                 <Box sx={{ textAlign: "right" }}>
                   <Typography variant="body2" color="text.secondary">
-                    {totalAssets > 0 ? Math.round((operationalAssets / totalAssets) * 100) : 0}% of fleet
+                    {totalAssets > 0
+                      ? Math.round((operationalAssets / totalAssets) * 100)
+                      : 0}
+                    % of fleet
                   </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      mt: 0.5,
+                    }}
+                  >
                     <TrendingUp fontSize="small" color="success" />
-                    <Typography variant="caption" color="success.main">+2%</Typography>
+                    <Typography variant="caption" color="success.main">
+                      +2%
+                    </Typography>
                   </Box>
                 </Box>
               </Box>
@@ -1022,26 +1177,50 @@ export default function Assets() {
         </Box>
 
         <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
-          <Card sx={{ 
-            background: "linear-gradient(135deg, rgba(255, 152, 0, 0.1) 0%, rgba(255, 152, 0, 0.05) 100%)",
-            border: "1px solid rgba(255, 152, 0, 0.2)"
-          }}>
+          <Card
+            sx={{
+              background:
+                "linear-gradient(135deg, rgba(255, 152, 0, 0.1) 0%, rgba(255, 152, 0, 0.05) 100%)",
+              border: "1px solid rgba(255, 152, 0, 0.2)",
+            }}
+          >
             <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <Build color="warning" />
                   <Box>
-                    <Typography variant="h6" color="text.secondary">In Maintenance</Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 700 }}>{maintenanceAssets}</Typography>
+                    <Typography variant="h6" color="text.secondary">
+                      In Maintenance
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                      {maintenanceAssets}
+                    </Typography>
                   </Box>
                 </Box>
                 <Box sx={{ textAlign: "right" }}>
                   <Typography variant="body2" color="text.secondary">
-                    {analytics?.totalMaintenanceCost ? `$${(analytics.totalMaintenanceCost / 1000000).toFixed(1)}M` : '$0M'}
+                    {analytics?.totalMaintenanceCost
+                      ? `$${(analytics.totalMaintenanceCost / 1000000).toFixed(1)}M`
+                      : "$0M"}
                   </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      mt: 0.5,
+                    }}
+                  >
                     <TrendingUp fontSize="small" color="warning" />
-                    <Typography variant="caption" color="warning.main">+5%</Typography>
+                    <Typography variant="caption" color="warning.main">
+                      +5%
+                    </Typography>
                   </Box>
                 </Box>
               </Box>
@@ -1050,26 +1229,48 @@ export default function Assets() {
         </Box>
 
         <Box sx={{ flex: "1 1 250px", minWidth: "250px" }}>
-          <Card sx={{ 
-            background: "linear-gradient(135deg, rgba(244, 67, 54, 0.1) 0%, rgba(244, 67, 54, 0.05) 100%)",
-            border: "1px solid rgba(244, 67, 54, 0.2)"
-          }}>
+          <Card
+            sx={{
+              background:
+                "linear-gradient(135deg, rgba(244, 67, 54, 0.1) 0%, rgba(244, 67, 54, 0.05) 100%)",
+              border: "1px solid rgba(244, 67, 54, 0.2)",
+            }}
+          >
             <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <Warning color="error" />
                   <Box>
-                    <Typography variant="h6" color="text.secondary">Critical Issues</Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 700 }}>{totalCriticalIssues}</Typography>
+                    <Typography variant="h6" color="text.secondary">
+                      Critical Issues
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                      {totalCriticalIssues}
+                    </Typography>
                   </Box>
                 </Box>
                 <Box sx={{ textAlign: "right" }}>
                   <Typography variant="body2" color="text.secondary">
                     {analytics?.criticalAssets || 0} assets affected
                   </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      mt: 0.5,
+                    }}
+                  >
                     <TrendingDown fontSize="small" color="error" />
-                    <Typography variant="caption" color="error.main">-1</Typography>
+                    <Typography variant="caption" color="error.main">
+                      -1
+                    </Typography>
                   </Box>
                 </Box>
               </Box>
@@ -1079,39 +1280,89 @@ export default function Assets() {
       </Box>
 
       {/* Enhanced Asset Views */}
-      {filters.viewMode === 'analytics' ? (
+      {filters.viewMode === "analytics" ? (
         // Analytics View
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <Typography variant="h5" sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography
+            variant="h5"
+            sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}
+          >
             <Assessment />
             Fleet Analytics
           </Typography>
-          
+
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
               <Card>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom>Readiness Distribution</Typography>
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Readiness Distribution
+                  </Typography>
+                  <Box
+                    sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+                  >
                     {[
-                      { label: "Excellent (90-100%)", count: assets.filter(a => a.readinessScore >= 90).length, color: "success" },
-                      { label: "Good (75-89%)", count: assets.filter(a => a.readinessScore >= 75 && a.readinessScore < 90).length, color: "info" },
-                      { label: "Fair (60-74%)", count: assets.filter(a => a.readinessScore >= 60 && a.readinessScore < 75).length, color: "warning" },
-                      { label: "Poor (<60%)", count: assets.filter(a => a.readinessScore < 60).length, color: "error" },
+                      {
+                        label: "Excellent (90-100%)",
+                        count: assets.filter((a) => a.readinessScore >= 90)
+                          .length,
+                        color: "success",
+                      },
+                      {
+                        label: "Good (75-89%)",
+                        count: assets.filter(
+                          (a) =>
+                            a.readinessScore >= 75 && a.readinessScore < 90,
+                        ).length,
+                        color: "info",
+                      },
+                      {
+                        label: "Fair (60-74%)",
+                        count: assets.filter(
+                          (a) =>
+                            a.readinessScore >= 60 && a.readinessScore < 75,
+                        ).length,
+                        color: "warning",
+                      },
+                      {
+                        label: "Poor (<60%)",
+                        count: assets.filter((a) => a.readinessScore < 60)
+                          .length,
+                        color: "error",
+                      },
                     ].map((item) => (
-                      <Box key={item.label} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <Box
+                        key={item.label}
+                        sx={{ display: "flex", alignItems: "center", gap: 2 }}
+                      >
                         <Box sx={{ width: 100 }}>
                           <Typography variant="body2">{item.label}</Typography>
                         </Box>
                         <Box sx={{ flex: 1 }}>
                           <LinearProgress
                             variant="determinate"
-                            value={totalAssets > 0 ? (item.count / totalAssets) * 100 : 0}
-                            color={item.color as any}
+                            value={
+                              totalAssets > 0
+                                ? (item.count / totalAssets) * 100
+                                : 0
+                            }
+                            color={
+                              item.color as
+                                | "primary"
+                                | "secondary"
+                                | "error"
+                                | "info"
+                                | "success"
+                                | "warning"
+                                | "inherit"
+                            }
                             sx={{ height: 8, borderRadius: 4 }}
                           />
                         </Box>
-                        <Typography variant="body2" sx={{ minWidth: 30, textAlign: "right" }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ minWidth: 30, textAlign: "right" }}
+                        >
                           {item.count}
                         </Typography>
                       </Box>
@@ -1124,30 +1375,78 @@ export default function Assets() {
             <Grid item xs={12} md={6}>
               <Card>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom>Status Breakdown</Typography>
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Status Breakdown
+                  </Typography>
+                  <Box
+                    sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+                  >
                     {[
-                      { status: "Operational", count: operationalAssets, color: "success" },
-                      { status: "Maintenance", count: maintenanceAssets, color: "warning" },
-                      { status: "Deployed", count: analytics?.deployedAssets || 0, color: "info" },
-                      { status: "Critical", count: analytics?.criticalAssets || 0, color: "error" },
+                      {
+                        status: "Operational",
+                        count: operationalAssets,
+                        color: "success",
+                      },
+                      {
+                        status: "Maintenance",
+                        count: maintenanceAssets,
+                        color: "warning",
+                      },
+                      {
+                        status: "Deployed",
+                        count: analytics?.deployedAssets || 0,
+                        color: "info",
+                      },
+                      {
+                        status: "Critical",
+                        count: analytics?.criticalAssets || 0,
+                        color: "error",
+                      },
                     ].map((item) => (
-                      <Box key={item.status} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <Box
+                        key={item.status}
+                        sx={{ display: "flex", alignItems: "center", gap: 2 }}
+                      >
                         <Chip
                           label={item.status}
-                          color={item.color as any}
+                          color={
+                            item.color as
+                              | "default"
+                              | "primary"
+                              | "secondary"
+                              | "error"
+                              | "info"
+                              | "success"
+                              | "warning"
+                          }
                           size="small"
                           sx={{ minWidth: 100 }}
                         />
                         <Box sx={{ flex: 1 }}>
                           <LinearProgress
                             variant="determinate"
-                            value={totalAssets > 0 ? (item.count / totalAssets) * 100 : 0}
-                            color={item.color as any}
+                            value={
+                              totalAssets > 0
+                                ? (item.count / totalAssets) * 100
+                                : 0
+                            }
+                            color={
+                              item.color as
+                                | "primary"
+                                | "secondary"
+                                | "error"
+                                | "info"
+                                | "success"
+                                | "warning"
+                                | "inherit"
+                            }
                             sx={{ height: 8, borderRadius: 4 }}
                           />
                         </Box>
-                        <Typography variant="body2" sx={{ minWidth: 30, textAlign: "right" }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ minWidth: 30, textAlign: "right" }}
+                        >
                           {item.count}
                         </Typography>
                       </Box>
@@ -1160,7 +1459,9 @@ export default function Assets() {
             <Grid item xs={12}>
               <Card>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom>Top Assets by Performance</Typography>
+                  <Typography variant="h6" gutterBottom>
+                    Top Assets by Performance
+                  </Typography>
                   <TableContainer>
                     <Table size="small">
                       <TableHead>
@@ -1180,29 +1481,59 @@ export default function Assets() {
                             <TableRow key={asset.id}>
                               <TableCell>
                                 <Box>
-                                  <Typography variant="subtitle2">{asset.name}</Typography>
-                                  <Typography variant="caption" color="text.secondary">
+                                  <Typography variant="subtitle2">
+                                    {asset.name}
+                                  </Typography>
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                  >
                                     {asset.id}
                                   </Typography>
                                 </Box>
                               </TableCell>
                               <TableCell>
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                  }}
+                                >
                                   <LinearProgress
                                     variant="determinate"
                                     value={asset.readinessScore}
-                                    color={getReadinessColor(asset.readinessScore)}
-                                    sx={{ width: 60, height: 6, borderRadius: 3 }}
+                                    color={getReadinessColor(
+                                      asset.readinessScore,
+                                    )}
+                                    sx={{
+                                      width: 60,
+                                      height: 6,
+                                      borderRadius: 3,
+                                    }}
                                   />
-                                  <Typography variant="body2">{asset.readinessScore}%</Typography>
+                                  <Typography variant="body2">
+                                    {asset.readinessScore}%
+                                  </Typography>
                                 </Box>
                               </TableCell>
                               <TableCell>
-                                <Badge badgeContent={asset.criticalIssues} color="error">
-                                  <Warning color={asset.criticalIssues > 0 ? "error" : "disabled"} />
+                                <Badge
+                                  badgeContent={asset.criticalIssues}
+                                  color="error"
+                                >
+                                  <Warning
+                                    color={
+                                      asset.criticalIssues > 0
+                                        ? "error"
+                                        : "disabled"
+                                    }
+                                  />
                                 </Badge>
                               </TableCell>
-                              <TableCell>${(asset.maintenanceCost / 1000).toFixed(0)}K</TableCell>
+                              <TableCell>
+                                ${(asset.maintenanceCost / 1000).toFixed(0)}K
+                              </TableCell>
                               <TableCell>{asset.fuelEfficiency}%</TableCell>
                             </TableRow>
                           ))}
@@ -1214,10 +1545,17 @@ export default function Assets() {
             </Grid>
           </Grid>
         </Box>
-      ) : filters.viewMode === 'cards' ? (
+      ) : filters.viewMode === "cards" ? (
         // Enhanced Cards View
         <Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
+          >
             <Typography variant="h5">Fleet Overview</Typography>
             <Box sx={{ display: "flex", gap: 1 }}>
               <Typography variant="body2" color="text.secondary">
@@ -1238,24 +1576,39 @@ export default function Assets() {
           <Grid container spacing={3}>
             {paginatedAssets.map((asset) => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={asset.id}>
-                <Card 
-                  sx={{ 
+                <Card
+                  sx={{
                     height: "100%",
                     cursor: "pointer",
-                    border: selectedAssets.has(asset.id) ? "2px solid" : "1px solid",
-                    borderColor: selectedAssets.has(asset.id) ? "primary.main" : "divider",
+                    border: selectedAssets.has(asset.id)
+                      ? "2px solid"
+                      : "1px solid",
+                    borderColor: selectedAssets.has(asset.id)
+                      ? "primary.main"
+                      : "divider",
                     transition: "all 0.2s ease-in-out",
                     "&:hover": {
                       transform: "translateY(-4px)",
                       boxShadow: 4,
-                    }
+                    },
                   }}
                   onClick={() => handleSelectAsset(asset.id)}
                 >
                   <CardContent>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        mb: 2,
+                      }}
+                    >
                       <Box sx={{ flex: 1 }}>
-                        <Typography variant="h6" component="h3" sx={{ fontWeight: 600 }}>
+                        <Typography
+                          variant="h6"
+                          component="h3"
+                          sx={{ fontWeight: 600 }}
+                        >
                           {asset.name}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -1270,7 +1623,11 @@ export default function Assets() {
                             handleToggleFavorite(asset.id);
                           }}
                         >
-                          {favorites.has(asset.id) ? <Star color="warning" /> : <StarBorder />}
+                          {favorites.has(asset.id) ? (
+                            <Star color="warning" />
+                          ) : (
+                            <StarBorder />
+                          )}
                         </IconButton>
                         <Chip
                           label={asset.status}
@@ -1281,17 +1638,35 @@ export default function Assets() {
                     </Box>
 
                     <Box sx={{ mb: 2 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          mb: 1,
+                        }}
+                      >
                         <LocationOn fontSize="small" color="action" />
-                        <Typography variant="body2">{asset.location}</Typography>
+                        <Typography variant="body2">
+                          {asset.location}
+                        </Typography>
                       </Box>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          mb: 1,
+                        }}
+                      >
                         <Speed fontSize="small" color="action" />
                         <Typography variant="body2">
                           {asset.operationalHours.toLocaleString()} hrs
                         </Typography>
                       </Box>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                      >
                         <BatteryAlert fontSize="small" color="action" />
                         <Typography variant="body2">
                           {asset.fuelEfficiency}% efficiency
@@ -1303,7 +1678,9 @@ export default function Assets() {
                       <Typography variant="subtitle2" gutterBottom>
                         Readiness Score
                       </Typography>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                      >
                         <Box sx={{ width: "100%", mr: 1 }}>
                           <LinearProgress
                             variant="determinate"
@@ -1343,9 +1720,9 @@ export default function Assets() {
                     </Box>
 
                     <Box sx={{ display: "flex", gap: 1 }}>
-                      <Button 
-                        variant="outlined" 
-                        size="small" 
+                      <Button
+                        variant="outlined"
+                        size="small"
                         fullWidth
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1354,9 +1731,9 @@ export default function Assets() {
                       >
                         View Details
                       </Button>
-                      <Button 
-                        variant="contained" 
-                        size="small" 
+                      <Button
+                        variant="contained"
+                        size="small"
                         fullWidth
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1388,7 +1765,14 @@ export default function Assets() {
       ) : (
         // Enhanced Table View
         <Box>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
+          >
             <Typography variant="h5">Fleet Overview</Typography>
             <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
               <Typography variant="body2" color="text.secondary">
@@ -1419,7 +1803,10 @@ export default function Assets() {
                   <TableCell padding="checkbox">
                     <input
                       type="checkbox"
-                      checked={selectedAssets.size === paginatedAssets.length && paginatedAssets.length > 0}
+                      checked={
+                        selectedAssets.size === paginatedAssets.length &&
+                        paginatedAssets.length > 0
+                      }
                       onChange={handleSelectAll}
                     />
                   </TableCell>
@@ -1434,170 +1821,255 @@ export default function Assets() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {loading ? (
-                  // Loading skeleton
-                  Array.from({ length: itemsPerPage }).map((_, index) => (
-                    <TableRow key={index}>
-                      <TableCell><Skeleton variant="rectangular" width={20} height={20} /></TableCell>
-                      <TableCell><Skeleton variant="text" width="80%" /></TableCell>
-                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
-                      <TableCell><Skeleton variant="rectangular" width={80} height={24} /></TableCell>
-                      <TableCell><Skeleton variant="text" width="70%" /></TableCell>
-                      <TableCell><Skeleton variant="rectangular" width="100%" height={8} /></TableCell>
-                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
-                      <TableCell><Skeleton variant="rectangular" width={24} height={24} /></TableCell>
-                      <TableCell><Skeleton variant="rectangular" width={120} height={32} /></TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  paginatedAssets.map((asset) => (
-                    <TableRow 
-                      key={asset.id} 
-                      hover
-                      selected={selectedAssets.has(asset.id)}
-                      sx={{ 
-                        cursor: "pointer",
-                        "&:hover": { backgroundColor: "action.hover" }
-                      }}
-                      onClick={() => handleSelectAsset(asset.id)}
-                    >
-                      <TableCell padding="checkbox">
-                        <input
-                          type="checkbox"
-                          checked={selectedAssets.has(asset.id)}
-                          onChange={() => handleSelectAsset(asset.id)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleFavorite(asset.id);
+                {loading
+                  ? // Loading skeleton
+                    Array.from({ length: itemsPerPage }).map((_, index) => (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <Skeleton
+                            variant="rectangular"
+                            width={20}
+                            height={20}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton variant="text" width="80%" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton variant="text" width="60%" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton
+                            variant="rectangular"
+                            width={80}
+                            height={24}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton variant="text" width="70%" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton
+                            variant="rectangular"
+                            width="100%"
+                            height={8}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton variant="text" width="60%" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton
+                            variant="rectangular"
+                            width={24}
+                            height={24}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton
+                            variant="rectangular"
+                            width={120}
+                            height={32}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  : paginatedAssets.map((asset) => (
+                      <TableRow
+                        key={asset.id}
+                        hover
+                        selected={selectedAssets.has(asset.id)}
+                        sx={{
+                          cursor: "pointer",
+                          "&:hover": { backgroundColor: "action.hover" },
+                        }}
+                        onClick={() => handleSelectAsset(asset.id)}
+                      >
+                        <TableCell padding="checkbox">
+                          <input
+                            type="checkbox"
+                            checked={selectedAssets.has(asset.id)}
+                            onChange={() => handleSelectAsset(asset.id)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
                             }}
                           >
-                            {favorites.has(asset.id) ? <Star color="warning" fontSize="small" /> : <StarBorder fontSize="small" />}
-                          </IconButton>
-                          <Box>
-                            <Typography variant="subtitle2" fontWeight="bold">
-                              {asset.name}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {asset.id}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box>
-                          <Typography variant="body2">{asset.type}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {asset.class}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={asset.status}
-                          color={getStatusColor(asset.status)}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <LocationOn fontSize="small" color="action" />
-                          <Typography variant="body2">{asset.location}</Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <Box sx={{ width: "100%", mr: 1 }}>
-                            <LinearProgress
-                              variant="determinate"
-                              value={asset.readinessScore}
-                              color={getReadinessColor(asset.readinessScore)}
-                              sx={{ height: 8, borderRadius: 4 }}
-                            />
-                          </Box>
-                          <Typography variant="body2" fontWeight="bold">
-                            {asset.readinessScore}%
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {asset.nextMaintenance}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Badge badgeContent={asset.criticalIssues} color="error">
-                          <Warning
-                            color={asset.criticalIssues > 0 ? "error" : "disabled"}
-                          />
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: "flex", gap: 1 }}>
-                          <Tooltip title="View Details">
                             <IconButton
                               size="small"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openAssetDetailsModal(asset.id);
+                                handleToggleFavorite(asset.id);
                               }}
                             >
-                              <Visibility />
+                              {favorites.has(asset.id) ? (
+                                <Star color="warning" fontSize="small" />
+                              ) : (
+                                <StarBorder fontSize="small" />
+                              )}
                             </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Edit Asset">
-                            <IconButton 
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEditAssetModal(asset.id);
-                              }}
+                            <Box>
+                              <Typography variant="subtitle2" fontWeight="bold">
+                                {asset.name}
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                {asset.id}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box>
+                            <Typography variant="body2">
+                              {asset.type}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
                             >
-                              <Edit />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Maintenance History">
-                            <IconButton 
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openMaintenanceHistoryModal(asset.id);
-                              }}
-                            >
-                              <History />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Create Maintenance Schedule">
-                            <IconButton 
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openMaintenanceScheduleModal(asset.id);
-                              }}
-                            >
-                              <Schedule />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                              {asset.class}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={asset.status}
+                            color={getStatusColor(asset.status)}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                            }}
+                          >
+                            <LocationOn fontSize="small" color="action" />
+                            <Typography variant="body2">
+                              {asset.location}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                            }}
+                          >
+                            <Box sx={{ width: "100%", mr: 1 }}>
+                              <LinearProgress
+                                variant="determinate"
+                                value={asset.readinessScore}
+                                color={getReadinessColor(asset.readinessScore)}
+                                sx={{ height: 8, borderRadius: 4 }}
+                              />
+                            </Box>
+                            <Typography variant="body2" fontWeight="bold">
+                              {asset.readinessScore}%
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {asset.nextMaintenance}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            badgeContent={asset.criticalIssues}
+                            color="error"
+                          >
+                            <Warning
+                              color={
+                                asset.criticalIssues > 0 ? "error" : "disabled"
+                              }
+                            />
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: "flex", gap: 1 }}>
+                            <Tooltip title="View Details">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openAssetDetailsModal(asset.id);
+                                }}
+                              >
+                                <Visibility />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Edit Asset">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditAssetModal(asset.id);
+                                }}
+                              >
+                                <Edit />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Maintenance History">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openMaintenanceHistoryModal(asset.id);
+                                }}
+                              >
+                                <History />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Create Maintenance Schedule">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openMaintenanceScheduleModal(asset.id);
+                                }}
+                              >
+                                <Schedule />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))}
               </TableBody>
             </Table>
           </TableContainer>
 
           {/* Pagination for Table View */}
           {totalPages > 1 && (
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 4,
+              }}
+            >
               <Typography variant="body2" color="text.secondary">
-                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedAssets.length)} of {filteredAndSortedAssets.length} assets
+                Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+                {Math.min(
+                  currentPage * itemsPerPage,
+                  filteredAndSortedAssets.length,
+                )}{" "}
+                of {filteredAndSortedAssets.length} assets
               </Typography>
               <Pagination
                 count={totalPages}
@@ -1610,7 +2082,6 @@ export default function Assets() {
           )}
         </Box>
       )}
-
 
       {/* Work Order Modal */}
       <WorkOrderModal
@@ -1625,45 +2096,81 @@ export default function Assets() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>
-          Asset Details - {selectedAssetData?.name}
-        </DialogTitle>
+        <DialogTitle>Asset Details - {selectedAssetData?.name}</DialogTitle>
         <DialogContent>
           {selectedAssetData && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <Box>
-                <Typography variant="h6" gutterBottom>Basic Information</Typography>
-                <Typography><strong>ID:</strong> {selectedAssetData.id}</Typography>
-                <Typography><strong>Type:</strong> {selectedAssetData.type}</Typography>
-                <Typography><strong>Class:</strong> {selectedAssetData.class}</Typography>
-                <Typography><strong>Status:</strong> 
-                  <Chip 
-                    label={selectedAssetData.status} 
-                    color={getStatusColor(selectedAssetData.status)} 
-                    size="small" 
+                <Typography variant="h6" gutterBottom>
+                  Basic Information
+                </Typography>
+                <Typography>
+                  <strong>ID:</strong> {selectedAssetData.id}
+                </Typography>
+                <Typography>
+                  <strong>Type:</strong> {selectedAssetData.type}
+                </Typography>
+                <Typography>
+                  <strong>Class:</strong> {selectedAssetData.class}
+                </Typography>
+                <Typography>
+                  <strong>Status:</strong>
+                  <Chip
+                    label={selectedAssetData.status}
+                    color={getStatusColor(selectedAssetData.status)}
+                    size="small"
                     sx={{ ml: 1 }}
                   />
                 </Typography>
-                <Typography><strong>Location:</strong> {selectedAssetData.location}</Typography>
-              </Box>
-              
-              <Box>
-                <Typography variant="h6" gutterBottom>Performance Metrics</Typography>
-                <Typography><strong>Operational Hours:</strong> {selectedAssetData.operationalHours.toLocaleString()} hrs</Typography>
-                <Typography><strong>Readiness Score:</strong> {selectedAssetData.readinessScore}%</Typography>
-                <Typography><strong>Fuel Efficiency:</strong> {selectedAssetData.fuelEfficiency}%</Typography>
-                <Typography><strong>Maintenance Cost:</strong> ${selectedAssetData.maintenanceCost.toLocaleString()}</Typography>
+                <Typography>
+                  <strong>Location:</strong> {selectedAssetData.location}
+                </Typography>
               </Box>
 
               <Box>
-                <Typography variant="h6" gutterBottom>Maintenance Schedule</Typography>
-                <Typography><strong>Last Maintenance:</strong> {selectedAssetData.lastMaintenance}</Typography>
-                <Typography><strong>Next Maintenance:</strong> {selectedAssetData.nextMaintenance}</Typography>
-                <Typography><strong>Critical Issues:</strong> {selectedAssetData.criticalIssues}</Typography>
+                <Typography variant="h6" gutterBottom>
+                  Performance Metrics
+                </Typography>
+                <Typography>
+                  <strong>Operational Hours:</strong>{" "}
+                  {selectedAssetData.operationalHours.toLocaleString()} hrs
+                </Typography>
+                <Typography>
+                  <strong>Readiness Score:</strong>{" "}
+                  {selectedAssetData.readinessScore}%
+                </Typography>
+                <Typography>
+                  <strong>Fuel Efficiency:</strong>{" "}
+                  {selectedAssetData.fuelEfficiency}%
+                </Typography>
+                <Typography>
+                  <strong>Maintenance Cost:</strong> $
+                  {selectedAssetData.maintenanceCost.toLocaleString()}
+                </Typography>
               </Box>
 
               <Box>
-                <Typography variant="h6" gutterBottom>System Status</Typography>
+                <Typography variant="h6" gutterBottom>
+                  Maintenance Schedule
+                </Typography>
+                <Typography>
+                  <strong>Last Maintenance:</strong>{" "}
+                  {selectedAssetData.lastMaintenance}
+                </Typography>
+                <Typography>
+                  <strong>Next Maintenance:</strong>{" "}
+                  {selectedAssetData.nextMaintenance}
+                </Typography>
+                <Typography>
+                  <strong>Critical Issues:</strong>{" "}
+                  {selectedAssetData.criticalIssues}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  System Status
+                </Typography>
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                   {selectedAssetData.systems.map((system, index) => (
                     <Chip
@@ -1681,8 +2188,8 @@ export default function Assets() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeAssetDetailsModal}>Close</Button>
-          <Button 
-            variant="outlined" 
+          <Button
+            variant="outlined"
             onClick={() => {
               closeAssetDetailsModal();
               if (selectedAsset) {
@@ -1693,8 +2200,8 @@ export default function Assets() {
           >
             Create Schedule
           </Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={() => {
               closeAssetDetailsModal();
               openWorkOrderModal();
@@ -1713,17 +2220,17 @@ export default function Assets() {
         fullWidth
       >
         <DialogTitle>
-          Maintenance History {selectedAssetData ? `- ${selectedAssetData.name}` : ''}
+          Maintenance History{" "}
+          {selectedAssetData ? `- ${selectedAssetData.name}` : ""}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <Typography variant="body1" color="text.secondary">
-              {selectedAssetData 
+              {selectedAssetData
                 ? `Maintenance history for ${selectedAssetData.name} (${selectedAssetData.id})`
-                : 'Maintenance history for all assets'
-              }
+                : "Maintenance history for all assets"}
             </Typography>
-            
+
             {/* Mock maintenance history data */}
             <TableContainer component={Paper}>
               <Table>
@@ -1785,9 +2292,7 @@ export default function Assets() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>
-          Edit Asset - {selectedAssetData?.name}
-        </DialogTitle>
+        <DialogTitle>Edit Asset - {selectedAssetData?.name}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 2 }}>
             {/* Basic Information */}
@@ -1801,7 +2306,9 @@ export default function Assets() {
                     fullWidth
                     label="Asset Name"
                     value={editFormData.name}
-                    onChange={(e) => handleEditFormChange("name", e.target.value)}
+                    onChange={(e) =>
+                      handleEditFormChange("name", e.target.value)
+                    }
                     error={!!editFormErrors.name}
                     helperText={editFormErrors.name}
                     required
@@ -1812,7 +2319,9 @@ export default function Assets() {
                     fullWidth
                     label="Asset Type"
                     value={editFormData.type}
-                    onChange={(e) => handleEditFormChange("type", e.target.value)}
+                    onChange={(e) =>
+                      handleEditFormChange("type", e.target.value)
+                    }
                     error={!!editFormErrors.type}
                     helperText={editFormErrors.type}
                     required
@@ -1823,7 +2332,9 @@ export default function Assets() {
                     fullWidth
                     label="Asset Class"
                     value={editFormData.class}
-                    onChange={(e) => handleEditFormChange("class", e.target.value)}
+                    onChange={(e) =>
+                      handleEditFormChange("class", e.target.value)
+                    }
                     error={!!editFormErrors.class}
                     helperText={editFormErrors.class}
                     required
@@ -1835,7 +2346,9 @@ export default function Assets() {
                     <Select
                       value={editFormData.status}
                       label="Status"
-                      onChange={(e) => handleEditFormChange("status", e.target.value)}
+                      onChange={(e) =>
+                        handleEditFormChange("status", e.target.value)
+                      }
                     >
                       <MenuItem value="Operational">Operational</MenuItem>
                       <MenuItem value="Maintenance">Maintenance</MenuItem>
@@ -1849,7 +2362,9 @@ export default function Assets() {
                     fullWidth
                     label="Location"
                     value={editFormData.location}
-                    onChange={(e) => handleEditFormChange("location", e.target.value)}
+                    onChange={(e) =>
+                      handleEditFormChange("location", e.target.value)
+                    }
                     error={!!editFormErrors.location}
                     helperText={editFormErrors.location}
                     required
@@ -1870,7 +2385,9 @@ export default function Assets() {
                     label="Last Maintenance"
                     type="date"
                     value={editFormData.lastMaintenance}
-                    onChange={(e) => handleEditFormChange("lastMaintenance", e.target.value)}
+                    onChange={(e) =>
+                      handleEditFormChange("lastMaintenance", e.target.value)
+                    }
                     InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
@@ -1880,7 +2397,9 @@ export default function Assets() {
                     label="Next Maintenance"
                     type="date"
                     value={editFormData.nextMaintenance}
-                    onChange={(e) => handleEditFormChange("nextMaintenance", e.target.value)}
+                    onChange={(e) =>
+                      handleEditFormChange("nextMaintenance", e.target.value)
+                    }
                     InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
@@ -1899,7 +2418,12 @@ export default function Assets() {
                     label="Operational Hours"
                     type="number"
                     value={editFormData.operationalHours}
-                    onChange={(e) => handleEditFormChange("operationalHours", parseInt(e.target.value) || 0)}
+                    onChange={(e) =>
+                      handleEditFormChange(
+                        "operationalHours",
+                        parseInt(e.target.value) || 0,
+                      )
+                    }
                     error={!!editFormErrors.operationalHours}
                     helperText={editFormErrors.operationalHours}
                     inputProps={{ min: 0 }}
@@ -1911,7 +2435,12 @@ export default function Assets() {
                     label="Readiness Score (%)"
                     type="number"
                     value={editFormData.readinessScore}
-                    onChange={(e) => handleEditFormChange("readinessScore", parseInt(e.target.value) || 0)}
+                    onChange={(e) =>
+                      handleEditFormChange(
+                        "readinessScore",
+                        parseInt(e.target.value) || 0,
+                      )
+                    }
                     error={!!editFormErrors.readinessScore}
                     helperText={editFormErrors.readinessScore}
                     inputProps={{ min: 0, max: 100 }}
@@ -1923,7 +2452,12 @@ export default function Assets() {
                     label="Critical Issues"
                     type="number"
                     value={editFormData.criticalIssues}
-                    onChange={(e) => handleEditFormChange("criticalIssues", parseInt(e.target.value) || 0)}
+                    onChange={(e) =>
+                      handleEditFormChange(
+                        "criticalIssues",
+                        parseInt(e.target.value) || 0,
+                      )
+                    }
                     error={!!editFormErrors.criticalIssues}
                     helperText={editFormErrors.criticalIssues}
                     inputProps={{ min: 0 }}
@@ -1935,7 +2469,12 @@ export default function Assets() {
                     label="Maintenance Cost ($)"
                     type="number"
                     value={editFormData.maintenanceCost}
-                    onChange={(e) => handleEditFormChange("maintenanceCost", parseInt(e.target.value) || 0)}
+                    onChange={(e) =>
+                      handleEditFormChange(
+                        "maintenanceCost",
+                        parseInt(e.target.value) || 0,
+                      )
+                    }
                     error={!!editFormErrors.maintenanceCost}
                     helperText={editFormErrors.maintenanceCost}
                     inputProps={{ min: 0 }}
@@ -1950,7 +2489,12 @@ export default function Assets() {
                     label="Fuel Efficiency (%)"
                     type="number"
                     value={editFormData.fuelEfficiency}
-                    onChange={(e) => handleEditFormChange("fuelEfficiency", parseInt(e.target.value) || 0)}
+                    onChange={(e) =>
+                      handleEditFormChange(
+                        "fuelEfficiency",
+                        parseInt(e.target.value) || 0,
+                      )
+                    }
                     error={!!editFormErrors.fuelEfficiency}
                     helperText={editFormErrors.fuelEfficiency}
                     inputProps={{ min: 0, max: 100 }}
@@ -1969,8 +2513,8 @@ export default function Assets() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeEditAssetModal}>Cancel</Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={handleEditFormSubmit}
             disabled={Object.keys(editFormErrors).length > 0}
           >
@@ -1996,7 +2540,9 @@ export default function Assets() {
                   <Select
                     value={scheduleFormData.assetId}
                     label="Asset"
-                    onChange={(e) => handleScheduleFormChange("assetId", e.target.value)}
+                    onChange={(e) =>
+                      handleScheduleFormChange("assetId", e.target.value)
+                    }
                     error={!!scheduleFormErrors.assetId}
                   >
                     {assets.map((asset) => (
@@ -2013,7 +2559,9 @@ export default function Assets() {
                   <Select
                     value={scheduleFormData.scheduleType}
                     label="Schedule Type"
-                    onChange={(e) => handleScheduleFormChange("scheduleType", e.target.value)}
+                    onChange={(e) =>
+                      handleScheduleFormChange("scheduleType", e.target.value)
+                    }
                   >
                     <MenuItem value="Preventive">Preventive</MenuItem>
                     <MenuItem value="Predictive">Predictive</MenuItem>
@@ -2030,7 +2578,9 @@ export default function Assets() {
                   <Select
                     value={scheduleFormData.frequency}
                     label="Frequency"
-                    onChange={(e) => handleScheduleFormChange("frequency", e.target.value)}
+                    onChange={(e) =>
+                      handleScheduleFormChange("frequency", e.target.value)
+                    }
                   >
                     <MenuItem value="Daily">Daily</MenuItem>
                     <MenuItem value="Weekly">Weekly</MenuItem>
@@ -2049,7 +2599,9 @@ export default function Assets() {
                   label="Next Due Date"
                   type="date"
                   value={scheduleFormData.nextDueDate}
-                  onChange={(e) => handleScheduleFormChange("nextDueDate", e.target.value)}
+                  onChange={(e) =>
+                    handleScheduleFormChange("nextDueDate", e.target.value)
+                  }
                   error={!!scheduleFormErrors.nextDueDate}
                   helperText={scheduleFormErrors.nextDueDate}
                   InputLabelProps={{ shrink: true }}
@@ -2062,7 +2614,12 @@ export default function Assets() {
                   label="Estimated Duration (hours)"
                   type="number"
                   value={scheduleFormData.estimatedDuration}
-                  onChange={(e) => handleScheduleFormChange("estimatedDuration", parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleScheduleFormChange(
+                      "estimatedDuration",
+                      parseInt(e.target.value) || 0,
+                    )
+                  }
                   error={!!scheduleFormErrors.estimatedDuration}
                   helperText={scheduleFormErrors.estimatedDuration}
                   inputProps={{ min: 1 }}
@@ -2075,7 +2632,9 @@ export default function Assets() {
                   <Select
                     value={scheduleFormData.priority}
                     label="Priority"
-                    onChange={(e) => handleScheduleFormChange("priority", e.target.value)}
+                    onChange={(e) =>
+                      handleScheduleFormChange("priority", e.target.value)
+                    }
                   >
                     <MenuItem value="Routine">Routine</MenuItem>
                     <MenuItem value="Urgent">Urgent</MenuItem>
@@ -2088,7 +2647,9 @@ export default function Assets() {
                   fullWidth
                   label="Description"
                   value={scheduleFormData.description}
-                  onChange={(e) => handleScheduleFormChange("description", e.target.value)}
+                  onChange={(e) =>
+                    handleScheduleFormChange("description", e.target.value)
+                  }
                   error={!!scheduleFormErrors.description}
                   helperText={scheduleFormErrors.description}
                   multiline
@@ -2101,7 +2662,12 @@ export default function Assets() {
                   fullWidth
                   label="Assigned Technician"
                   value={scheduleFormData.assignedTechnician}
-                  onChange={(e) => handleScheduleFormChange("assignedTechnician", e.target.value)}
+                  onChange={(e) =>
+                    handleScheduleFormChange(
+                      "assignedTechnician",
+                      e.target.value,
+                    )
+                  }
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -2110,7 +2676,12 @@ export default function Assets() {
                   label="Estimated Cost ($)"
                   type="number"
                   value={scheduleFormData.estimatedCost}
-                  onChange={(e) => handleScheduleFormChange("estimatedCost", parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    handleScheduleFormChange(
+                      "estimatedCost",
+                      parseInt(e.target.value) || 0,
+                    )
+                  }
                   error={!!scheduleFormErrors.estimatedCost}
                   helperText={scheduleFormErrors.estimatedCost}
                   inputProps={{ min: 0 }}
@@ -2124,7 +2695,9 @@ export default function Assets() {
                   fullWidth
                   label="Notes"
                   value={scheduleFormData.notes}
-                  onChange={(e) => handleScheduleFormChange("notes", e.target.value)}
+                  onChange={(e) =>
+                    handleScheduleFormChange("notes", e.target.value)
+                  }
                   multiline
                   rows={2}
                 />
@@ -2141,8 +2714,8 @@ export default function Assets() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeMaintenanceScheduleModal}>Cancel</Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={handleScheduleFormSubmit}
             disabled={Object.keys(scheduleFormErrors).length > 0}
           >

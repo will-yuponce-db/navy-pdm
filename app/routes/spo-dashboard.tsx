@@ -1,13 +1,12 @@
 import { Grid, Card, CardContent, Typography, Box, Chip } from "@mui/material";
-import { 
-  Dashboard, 
-  CheckBox, 
-  Inventory2, 
-  AccountBalance, 
-  Warning, 
-  Analytics, 
-  Schedule, 
-  Assessment 
+import {
+  Dashboard,
+  CheckBox,
+  Inventory2,
+  AccountBalance,
+  Warning,
+  Analytics,
+  Schedule,
 } from "@mui/icons-material";
 
 export function meta() {
@@ -27,7 +26,7 @@ export default function SPODashboard() {
     assetAvailability: 91,
     costSavings: 1250000,
     criticalAlerts: 3,
-    upcomingMaintenance: 12
+    upcomingMaintenance: 12,
   };
 
   const metrics = [
@@ -35,53 +34,57 @@ export default function SPODashboard() {
       title: "Fleet Readiness",
       value: `${data.fleetReadiness}%`,
       icon: <CheckBox />,
-      color: data.fleetReadiness >= 85 ? "success" : "warning"
+      color: data.fleetReadiness >= 85 ? "success" : "warning",
     },
     {
       title: "Budget Utilization",
       value: `${data.budgetUtilization}%`,
       icon: <AccountBalance />,
-      color: data.budgetUtilization <= 80 ? "success" : "warning"
+      color: data.budgetUtilization <= 80 ? "success" : "warning",
     },
     {
       title: "Maintenance Efficiency",
       value: `${data.maintenanceEfficiency}%`,
       icon: <Schedule />,
-      color: "success"
+      color: "success",
     },
     {
       title: "Asset Availability",
       value: `${data.assetAvailability}%`,
       icon: <Inventory2 />,
-      color: "success"
-    }
+      color: "success",
+    },
   ];
 
   const alerts = [
     {
       type: "warning",
       message: "3 assets require immediate attention",
-      icon: <Warning />
+      icon: <Warning />,
     },
     {
       type: "info",
       message: "12 maintenance tasks scheduled this week",
-      icon: <Schedule />
+      icon: <Schedule />,
     },
     {
       type: "success",
       message: `$${data.costSavings.toLocaleString()} saved this quarter`,
-      icon: <Analytics />
-    }
+      icon: <Analytics />,
+    },
   ];
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Typography
+        variant="h4"
+        gutterBottom
+        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+      >
         <Dashboard />
         Strategic Planning Office Dashboard
       </Typography>
-      
+
       <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
         High-level strategic overview and fleet management insights
       </Typography>
@@ -92,7 +95,13 @@ export default function SPODashboard() {
           <Grid item xs={12} sm={6} md={3} key={index}>
             <Card>
               <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
                   <Box>
                     <Typography variant="h6" component="div">
                       {metric.value}
@@ -119,10 +128,16 @@ export default function SPODashboard() {
               <Typography variant="h6" gutterBottom>
                 Risk Assessment
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Chip 
-                  label={data.riskLevel} 
-                  color={data.riskLevel === "Low" ? "success" : data.riskLevel === "Medium" ? "warning" : "error"}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <Chip
+                  label={data.riskLevel}
+                  color={
+                    data.riskLevel === "Low"
+                      ? "success"
+                      : data.riskLevel === "Medium"
+                        ? "warning"
+                        : "error"
+                  }
                   variant="outlined"
                 />
                 <Typography variant="body2" color="text.secondary">
@@ -132,7 +147,7 @@ export default function SPODashboard() {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
@@ -157,13 +172,12 @@ export default function SPODashboard() {
             Strategic Alerts
           </Typography>
           {alerts.map((alert, index) => (
-            <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Box sx={{ color: `${alert.type}.main` }}>
-                {alert.icon}
-              </Box>
-              <Typography variant="body2">
-                {alert.message}
-              </Typography>
+            <Box
+              key={index}
+              sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+            >
+              <Box sx={{ color: `${alert.type}.main` }}>{alert.icon}</Box>
+              <Typography variant="body2">{alert.message}</Typography>
             </Box>
           ))}
         </CardContent>

@@ -11,7 +11,11 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
-import type { WorkOrderModalProps, Priority, WorkOrderCreationSource } from "../types";
+import type {
+  WorkOrderModalProps,
+  Priority,
+  WorkOrderCreationSource,
+} from "../types";
 import { useErrorHandler } from "./ErrorHandling";
 import PartsRequired from "./PartsRequired";
 
@@ -386,7 +390,6 @@ export default function WorkOrderModal(props: WorkOrderModalProps) {
                 )}
               </Box>
             </Box>
-
 
             {/* Details */}
             <Box>

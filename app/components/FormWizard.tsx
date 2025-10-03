@@ -13,18 +13,17 @@ import {
   Alert,
   LinearProgress,
 } from "@mui/material";
-import {
-  ArrowBack,
-  ArrowForward,
-  Check,
-} from "@mui/icons-material";
+import { ArrowBack, ArrowForward, Check } from "@mui/icons-material";
 
 interface FormStep {
   id: string;
   title: string;
   description?: string;
   component: React.ComponentType<FormStepProps>;
-  validation?: (data: Record<string, unknown>) => { isValid: boolean; errors: string[] };
+  validation?: (data: Record<string, unknown>) => {
+    isValid: boolean;
+    errors: string[];
+  };
   optional?: boolean;
 }
 
@@ -60,7 +59,8 @@ export const FormWizard: React.FC<FormWizardProps> = ({
   showProgress = true,
 }) => {
   const [activeStep, setActiveStep] = useState(0);
-  const [formData, setFormData] = useState<Record<string, unknown>>(initialData);
+  const [formData, setFormData] =
+    useState<Record<string, unknown>>(initialData);
   const [stepErrors, setStepErrors] = useState<Record<string, string[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -107,13 +107,16 @@ export const FormWizard: React.FC<FormWizardProps> = ({
     setSubmitError(null);
   }, []);
 
-  const handleStepClick = useCallback((stepIndex: number) => {
-    // Allow navigation to previous steps or current step
-    if (stepIndex <= activeStep) {
-      setActiveStep(stepIndex);
-      setSubmitError(null);
-    }
-  }, [activeStep]);
+  const handleStepClick = useCallback(
+    (stepIndex: number) => {
+      // Allow navigation to previous steps or current step
+      if (stepIndex <= activeStep) {
+        setActiveStep(stepIndex);
+        setSubmitError(null);
+      }
+    },
+    [activeStep],
+  );
 
   const handleSubmit = useCallback(async () => {
     if (!validateCurrentStep()) return;
@@ -125,7 +128,9 @@ export const FormWizard: React.FC<FormWizardProps> = ({
       await onSubmit(formData);
     } catch (error) {
       setSubmitError(
-        error instanceof Error ? error.message : "An error occurred during submission"
+        error instanceof Error
+          ? error.message
+          : "An error occurred during submission",
       );
     } finally {
       setIsSubmitting(false);
@@ -151,7 +156,11 @@ export const FormWizard: React.FC<FormWizardProps> = ({
           {showProgress && (
             <Box sx={{ mb: 2 }}>
               <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ flexGrow: 1 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ flexGrow: 1 }}
+                >
                   Step {activeStep + 1} of {steps.length}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -187,7 +196,7 @@ export const FormWizard: React.FC<FormWizardProps> = ({
                 error={stepErrors[step.id] && stepErrors[step.id].length > 0}
                 StepIconProps={{
                   completed: index < activeStep,
-                  error: stepErrors[step.id] && stepErrors[step.id].length > 0
+                  error: stepErrors[step.id] && stepErrors[step.id].length > 0,
                 }}
               >
                 <Typography variant="subtitle2">{step.title}</Typography>
@@ -216,20 +225,21 @@ export const FormWizard: React.FC<FormWizardProps> = ({
             )}
 
             {/* Step Errors */}
-            {stepErrors[currentStep.id] && stepErrors[currentStep.id].length > 0 && (
-              <Alert severity="error" sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Please fix the following errors:
-                </Typography>
-                <Box component="ul" sx={{ mb: 0, pl: 2 }}>
-                  {stepErrors[currentStep.id].map((error, index) => (
-                    <Typography key={index} component="li" variant="body2">
-                      {error}
-                    </Typography>
-                  ))}
-                </Box>
-              </Alert>
-            )}
+            {stepErrors[currentStep.id] &&
+              stepErrors[currentStep.id].length > 0 && (
+                <Alert severity="error" sx={{ mb: 3 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Please fix the following errors:
+                  </Typography>
+                  <Box component="ul" sx={{ mb: 0, pl: 2 }}>
+                    {stepErrors[currentStep.id].map((error, index) => (
+                      <Typography key={index} component="li" variant="body2">
+                        {error}
+                      </Typography>
+                    ))}
+                  </Box>
+                </Alert>
+              )}
 
             {/* Step Component */}
             <currentStep.component
@@ -252,7 +262,13 @@ export const FormWizard: React.FC<FormWizardProps> = ({
         )}
 
         {/* Navigation */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <Button
             onClick={isFirstStep ? onCancel : handleBack}
             startIcon={isFirstStep ? undefined : <ArrowBack />}
@@ -304,7 +320,7 @@ export const BasicInfoStep: React.FC<FormStepProps> = ({
         This is an example step component. In a real implementation, you would
         include form fields here.
       </Typography>
-      
+
       {/* Add your form fields here */}
       <Box sx={{ p: 2, bgcolor: "grey.100", borderRadius: 1 }}>
         <Typography variant="body2" color="text.secondary">

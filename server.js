@@ -1,2705 +1,1039 @@
 import express from 'express';
 import cors from 'cors';
 import Database from 'better-sqlite3';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-
-// Databricks Configuration (inline for server.js)
-const databricksConfig = {
-  get: () => ({
-    clientId: process.env.DATABRICKS_CLIENT_ID,
-    clientSecret: process.env.DATABRICKS_CLIENT_SECRET,
-    serverHostname: process.env.DATABRICKS_SERVER_HOSTNAME || process.env.DATABRICKS_HOST,
-    httpPath: process.env.DATABRICKS_HTTP_PATH || `/sql/1.0/warehouses/8baced1ff014912d`
-  }),
-  
-  validate: () => {
-    const config = databricksConfig.get();
-    const missingFields = [];
-    
-    if (!config.clientId) missingFields.push('clientId');
-    if (!config.clientSecret) missingFields.push('clientSecret');
-    if (!config.serverHostname) missingFields.push('serverHostname');
-    if (!config.httpPath) missingFields.push('httpPath');
-    
-    return {
-      isValid: missingFields.length === 0,
-      missingFields
-    };
-  },
-  
-  getSafeConfig: () => {
-    const config = databricksConfig.get();
-    return {
-      clientId: config.clientId,
-      clientSecret: !!config.clientSecret,
-      serverHostname: config.serverHostname,
-      httpPath: config.httpPath
-    };
-  }
-};
-
-// Databricks SQL Client instance
-let databricksClient = null;
-
-// Initialize Databricks connection with service principal
-async function initializeDatabricks() {
-  // Return existing client if already connected
-  if (databricksClient) {
-    return databricksClient;
-  }
-
-  // Validate required configuration for service principal
-  const validation = databricksConfig.validate();
-  if (!validation.isValid) {
-    console.warn('Databricks configuration not available, falling back to local database');
-    console.warn('Available config:', databricksConfig.getSafeConfig());
-    console.warn('Environment variables check:', {
-      DATABRICKS_CLIENT_ID: !!process.env.DATABRICKS_CLIENT_ID,
-      DATABRICKS_CLIENT_SECRET: !!process.env.DATABRICKS_CLIENT_SECRET,
-      DATABRICKS_SERVER_HOSTNAME: process.env.DATABRICKS_SERVER_HOSTNAME,
-      DATABRICKS_HTTP_PATH: process.env.DATABRICKS_HTTP_PATH
-    });
-    throw new Error(`Databricks configuration not available - using local database fallback. Missing: ${validation.missingFields.join(', ')}`);
-  }
-
-  try {
-    const { DBSQLClient } = await import('@databricks/sql');
-    const client = new DBSQLClient();
-    
-    // Get access token using service principal credentials
-    const config = databricksConfig.get();
-    const tokenResponse = await fetch(`https://${config.serverHostname}/oidc/v1/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'client_credentials',
-        client_id: config.clientId,
-        client_secret: config.clientSecret,
-        scope: 'all-apis'
-      })
-    });
-    
-    const tokenData = await tokenResponse.json();
-    if (!tokenData.access_token) {
-      throw new Error('Failed to obtain access token from Databricks');
-    }
-    
-    await client.connect({
-      token: tokenData.access_token,
-      host: config.serverHostname,
-      path: config.httpPath
-    });
-
-    databricksClient = client;
-    console.log('Databricks SQL connection established with service principal');
-    return client;
-  } catch (error) {
-    console.error('Failed to connect to Databricks SQL:', error);
-    throw new Error(`Databricks connection failed: ${error.message}`);
-  }
-}
-
-// Execute a SQL query
-async function executeDatabricksQuery(query, options = {}) {
-  try {
-    const client = await initializeDatabricks();
-    const session = await client.openSession();
-
-    const queryOperation = await session.executeStatement(query, {
-      runAsync: true,
-      ...options
-    });
-
-    const result = await queryOperation.fetchAll();
-    await queryOperation.close();
-    await session.close();
-
-    return result;
-  } catch (error) {
-    console.error('Databricks query execution failed:', error);
-    throw new Error(`Query execution failed: ${error.message}`);
-  }
-}
-
-// Test connection
-async function testDatabricksConnection() {
-  try {
-    const result = await executeDatabricksQuery("SELECT 1 as test_value", {});
-    return {
-      success: true,
-      message: 'Databricks connection successful',
-      data: result
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: `Connection test failed: ${error.message}`
-    };
-  }
-}
-
-// Get warehouse information
-async function getWarehouseInfo() {
-  try {
-    const result = await executeDatabricksQuery("SHOW WAREHOUSES", {});
-    return result;
-  } catch (error) {
-    console.error('Failed to get warehouse info:', error);
-    throw error;
-  }
-}
-
-// Get database information
-async function getDatabaseInfo() {
-  try {
-    const result = await executeDatabricksQuery("SHOW DATABASES", {});
-    return result;
-  } catch (error) {
-    console.error('Failed to get database info:', error);
-    throw error;
-  }
-}
-
-// Get table information for a specific database
-async function getTableInfo(databaseName) {
-  try {
-    const result = await executeDatabricksQuery(`SHOW TABLES IN ${databaseName}`, {});
-    return result;
-  } catch (error) {
-    console.error('Failed to get table info:', error);
-    throw error;
-  }
-}
-
-// Health check for Databricks service
-async function databricksHealthCheck() {
-  try {
-    const testResult = await testDatabricksConnection();
-    return {
-      status: testResult.success ? 'healthy' : 'unhealthy',
-      timestamp: new Date().toISOString(),
-      details: testResult
-    };
-  } catch (error) {
-    return {
-      status: 'unhealthy',
-      timestamp: new Date().toISOString(),
-      details: { error: error.message }
-    };
-  }
-}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const server = createServer(app);
-const PORT = process.env.PORT || 3000;
-
-// Socket.IO setup
-const io = new Server(server, {
-  cors: {
-    origin: process.env.DATABRICKS_APP_URL ? [
-      process.env.DATABRICKS_APP_URL,
-      'http://localhost:3000',
-      'http://localhost:5173'
-    ] : ['http://localhost:3000', 'http://localhost:5173'],
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
-});
+const PORT = process.env.PORT || 8000;
 
 // Database setup
-const dbPath = process.env.DATABASE_URL || join(__dirname, 'backend', 'instance', 'navy_pdm.db');
+const dbPath = join(__dirname, 'backend', 'instance', 'navy_pdm.db');
 const db = new Database(dbPath);
 
-// Enable foreign keys
-db.pragma('foreign_keys = ON');
-
 // Middleware
-app.use(cors({
-  origin: process.env.DATABRICKS_APP_URL ? [
-    process.env.DATABRICKS_APP_URL,
-    'http://localhost:3000',
-    'http://localhost:5173'
-  ] : ['http://localhost:3000', 'http://localhost:5173'],
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  credentials: true
-}));
-
+app.use(cors());
 app.use(express.json());
 
-// Database initialization
-function initializeDatabase() {
-  // Create Ships table first (referenced by other tables)
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS ships (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      designation TEXT NOT NULL,
-      class TEXT NOT NULL,
-      homeport TEXT NOT NULL,
-      status TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+// Request logging
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+  });
+  next();
+});
 
-  // Create Users table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      email TEXT UNIQUE NOT NULL,
-      first_name TEXT NOT NULL,
-      last_name TEXT NOT NULL,
-      role TEXT NOT NULL,
-      homeport TEXT,
-      department TEXT,
-      is_active BOOLEAN DEFAULT 1,
-      last_login DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  // Create GTE Systems table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS gte_systems (
-      id TEXT PRIMARY KEY,
-      model TEXT NOT NULL,
-      serial_number TEXT NOT NULL,
-      install_date DATE NOT NULL,
-      status TEXT NOT NULL,
-      hours_operation INTEGER DEFAULT 0,
-      last_maintenance DATE,
-      next_maintenance DATE,
-      ship_id TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (ship_id) REFERENCES ships(id)
-    )
-  `);
-
-  // Create Assets table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS assets (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL,
-      status TEXT NOT NULL,
-      location TEXT NOT NULL,
-      serial_number TEXT,
-      install_date DATE,
-      last_inspection DATE,
-      next_inspection DATE,
-      ship_id TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (ship_id) REFERENCES ships(id)
-    )
-  `);
-
-  // Create WorkOrder table with proper foreign keys
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS work_orders (
-      wo TEXT PRIMARY KEY,
-      ship_id TEXT NOT NULL,
-      gte_system_id TEXT,
-      assigned_to TEXT,
-      created_by TEXT,
-      fm TEXT NOT NULL,
-      priority TEXT NOT NULL,
-      status TEXT NOT NULL,
-      eta INTEGER NOT NULL,
-      symptoms TEXT,
-      recommended_action TEXT,
-      parts_required TEXT,
-      sla_category TEXT,
-      creation_source TEXT NOT NULL DEFAULT 'manual',
-      sensor_data TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (ship_id) REFERENCES ships(id),
-      FOREIGN KEY (gte_system_id) REFERENCES gte_systems(id),
-      FOREIGN KEY (assigned_to) REFERENCES users(id),
-      FOREIGN KEY (created_by) REFERENCES users(id)
-    )
-  `);
-
-  // Create Part table with Databricks integration fields
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS parts (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      system TEXT NOT NULL,
-      category TEXT NOT NULL,
-      stock_level INTEGER NOT NULL,
-      min_stock INTEGER NOT NULL,
-      max_stock INTEGER NOT NULL,
-      location TEXT NOT NULL,
-      condition TEXT NOT NULL,
-      lead_time TEXT NOT NULL,
-      supplier TEXT NOT NULL,
-      cost REAL NOT NULL,
-      last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
-      nsn TEXT,
-      width INTEGER,
-      height INTEGER,
-      weight INTEGER,
-      production_time INTEGER,
-      sensors TEXT,
-      stock_location_id TEXT,
-      latitude REAL,
-      longitude REAL
-    )
-  `);
-
-  // Create Notification table with foreign key
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS notifications (
-      id TEXT PRIMARY KEY,
-      type TEXT NOT NULL,
-      title TEXT NOT NULL,
-      message TEXT NOT NULL,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-      priority TEXT NOT NULL,
-      category TEXT NOT NULL,
-      read BOOLEAN DEFAULT 0,
-      work_order_id TEXT,
-      FOREIGN KEY (work_order_id) REFERENCES work_orders(wo)
-    )
-  `);
-
-  // Create Maintenance Schedules table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS maintenance_schedules (
-      id TEXT PRIMARY KEY,
-      asset_id TEXT NOT NULL,
-      assigned_to TEXT,
-      created_by TEXT,
-      maintenance_type TEXT NOT NULL,
-      scheduled_date DATE NOT NULL,
-      status TEXT NOT NULL,
-      description TEXT,
-      estimated_hours INTEGER,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (asset_id) REFERENCES assets(id),
-      FOREIGN KEY (assigned_to) REFERENCES users(id),
-      FOREIGN KEY (created_by) REFERENCES users(id)
-    )
-  `);
-
-  // Create Performance Metrics table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS performance_metrics (
-      id TEXT PRIMARY KEY,
-      asset_id TEXT NOT NULL,
-      metric_type TEXT NOT NULL,
-      value REAL NOT NULL,
-      unit TEXT NOT NULL,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-      status TEXT NOT NULL,
-      FOREIGN KEY (asset_id) REFERENCES assets(id)
-    )
-  `);
-
-  // Create Sensor Systems table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS sensor_systems (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL,
-      location TEXT NOT NULL,
-      status TEXT NOT NULL,
-      last_maintenance DATE,
-      next_maintenance DATE,
-      gte_system_id TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (gte_system_id) REFERENCES gte_systems(id)
-    )
-  `);
-
-  // Create Sensor Data table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS sensor_data (
-      id TEXT PRIMARY KEY,
-      sensor_id TEXT NOT NULL,
-      sensor_name TEXT NOT NULL,
-      sensor_type TEXT NOT NULL,
-      value REAL NOT NULL,
-      unit TEXT NOT NULL,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-      status TEXT NOT NULL,
-      location TEXT NOT NULL,
-      system_id TEXT NOT NULL,
-      FOREIGN KEY (system_id) REFERENCES sensor_systems(id)
-    )
-  `);
-
-  // Create Sensor Analytics table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS sensor_analytics (
-      sensor_id TEXT PRIMARY KEY,
-      time_range TEXT NOT NULL,
-      average_value REAL NOT NULL,
-      min_value REAL NOT NULL,
-      max_value REAL NOT NULL,
-      trend TEXT NOT NULL,
-      anomalies INTEGER DEFAULT 0,
-      efficiency REAL NOT NULL,
-      FOREIGN KEY (sensor_id) REFERENCES sensor_data(sensor_id)
-    )
-  `);
-
-  // Create Audit Logs table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS audit_logs (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      action TEXT NOT NULL,
-      resource TEXT NOT NULL,
-      resource_id TEXT NOT NULL,
-      changes TEXT,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-      ip_address TEXT,
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-  `);
-
-  // Create Security Events table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS security_events (
-      id TEXT PRIMARY KEY,
-      type TEXT NOT NULL,
-      user_id TEXT,
-      ip_address TEXT,
-      user_agent TEXT,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-      details TEXT,
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-  `);
-
-  // Create User Permissions table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS user_permissions (
-      user_id TEXT NOT NULL,
-      permission TEXT NOT NULL,
-      PRIMARY KEY (user_id, permission),
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-  `);
-
-  // Create trigger to update updated_at timestamp
-  db.exec(`
-    CREATE TRIGGER IF NOT EXISTS update_work_orders_updated_at 
-    AFTER UPDATE ON work_orders
-    BEGIN
-      UPDATE work_orders SET updated_at = CURRENT_TIMESTAMP WHERE wo = NEW.wo;
-    END
-  `);
-
-  console.log('Database initialized successfully');
+// Helper function for Databricks unavailability
+function databricksUnavailable(res, endpoint) {
+  return res.status(503).json({
+    success: false,
+    message: `Databricks ${endpoint} not available in development mode`,
+    diagnostics: {
+      note: 'This endpoint requires Databricks connection which is configured for production deployment',
+      development: 'Using local SQLite database for development',
+      documentation: 'See DATABRICKS_SETUP.md for configuration details'
+    }
+  });
 }
 
-// Initialize database on startup
-initializeDatabase();
+// ============================================================================
+// DATABRICKS API ROUTES (Development placeholders)
+// ============================================================================
+// These endpoints return informative errors in development.
+// In production with proper TypeScript compilation, these would connect to Databricks.
 
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
-
-  // Join notification room for real-time updates
-  socket.join('notifications');
-
-  // Handle notification read events
-  socket.on('notification:read', (data) => {
-    try {
-      const { notificationId } = data;
-      const result = db.prepare('UPDATE notifications SET read = 1 WHERE id = ?').run(notificationId);
-      
-      if (result.changes > 0) {
-        // Broadcast to all clients that this notification was read
-        io.to('notifications').emit('notification:read', { notificationId });
-      }
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-      socket.emit('error', { message: 'Failed to mark notification as read' });
-    }
-  });
-
-  // Handle notification dismiss events
-  socket.on('notification:dismiss', (data) => {
-    try {
-      const { notificationId } = data;
-      const result = db.prepare('DELETE FROM notifications WHERE id = ?').run(notificationId);
-      
-      if (result.changes > 0) {
-        // Broadcast to all clients that this notification was dismissed
-        io.to('notifications').emit('notification:dismissed', { notificationId });
-      }
-    } catch (error) {
-      console.error('Error dismissing notification:', error);
-      socket.emit('error', { message: 'Failed to dismiss notification' });
-    }
-  });
-
-  // Handle clear all notifications events
-  socket.on('notifications:clear-all', () => {
-    try {
-      const result = db.prepare('DELETE FROM notifications').run();
-      
-      // Broadcast to all clients that all notifications were cleared
-      io.to('notifications').emit('notifications:all-cleared');
-      
-      console.log(`Cleared ${result.changes} notifications via WebSocket`);
-    } catch (error) {
-      console.error('Error clearing all notifications:', error);
-      socket.emit('error', { message: 'Failed to clear all notifications' });
-    }
-  });
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
-});
-
-// Helper function to broadcast notifications to all connected clients
-function broadcastNotification(notification) {
-  io.to('notifications').emit('notification:new', notification);
-}
-
-// API Routes
-// Work Orders routes
-app.get('/api/work-orders', (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const status = req.query.status;
-    const priority = req.query.priority;
-    const search = req.query.search;
-
-    let whereClause = '';
-    const params = [];
-
-    if (status) {
-      whereClause += ' WHERE status = ?';
-      params.push(status);
-    }
-
-    if (priority) {
-      whereClause += whereClause ? ' AND priority = ?' : ' WHERE priority = ?';
-      params.push(priority);
-    }
-
-    if (search) {
-      const searchCondition = ' (s.name LIKE ? OR wo.fm LIKE ? OR wo.wo LIKE ?)';
-      whereClause += whereClause ? ' AND' + searchCondition : ' WHERE' + searchCondition;
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
-    }
-
-    // Get total count with proper joins
-    const countQuery = `
-      SELECT COUNT(*) as total 
-      FROM work_orders wo
-      LEFT JOIN ships s ON wo.ship_id = s.id
-      LEFT JOIN gte_systems gs ON wo.gte_system_id = gs.id
-      LEFT JOIN users ua ON wo.assigned_to = ua.id
-      LEFT JOIN users uc ON wo.created_by = uc.id
-      ${whereClause}
-    `;
-    const total = db.prepare(countQuery).get(...params).total;
-
-    // Get paginated results with populated relationships
-    const offset = (page - 1) * limit;
-    const query = `
-      SELECT 
-        wo.*,
-        s.name as ship_name,
-        s.homeport as ship_homeport,
-        gs.model as gte_model,
-        gs.serial_number as gte_serial,
-        ua.first_name as assigned_first_name,
-        ua.last_name as assigned_last_name,
-        uc.first_name as created_first_name,
-        uc.last_name as created_last_name
-      FROM work_orders wo
-      LEFT JOIN ships s ON wo.ship_id = s.id
-      LEFT JOIN gte_systems gs ON wo.gte_system_id = gs.id
-      LEFT JOIN users ua ON wo.assigned_to = ua.id
-      LEFT JOIN users uc ON wo.created_by = uc.id
-      ${whereClause} 
-      ORDER BY wo.created_at DESC 
-      LIMIT ? OFFSET ?
-    `;
-    const workOrders = db.prepare(query).all(...params, limit, offset);
-
-    res.json({
-      items: workOrders.map(wo => ({
-        wo: wo.wo,
-        shipId: wo.ship_id,
-        gteSystemId: wo.gte_system_id,
-        assignedTo: wo.assigned_to,
-        createdBy: wo.created_by,
-        fm: wo.fm,
-        priority: wo.priority,
-        status: wo.status,
-        eta: wo.eta,
-        symptoms: wo.symptoms,
-        recommendedAction: wo.recommended_action,
-        partsRequired: wo.parts_required,
-        slaCategory: wo.sla_category,
-        creationSource: wo.creation_source,
-        sensorData: wo.sensor_data ? JSON.parse(wo.sensor_data) : null,
-        createdAt: wo.created_at,
-        updatedAt: wo.updated_at,
-        // Populated fields
-        ship: wo.ship_name ? {
-          id: wo.ship_id,
-          name: wo.ship_name,
-          homeport: wo.ship_homeport
-        } : null,
-        gteSystem: wo.gte_model ? {
-          id: wo.gte_system_id,
-          model: wo.gte_model,
-          serialNumber: wo.gte_serial
-        } : null,
-        assignedUser: wo.assigned_first_name ? {
-          id: wo.assigned_to,
-          firstName: wo.assigned_first_name,
-          lastName: wo.assigned_last_name
-        } : null,
-        createdByUser: wo.created_first_name ? {
-          id: wo.created_by,
-          firstName: wo.created_first_name,
-          lastName: wo.created_last_name
-        } : null
-      })),
-      total,
-      page,
-      pageSize: limit,
-      hasNext: (page * limit) < total,
-      hasPrevious: page > 1
-    });
-  } catch (error) {
-    console.error('Error fetching work orders:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/work-orders/:wo_id', (req, res) => {
-  try {
-    const workOrder = db.prepare('SELECT * FROM work_orders WHERE wo = ?').get(req.params.wo_id);
-    
-    if (!workOrder) {
-      return res.status(404).json({ message: 'Work order not found' });
-    }
-
-    res.json({
-      wo: workOrder.wo,
-      ship: workOrder.ship,
-      homeport: workOrder.homeport,
-      fm: workOrder.fm,
-      gte: workOrder.gte,
-      priority: workOrder.priority,
-      status: workOrder.status,
-      eta: workOrder.eta,
-      symptoms: workOrder.symptoms,
-      recommendedAction: workOrder.recommended_action,
-      partsRequired: workOrder.parts_required,
-      slaCategory: workOrder.sla_category,
-      createdAt: workOrder.created_at,
-      updatedAt: workOrder.updated_at
-    });
-  } catch (error) {
-    console.error('Error fetching work order:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// AI Work Order Creation Endpoint
-app.post('/api/work-orders/ai', (req, res) => {
-  try {
-    const data = req.body;
-    
-    // Validate required fields for AI work orders
-    if (!data.shipId || !data.fm || !data.sensorData) {
-      return res.status(400).json({ error: 'Ship ID, failure mode, and sensor data are required for AI work orders' });
-    }
-    
-    const stmt = db.prepare(`
-      INSERT INTO work_orders (wo, ship_id, gte_system_id, assigned_to, created_by, fm, priority, status, eta, symptoms, recommended_action, parts_required, sla_category, creation_source, sensor_data)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    stmt.run(
-      data.wo,
-      data.shipId,
-      data.gteSystemId || null,
-      data.assignedTo || null,
-      data.createdBy || null,
-      data.fm,
-      data.priority || 'Routine',
-      'Pending approval', // AI work orders always start with pending approval
-      data.eta || 7, // Default ETA of 7 days
-      data.symptoms || null,
-      data.recommendedAction || null,
-      data.partsRequired || null,
-      data.slaCategory || null,
-      'ai',
-      JSON.stringify(data.sensorData)
-    );
-
-    // Get the created work order with populated relationships
-    const workOrder = db.prepare(`
-      SELECT 
-        wo.*,
-        s.name as ship_name,
-        s.homeport as ship_homeport,
-        gs.model as gte_model,
-        gs.serial_number as gte_serial,
-        ua.first_name as assigned_first_name,
-        ua.last_name as assigned_last_name,
-        uc.first_name as created_first_name,
-        uc.last_name as created_last_name
-      FROM work_orders wo
-      LEFT JOIN ships s ON wo.ship_id = s.id
-      LEFT JOIN gte_systems gs ON wo.gte_system_id = gs.id
-      LEFT JOIN users ua ON wo.assigned_to = ua.id
-      LEFT JOIN users uc ON wo.created_by = uc.id
-      WHERE wo.wo = ?
-    `).get(data.wo);
-    
-    res.status(201).json({
-      wo: workOrder.wo,
-      shipId: workOrder.ship_id,
-      gteSystemId: workOrder.gte_system_id,
-      assignedTo: workOrder.assigned_to,
-      createdBy: workOrder.created_by,
-      fm: workOrder.fm,
-      priority: workOrder.priority,
-      status: workOrder.status,
-      eta: workOrder.eta,
-      symptoms: workOrder.symptoms,
-      recommendedAction: workOrder.recommended_action,
-      partsRequired: workOrder.parts_required,
-      slaCategory: workOrder.sla_category,
-      creationSource: workOrder.creation_source,
-      sensorData: workOrder.sensor_data ? JSON.parse(workOrder.sensor_data) : null,
-      createdAt: workOrder.created_at,
-      updatedAt: workOrder.updated_at,
-      // Populated fields
-      ship: workOrder.ship_name ? {
-        id: workOrder.ship_id,
-        name: workOrder.ship_name,
-        homeport: workOrder.ship_homeport
-      } : null,
-      gteSystem: workOrder.gte_model ? {
-        id: workOrder.gte_system_id,
-        model: workOrder.gte_model,
-        serialNumber: workOrder.gte_serial
-      } : null,
-      assignedUser: workOrder.assigned_first_name ? {
-        id: workOrder.assigned_to,
-        firstName: workOrder.assigned_first_name,
-        lastName: workOrder.assigned_last_name
-      } : null,
-      createdByUser: workOrder.created_first_name ? {
-        id: workOrder.created_by,
-        firstName: workOrder.created_first_name,
-        lastName: workOrder.created_last_name
-      } : null
-    });
-  } catch (error) {
-    console.error('Error creating AI work order:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/work-orders', (req, res) => {
-  try {
-    const data = req.body;
-    
-    const stmt = db.prepare(`
-      INSERT INTO work_orders (wo, ship_id, gte_system_id, assigned_to, created_by, fm, priority, status, eta, symptoms, recommended_action, parts_required, sla_category, creation_source, sensor_data)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    stmt.run(
-      data.wo,
-      data.shipId,
-      data.gteSystemId || null,
-      data.assignedTo || null,
-      data.createdBy || null,
-      data.fm,
-      data.priority,
-      data.status,
-      data.eta,
-      data.symptoms || null,
-      data.recommendedAction || null,
-      data.partsRequired || null,
-      data.slaCategory || null,
-      data.creationSource || 'manual',
-      data.sensorData ? JSON.stringify(data.sensorData) : null
-    );
-
-    // Get the created work order with populated relationships
-    const workOrder = db.prepare(`
-      SELECT 
-        wo.*,
-        s.name as ship_name,
-        s.homeport as ship_homeport,
-        gs.model as gte_model,
-        gs.serial_number as gte_serial,
-        ua.first_name as assigned_first_name,
-        ua.last_name as assigned_last_name,
-        uc.first_name as created_first_name,
-        uc.last_name as created_last_name
-      FROM work_orders wo
-      LEFT JOIN ships s ON wo.ship_id = s.id
-      LEFT JOIN gte_systems gs ON wo.gte_system_id = gs.id
-      LEFT JOIN users ua ON wo.assigned_to = ua.id
-      LEFT JOIN users uc ON wo.created_by = uc.id
-      WHERE wo.wo = ?
-    `).get(data.wo);
-    
-    res.status(201).json({
-      wo: workOrder.wo,
-      shipId: workOrder.ship_id,
-      gteSystemId: workOrder.gte_system_id,
-      assignedTo: workOrder.assigned_to,
-      createdBy: workOrder.created_by,
-      fm: workOrder.fm,
-      priority: workOrder.priority,
-      status: workOrder.status,
-      eta: workOrder.eta,
-      symptoms: workOrder.symptoms,
-      recommendedAction: workOrder.recommended_action,
-      partsRequired: workOrder.parts_required,
-      slaCategory: workOrder.sla_category,
-      creationSource: workOrder.creation_source,
-      sensorData: workOrder.sensor_data ? JSON.parse(workOrder.sensor_data) : null,
-      createdAt: workOrder.created_at,
-      updatedAt: workOrder.updated_at,
-      // Populated fields
-      ship: workOrder.ship_name ? {
-        id: workOrder.ship_id,
-        name: workOrder.ship_name,
-        homeport: workOrder.ship_homeport
-      } : null,
-      gteSystem: workOrder.gte_model ? {
-        id: workOrder.gte_system_id,
-        model: workOrder.gte_model,
-        serialNumber: workOrder.gte_serial
-      } : null,
-      assignedUser: workOrder.assigned_first_name ? {
-        id: workOrder.assigned_to,
-        firstName: workOrder.assigned_first_name,
-        lastName: workOrder.assigned_last_name
-      } : null,
-      createdByUser: workOrder.created_first_name ? {
-        id: workOrder.created_by,
-        firstName: workOrder.created_first_name,
-        lastName: workOrder.created_last_name
-      } : null
-    });
-  } catch (error) {
-    console.error('Error creating work order:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.patch('/api/work-orders/:wo_id', async (req, res) => {
-  try {
-    const data = req.body;
-    const woId = req.params.wo_id;
-    let updatedIn = null;
-    
-    // Check if this is an AI work order (from Databricks)
-    if (woId.startsWith('AI-WO')) {
-      try {
-        // Build dynamic update query for Databricks
-        const updateFields = [];
-        
-        // Map frontend field names to Databricks column names
-        const fieldMapping = {
-          'priority': 'priority',
-          'status': 'operable',  // Note: status in UI maps to operable boolean
-          'fm': 'prediction',
-          'slaCategory': 'maintenance_type',
-          'eta': 'ttr',
-          'partsRequired': 'parts_required'
-        };
-        
-        Object.keys(data).forEach(key => {
-          if (fieldMapping[key]) {
-            const dbColumn = fieldMapping[key];
-            let value = data[key];
-            
-            // Special handling for status -> operable conversion
-            if (key === 'status') {
-              value = (value === 'Completed' || value === 'In progress') ? 'true' : 'false';
-            }
-            
-            // Handle string values with proper escaping
-            if (typeof value === 'string') {
-              value = value.replace(/'/g, "''"); // Escape single quotes
-              updateFields.push(`${dbColumn} = '${value}'`);
-            } else if (typeof value === 'boolean') {
-              updateFields.push(`${dbColumn} = ${value}`);
-            } else if (typeof value === 'number') {
-              updateFields.push(`${dbColumn} = ${value}`);
-            }
-          }
-        });
-        
-        if (updateFields.length > 0) {
-          const updateQuery = `UPDATE public_sector.predictive_maintenance_navy_test.ai_work_orders SET ${updateFields.join(', ')} WHERE work_order = '${woId}'`;
-          await executeDatabricksQuery(updateQuery, {}, null);
-          updatedIn = 'Databricks';
-          console.log(`Updated AI work order ${woId} in Databricks`);
-        }
-        
-        // Return success for Databricks update (don't try SQLite for AI work orders)
-        return res.json({ 
-          message: 'Work order updated successfully',
-          updatedIn: updatedIn,
-          wo: woId
-        });
-      } catch (dbError) {
-        console.error('Error updating Databricks work order:', dbError);
-        return res.status(500).json({ error: 'Failed to update AI work order in Databricks' });
-      }
-    }
-    
-    // For manual work orders (SQLite)
-    const currentWorkOrder = db.prepare('SELECT * FROM work_orders WHERE wo = ?').get(woId);
-    if (!currentWorkOrder) {
-      return res.status(404).json({ message: 'Work order not found' });
-    }
-    
-    // Build dynamic update query
-    const updates = [];
-    const params = [];
-    
-    Object.keys(data).forEach(key => {
-      if (key === 'recommendedAction') {
-        updates.push('recommended_action = ?');
-        params.push(data[key]);
-      } else if (key === 'partsRequired') {
-        updates.push('parts_required = ?');
-        params.push(data[key]);
-      } else if (key === 'slaCategory') {
-        updates.push('sla_category = ?');
-        params.push(data[key]);
-      } else if (key !== 'wo' && key !== 'createdAt' && key !== 'updatedAt') {
-        updates.push(`${key} = ?`);
-        params.push(data[key]);
-      }
-    });
-    
-    if (updates.length === 0) {
-      return res.status(400).json({ error: 'No valid fields to update' });
-    }
-    
-    params.push(woId);
-    const query = `UPDATE work_orders SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE wo = ?`;
-    
-    const result = db.prepare(query).run(...params);
-    
-    if (result.changes === 0) {
-      return res.status(404).json({ message: 'Work order not found' });
-    }
-    
-    const workOrder = db.prepare('SELECT * FROM work_orders WHERE wo = ?').get(woId);
-    
-    const responseData = {
-      wo: workOrder.wo,
-      ship: workOrder.ship,
-      homeport: workOrder.homeport,
-      fm: workOrder.fm,
-      gte: workOrder.gte,
-      priority: workOrder.priority,
-      status: workOrder.status,
-      eta: workOrder.eta,
-      symptoms: workOrder.symptoms,
-      recommendedAction: workOrder.recommended_action,
-      partsRequired: workOrder.parts_required,
-      slaCategory: workOrder.sla_category,
-      createdAt: workOrder.created_at,
-      updatedAt: workOrder.updated_at
-    };
-
-    // Check if status changed and broadcast WebSocket event
-    if (data.status && data.status !== currentWorkOrder.status) {
-      // Create notification for status change
-      const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      let notificationType = 'info';
-      let notificationTitle = 'Work Order Updated';
-      let notificationMessage = `Work Order ${workOrder.wo} for ${workOrder.ship} has been updated`;
-      let notificationPriority = 'medium';
-
-      switch (data.status) {
-        case 'In Progress':
-          notificationType = 'info';
-          notificationPriority = 'medium';
-          notificationTitle = 'Work Order Started';
-          notificationMessage = `Work Order ${workOrder.wo} for ${workOrder.ship} is now in progress`;
-          break;
-        case 'Completed':
-          notificationType = 'success';
-          notificationPriority = 'low';
-          notificationTitle = 'Work Order Completed';
-          notificationMessage = `Work Order ${workOrder.wo} for ${workOrder.ship} has been completed successfully`;
-          break;
-        case 'Cancelled':
-          notificationType = 'warning';
-          notificationPriority = 'medium';
-          notificationTitle = 'Work Order Cancelled';
-          notificationMessage = `Work Order ${workOrder.wo} for ${workOrder.ship} has been cancelled`;
-          break;
-        case 'On Hold':
-          notificationType = 'warning';
-          notificationPriority = 'high';
-          notificationTitle = 'Work Order On Hold';
-          notificationMessage = `Work Order ${workOrder.wo} for ${workOrder.ship} has been put on hold`;
-          break;
-      }
-
-      // Insert notification into database
-      const notificationStmt = db.prepare(`
-        INSERT INTO notifications (id, type, title, message, priority, category, work_order_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `);
-      
-      notificationStmt.run(
-        notificationId,
-        notificationType,
-        notificationTitle,
-        notificationMessage,
-        notificationPriority,
-        'maintenance',
-        workOrder.wo
-      );
-
-      const notification = db.prepare('SELECT * FROM notifications WHERE id = ?').get(notificationId);
-      
-      const notificationData = {
-        id: notification.id,
-        type: notification.type,
-        title: notification.title,
-        message: notification.message,
-        timestamp: notification.timestamp,
-        priority: notification.priority,
-        category: notification.category,
-        read: Boolean(notification.read),
-        workOrderId: notification.work_order_id
-      };
-
-      // Broadcast notification to all connected clients
-      broadcastNotification(notificationData);
-    }
-
-    // Broadcast work order update to all connected clients
-    io.to('notifications').emit('workorder:updated', {
-      workOrder: responseData,
-      changes: data
-    });
-    
-    res.json(responseData);
-  } catch (error) {
-    console.error('Error updating work order:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.delete('/api/work-orders/:wo_id', async (req, res) => {
-  try {
-    const woId = req.params.wo_id;
-    let deletedFrom = [];
-    
-    // Check if this is an AI work order (from Databricks)
-    if (woId.startsWith('AI-WO')) {
-      try {
-        // Delete from Databricks using service principal
-        const deleteQuery = `DELETE FROM public_sector.predictive_maintenance_navy_test.ai_work_orders WHERE work_order = '${woId}'`;
-        await executeDatabricksQuery(deleteQuery, {}, null);
-        deletedFrom.push('Databricks');
-        console.log(`Deleted AI work order ${woId} from Databricks`);
-      } catch (dbError) {
-        console.error('Error deleting from Databricks:', dbError);
-        // Continue to try SQLite in case it's also stored there
-      }
-    }
-    
-    // Try to delete from SQLite (for manual work orders or fallback)
-    try {
-      const result = db.prepare('DELETE FROM work_orders WHERE wo = ?').run(woId);
-      if (result.changes > 0) {
-        deletedFrom.push('SQLite');
-        console.log(`Deleted work order ${woId} from SQLite`);
-      }
-    } catch (sqliteError) {
-      console.error('Error deleting from SQLite:', sqliteError);
-      // If we already deleted from Databricks, this is okay
-      if (deletedFrom.length === 0) {
-        throw sqliteError;
-      }
-    }
-    
-    // If not deleted from either source, return 404
-    if (deletedFrom.length === 0) {
-      return res.status(404).json({ message: 'Work order not found' });
-    }
-    
-    res.json({ 
-      message: 'Work order deleted successfully',
-      deletedFrom: deletedFrom
-    });
-  } catch (error) {
-    console.error('Error deleting work order:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.patch('/api/work-orders/bulk', (req, res) => {
-  try {
-    const { updates } = req.body;
-    const updatedOrders = [];
-    
-    const transaction = db.transaction(() => {
-      for (const update of updates) {
-        const woId = update.id;
-        const updateData = update.updates;
-        
-        // Build dynamic update query
-        const updateFields = [];
-        const params = [];
-        
-        Object.keys(updateData).forEach(key => {
-          if (key === 'recommendedAction') {
-            updateFields.push('recommended_action = ?');
-            params.push(updateData[key]);
-          } else if (key === 'partsRequired') {
-            updateFields.push('parts_required = ?');
-            params.push(updateData[key]);
-          } else if (key === 'slaCategory') {
-            updateFields.push('sla_category = ?');
-            params.push(updateData[key]);
-          } else if (key !== 'wo' && key !== 'createdAt' && key !== 'updatedAt') {
-            updateFields.push(`${key} = ?`);
-            params.push(updateData[key]);
-          }
-        });
-        
-        if (updateFields.length > 0) {
-          params.push(woId);
-          const query = `UPDATE work_orders SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE wo = ?`;
-          
-          const result = db.prepare(query).run(...params);
-          
-          if (result.changes > 0) {
-            const workOrder = db.prepare('SELECT * FROM work_orders WHERE wo = ?').get(woId);
-            updatedOrders.push({
-              wo: workOrder.wo,
-              ship: workOrder.ship,
-              homeport: workOrder.homeport,
-              fm: workOrder.fm,
-              gte: workOrder.gte,
-              priority: workOrder.priority,
-              status: workOrder.status,
-              eta: workOrder.eta,
-              symptoms: workOrder.symptoms,
-              recommendedAction: workOrder.recommended_action,
-              partsRequired: workOrder.parts_required,
-              slaCategory: workOrder.sla_category,
-              createdAt: workOrder.created_at,
-              updatedAt: workOrder.updated_at
-            });
-          }
-        }
-      }
-    });
-    
-    transaction();
-    
-    res.json(updatedOrders);
-  } catch (error) {
-    console.error('Error bulk updating work orders:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Parts routes
-app.get('/api/parts', (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const category = req.query.category;
-    const condition = req.query.condition;
-    const search = req.query.search;
-
-    let whereClause = '';
-    const params = [];
-
-    if (category) {
-      whereClause += ' WHERE category = ?';
-      params.push(category);
-    }
-
-    if (condition) {
-      whereClause += whereClause ? ' AND condition = ?' : ' WHERE condition = ?';
-      params.push(condition);
-    }
-
-    if (search) {
-      const searchCondition = ' (name LIKE ? OR id LIKE ? OR supplier LIKE ? OR location LIKE ?)';
-      whereClause += whereClause ? ' AND' + searchCondition : ' WHERE' + searchCondition;
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
-    }
-
-    // Get total count
-    const countQuery = `SELECT COUNT(*) as total FROM parts${whereClause}`;
-    const total = db.prepare(countQuery).get(...params).total;
-
-    // Get paginated results
-    const offset = (page - 1) * limit;
-    const query = `SELECT * FROM parts${whereClause} ORDER BY last_updated DESC LIMIT ? OFFSET ?`;
-    const parts = db.prepare(query).all(...params, limit, offset);
-
-    res.json({
-      items: parts.map(part => ({
-        id: part.id,
-        name: part.name,
-        system: part.system,
-        category: part.category,
-        stockLevel: part.stock_level,
-        minStock: part.min_stock,
-        maxStock: part.max_stock,
-        location: part.location,
-        condition: part.condition,
-        leadTime: part.lead_time,
-        supplier: part.supplier,
-        cost: part.cost,
-        lastUpdated: part.last_updated,
-        // Databricks integration fields
-        nsn: part.nsn,
-        width: part.width,
-        height: part.height,
-        weight: part.weight,
-        productionTime: part.production_time,
-        sensors: part.sensors ? JSON.parse(part.sensors) : null,
-        stockLocationId: part.stock_location_id,
-        latitude: part.latitude,
-        longitude: part.longitude
-      })),
-      total,
-      page,
-      pageSize: limit,
-      hasNext: (page * limit) < total,
-      hasPrevious: page > 1
-    });
-  } catch (error) {
-    console.error('Error fetching parts:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/parts/:part_id', (req, res) => {
-  try {
-    const part = db.prepare('SELECT * FROM parts WHERE id = ?').get(req.params.part_id);
-    
-    if (!part) {
-      return res.status(404).json({ message: 'Part not found' });
-    }
-
-    res.json({
-      id: part.id,
-      name: part.name,
-      system: part.system,
-      category: part.category,
-      stockLevel: part.stock_level,
-      minStock: part.min_stock,
-      maxStock: part.max_stock,
-      location: part.location,
-      condition: part.condition,
-      leadTime: part.lead_time,
-      supplier: part.supplier,
-      cost: part.cost,
-      lastUpdated: part.last_updated,
-      // Databricks integration fields
-      nsn: part.nsn,
-      width: part.width,
-      height: part.height,
-      weight: part.weight,
-      productionTime: part.production_time,
-      sensors: part.sensors ? JSON.parse(part.sensors) : null,
-      stockLocationId: part.stock_location_id,
-      latitude: part.latitude,
-      longitude: part.longitude
-    });
-  } catch (error) {
-    console.error('Error fetching part:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/parts', (req, res) => {
-  try {
-    const data = req.body;
-    
-    const stmt = db.prepare(`
-      INSERT INTO parts (id, name, system, category, stock_level, min_stock, max_stock, location, condition, lead_time, supplier, cost)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    stmt.run(
-      data.id,
-      data.name,
-      data.system,
-      data.category,
-      data.stockLevel,
-      data.minStock,
-      data.maxStock,
-      data.location,
-      data.condition,
-      data.leadTime,
-      data.supplier,
-      data.cost
-    );
-
-    const part = db.prepare('SELECT * FROM parts WHERE id = ?').get(data.id);
-    
-    res.status(201).json({
-      id: part.id,
-      name: part.name,
-      system: part.system,
-      category: part.category,
-      stockLevel: part.stock_level,
-      minStock: part.min_stock,
-      maxStock: part.max_stock,
-      location: part.location,
-      condition: part.condition,
-      leadTime: part.lead_time,
-      supplier: part.supplier,
-      cost: part.cost,
-      lastUpdated: part.last_updated
-    });
-  } catch (error) {
-    console.error('Error creating part:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.patch('/api/parts/:part_id', (req, res) => {
-  try {
-    const data = req.body;
-    const partId = req.params.part_id;
-    
-    // Build dynamic update query
-    const updates = [];
-    const params = [];
-    
-    Object.keys(data).forEach(key => {
-      if (key === 'stockLevel') {
-        updates.push('stock_level = ?');
-        params.push(data[key]);
-      } else if (key === 'minStock') {
-        updates.push('min_stock = ?');
-        params.push(data[key]);
-      } else if (key === 'maxStock') {
-        updates.push('max_stock = ?');
-        params.push(data[key]);
-      } else if (key === 'leadTime') {
-        updates.push('lead_time = ?');
-        params.push(data[key]);
-      } else if (key === 'lastUpdated') {
-        updates.push('last_updated = CURRENT_TIMESTAMP');
-      } else if (key !== 'id' && key !== 'lastUpdated') {
-        updates.push(`${key} = ?`);
-        params.push(data[key]);
-      }
-    });
-    
-    if (updates.length === 0) {
-      return res.status(400).json({ error: 'No valid fields to update' });
-    }
-    
-    params.push(partId);
-    const query = `UPDATE parts SET ${updates.join(', ')} WHERE id = ?`;
-    
-    const result = db.prepare(query).run(...params);
-    
-    if (result.changes === 0) {
-      return res.status(404).json({ message: 'Part not found' });
-    }
-    
-    const part = db.prepare('SELECT * FROM parts WHERE id = ?').get(partId);
-    
-    res.json({
-      id: part.id,
-      name: part.name,
-      system: part.system,
-      category: part.category,
-      stockLevel: part.stock_level,
-      minStock: part.min_stock,
-      maxStock: part.max_stock,
-      location: part.location,
-      condition: part.condition,
-      leadTime: part.lead_time,
-      supplier: part.supplier,
-      cost: part.cost,
-      lastUpdated: part.last_updated
-    });
-  } catch (error) {
-    console.error('Error updating part:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.delete('/api/parts/:part_id', (req, res) => {
-  try {
-    const result = db.prepare('DELETE FROM parts WHERE id = ?').run(req.params.part_id);
-    
-    if (result.changes === 0) {
-      return res.status(404).json({ message: 'Part not found' });
-    }
-    
-    res.json({ message: 'Part deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting part:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.patch('/api/parts/:part_id/stock', (req, res) => {
-  try {
-    const { quantity, operation } = req.body;
-    const partId = req.params.part_id;
-    
-    const part = db.prepare('SELECT * FROM parts WHERE id = ?').get(partId);
-    
-    if (!part) {
-      return res.status(404).json({ message: 'Part not found' });
-    }
-    
-    let newStockLevel = part.stock_level;
-    
-    if (operation === 'add') {
-      newStockLevel += quantity;
-    } else if (operation === 'subtract') {
-      newStockLevel = Math.max(0, newStockLevel - quantity);
-    }
-    
-    const result = db.prepare('UPDATE parts SET stock_level = ?, last_updated = CURRENT_TIMESTAMP WHERE id = ?').run(newStockLevel, partId);
-    
-    const updatedPart = db.prepare('SELECT * FROM parts WHERE id = ?').get(partId);
-    
-    res.json({
-      id: updatedPart.id,
-      name: updatedPart.name,
-      system: updatedPart.system,
-      category: updatedPart.category,
-      stockLevel: updatedPart.stock_level,
-      minStock: updatedPart.min_stock,
-      maxStock: updatedPart.max_stock,
-      location: updatedPart.location,
-      condition: updatedPart.condition,
-      leadTime: updatedPart.lead_time,
-      supplier: updatedPart.supplier,
-      cost: updatedPart.cost,
-      lastUpdated: updatedPart.last_updated
-    });
-  } catch (error) {
-    console.error('Error updating stock:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Databricks Parts Import/Sync endpoint
-app.post('/api/parts/import/databricks', (req, res) => {
-  try {
-    const { parts, mode = 'upsert' } = req.body; // mode: 'upsert' | 'insert' | 'update'
-    
-    if (!Array.isArray(parts)) {
-      return res.status(400).json({ error: 'Parts must be an array' });
-    }
-
-    const results = {
-      success: 0,
-      failed: 0,
-      updated: 0,
-      inserted: 0,
-      errors: []
-    };
-
-    // Helper function to map part category from Databricks type
-    const mapCategory = (type) => {
-      const typeMap = {
-        'Valve': 'Fuel System',
-        'Filter': 'Consumables',
-        'Vane': 'Hot Section',
-        'Pump': 'Hydraulics',
-        'Fuel Nozzle': 'Fuel System',
-        'Seal': 'Hot Section',
-        'Blade': 'Rotating Parts',
-        'controller card': 'Electronics'
-      };
-
-      for (const [key, value] of Object.entries(typeMap)) {
-        if (type.includes(key)) {
-          return value;
-        }
-      }
-      return 'Consumables'; // Default
-    };
-
-    // Helper function to determine part condition based on stock and production time
-    const mapCondition = (stockAvailable, productionTime) => {
-      if (productionTime === 0) return 'Condemned';
-      if (stockAvailable === 0) return 'Used';
-      if (stockAvailable > 7) return 'New';
-      return 'Refurbished';
-    };
-
-    const upsertStmt = db.prepare(`
-      INSERT INTO parts (
-        id, name, system, category, stock_level, min_stock, max_stock, 
-        location, condition, lead_time, supplier, cost,
-        nsn, width, height, weight, production_time, sensors, 
-        stock_location_id, latitude, longitude
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        name = excluded.name,
-        stock_level = excluded.stock_level,
-        location = excluded.location,
-        width = excluded.width,
-        height = excluded.height,
-        weight = excluded.weight,
-        production_time = excluded.production_time,
-        sensors = excluded.sensors,
-        stock_location_id = excluded.stock_location_id,
-        latitude = excluded.latitude,
-        longitude = excluded.longitude,
-        last_updated = CURRENT_TIMESTAMP
-    `);
-
-    for (const part of parts) {
-      try {
-        const category = mapCategory(part.type || '');
-        const condition = mapCondition(part.stock_available || 0, part.production_time || 0);
-        const leadTime = `${part.production_time || 0} days`;
-        
-        // Generate a unique ID from NSN and location if id not provided
-        const partId = part.id || `${part.NSN}-${part.stock_location_id}`;
-        
-        // Parse sensors array if it's a string
-        let sensorsJson = part.sensors;
-        if (typeof sensorsJson === 'string') {
-          sensorsJson = JSON.stringify(JSON.parse(sensorsJson));
-        } else if (Array.isArray(sensorsJson)) {
-          sensorsJson = JSON.stringify(sensorsJson);
-        }
-
-        // Determine min and max stock based on available stock
-        const stockLevel = part.stock_available || 0;
-        const minStock = Math.max(1, Math.floor(stockLevel * 0.3));
-        const maxStock = Math.ceil(stockLevel * 2);
-
-        // Default supplier based on location
-        const supplier = part.location || 'Navy Supply';
-        
-        // Estimate cost based on weight (rough estimation)
-        const cost = Math.max(100, (part.weight || 1000) * 2);
-
-        if (mode === 'upsert' || mode === 'insert') {
-          // Check if part exists BEFORE upsert to track insert vs update correctly
-          let wasExisting = false;
-          if (mode === 'upsert') {
-            const existing = db.prepare('SELECT id FROM parts WHERE id = ?').get(partId);
-            wasExisting = !!existing;
-          }
-          
-          upsertStmt.run(
-            partId,
-            part.type,
-            'LM2500', // Default system
-            category,
-            stockLevel,
-            minStock,
-            maxStock,
-            part.stock_location,
-            condition,
-            leadTime,
-            supplier,
-            cost,
-            part.NSN,
-            part.width,
-            part.height,
-            part.weight,
-            part.production_time,
-            sensorsJson,
-            part.stock_location_id,
-            part.lat,
-            part.long
-          );
-          
-          results.success++;
-          if (mode === 'upsert') {
-            if (wasExisting) results.updated++;
-            else results.inserted++;
-          } else {
-            results.inserted++;
-          }
-        }
-      } catch (error) {
-        results.failed++;
-        results.errors.push({
-          part: part.NSN || part.id,
-          error: error.message
-        });
-      }
-    }
-
-    res.json({
-      message: `Import completed: ${results.success} successful, ${results.failed} failed`,
-      results
-    });
-  } catch (error) {
-    console.error('Error importing parts:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
-  }
-});
-
-// Notifications routes
-app.post('/api/notifications', (req, res) => {
-  try {
-    const data = req.body;
-    
-    const stmt = db.prepare(`
-      INSERT INTO notifications (id, type, title, message, priority, category, work_order_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    stmt.run(
-      notificationId,
-      data.type,
-      data.title,
-      data.message,
-      data.priority,
-      data.category,
-      data.workOrderId || null
-    );
-
-    const notification = db.prepare('SELECT * FROM notifications WHERE id = ?').get(notificationId);
-    
-    const notificationData = {
-      id: notification.id,
-      type: notification.type,
-      title: notification.title,
-      message: notification.message,
-      timestamp: notification.timestamp,
-      priority: notification.priority,
-      category: notification.category,
-      read: Boolean(notification.read),
-      workOrderId: notification.work_order_id
-    };
-    
-    // Broadcast to all connected clients
-    broadcastNotification(notificationData);
-    
-    res.status(201).json(notificationData);
-  } catch (error) {
-    console.error('Error creating notification:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/notifications', (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const category = req.query.category;
-    const priority = req.query.priority;
-    const read = req.query.read;
-
-    let whereClause = '';
-    const params = [];
-
-    if (category) {
-      whereClause += ' WHERE category = ?';
-      params.push(category);
-    }
-
-    if (priority) {
-      whereClause += whereClause ? ' AND priority = ?' : ' WHERE priority = ?';
-      params.push(priority);
-    }
-
-    if (read !== undefined) {
-      whereClause += whereClause ? ' AND read = ?' : ' WHERE read = ?';
-      params.push(read.toLowerCase() === 'true' ? 1 : 0);
-    }
-
-    // Get total count
-    const countQuery = `SELECT COUNT(*) as total FROM notifications${whereClause}`;
-    const total = db.prepare(countQuery).get(...params).total;
-
-    // Get paginated results
-    const offset = (page - 1) * limit;
-    const query = `SELECT * FROM notifications${whereClause} ORDER BY timestamp DESC LIMIT ? OFFSET ?`;
-    const notifications = db.prepare(query).all(...params, limit, offset);
-
-    res.json({
-      items: notifications.map(notif => ({
-        id: notif.id,
-        type: notif.type,
-        title: notif.title,
-        message: notif.message,
-        timestamp: notif.timestamp,
-        priority: notif.priority,
-        category: notif.category,
-        read: Boolean(notif.read),
-        workOrderId: notif.work_order_id
-      })),
-      total,
-      page,
-      pageSize: limit,
-      hasNext: (page * limit) < total,
-      hasPrevious: page > 1
-    });
-  } catch (error) {
-    console.error('Error fetching notifications:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.patch('/api/notifications/:notif_id/read', (req, res) => {
-  try {
-    const result = db.prepare('UPDATE notifications SET read = 1 WHERE id = ?').run(req.params.notif_id);
-    
-    if (result.changes === 0) {
-      return res.status(404).json({ message: 'Notification not found' });
-    }
-    
-    const notification = db.prepare('SELECT * FROM notifications WHERE id = ?').get(req.params.notif_id);
-    
-    // Broadcast to all connected clients
-    io.to('notifications').emit('notification:read', { notificationId: req.params.notif_id });
-    
-    res.json({
-      id: notification.id,
-      type: notification.type,
-      title: notification.title,
-      message: notification.message,
-      timestamp: notification.timestamp,
-      priority: notification.priority,
-      category: notification.category,
-      read: Boolean(notification.read),
-      workOrderId: notification.work_order_id
-    });
-  } catch (error) {
-    console.error('Error marking notification as read:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.patch('/api/notifications/read-all', (req, res) => {
-  try {
-    db.prepare('UPDATE notifications SET read = 1').run();
-    
-    // Broadcast to all connected clients
-    io.to('notifications').emit('notifications:all-read');
-    
-    res.json({ message: 'All notifications marked as read' });
-  } catch (error) {
-    console.error('Error marking all notifications as read:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.delete('/api/notifications/:notif_id', (req, res) => {
-  try {
-    const result = db.prepare('DELETE FROM notifications WHERE id = ?').run(req.params.notif_id);
-    
-    if (result.changes === 0) {
-      return res.status(404).json({ message: 'Notification not found' });
-    }
-    
-    // Broadcast to all connected clients
-    io.to('notifications').emit('notification:dismissed', { notificationId: req.params.notif_id });
-    
-    res.json({ message: 'Notification deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting notification:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.delete('/api/notifications', (req, res) => {
-  try {
-    const result = db.prepare('DELETE FROM notifications').run();
-    
-    // Broadcast to all connected clients
-    io.to('notifications').emit('notifications:all-cleared');
-    
-    res.json({ message: 'All notifications cleared successfully', deletedCount: result.changes });
-  } catch (error) {
-    console.error('Error clearing all notifications:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Analytics routes
-app.get('/api/analytics/maintenance-kpis', (req, res) => {
-  try {
-    // Mock data for now - can be replaced with actual calculations
-    res.json({
-      gtesNeedingMaintenance: 12,
-      gtesOperational: 45,
-      casrepGtes: 3,
-      trends: {
-        maintenance: 'up',
-        readiness: 'stable',
-        efficiency: 'down'
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching maintenance KPIs:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/analytics/performance', (req, res) => {
-  try {
-    // Mock data for now
-    res.json({
-      efficiency: 87.5,
-      downtime: 2.3,
-      readiness: 94.2,
-      maintenance: 78.9
-    });
-  } catch (error) {
-    console.error('Error fetching performance metrics:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/analytics/fleet-readiness', (req, res) => {
-  try {
-    // Mock data for now
-    res.json({
-      overallReadiness: 92.5,
-      byHomeport: {
-        'NB Norfolk': 94.2,
-        'San Diego': 91.8,
-        'Pearl Harbor': 89.5
-      },
-      byShipClass: {
-        'DDG': 93.1,
-        'CG': 91.7,
-        'FFG': 88.9
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching fleet readiness:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/analytics/predictive-insights', (req, res) => {
-  try {
-    // Mock data for now
-    res.json({
-      predictedFailures: [
-        {
-          ship: 'USS Bainbridge (DDG-96)',
-          gte: 'LM2500',
-          probability: 0.75,
-          estimatedDays: 14
-        }
-      ],
-      maintenanceRecommendations: [
-        {
-          ship: 'USS Arleigh Burke (DDG-51)',
-          gte: 'LM2500',
-          recommendation: 'Schedule preventive maintenance for hot section',
-          priority: 'high'
-        }
-      ]
-    });
-  } catch (error) {
-    console.error('Error fetching predictive insights:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Enhanced health check with Databricks status
-app.get('/api/health', async (req, res) => {
-  try {
-    const healthStatus = {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      services: {
-        api: 'healthy',
-        database: 'healthy'
-      }
-    };
-
-    // Check Databricks health if available
-    try {
-      const databricksHealth = await databricksHealthCheck();
-      healthStatus.services.databricks = databricksHealth.status;
-      healthStatus.databricks = databricksHealth;
-      
-      // Update overall status if Databricks is unhealthy
-      if (databricksHealth.status === 'unhealthy') {
-        healthStatus.status = 'degraded';
-      }
-    } catch (databricksError) {
-      console.warn('Databricks health check failed:', databricksError.message);
-      healthStatus.services.databricks = 'unavailable';
-      healthStatus.databricks = {
-        status: 'unavailable',
-        error: databricksError.message
-      };
-    }
-
-    const httpStatus = healthStatus.status === 'healthy' ? 200 : 503;
-    res.status(httpStatus).json(healthStatus);
-  } catch (error) {
-    console.error('Error in health check:', error);
-    res.status(500).json({ 
-      status: 'unhealthy',
-      timestamp: new Date().toISOString(),
-      error: 'Internal server error' 
-    });
-  }
-});
-
-// Enhanced Databricks SQL API routes with better error handling
 app.get('/api/databricks/health', async (req, res) => {
-  try {
-    const healthStatus = await databricksHealthCheck();
-    
-    // Set appropriate HTTP status based on health
-    const httpStatus = healthStatus.status === 'healthy' ? 200 : 503;
-    res.status(httpStatus).json(healthStatus);
-  } catch (error) {
-    console.error('Error in Databricks health check:', error);
-    
-    const errorResponse = {
-      status: 'unhealthy',
-      timestamp: new Date().toISOString(),
-      error: 'Internal server error',
-      diagnostics: {
-        connectionStatus: 'unknown',
-        lastHealthCheck: null,
-        error: error.message || 'Unknown error'
-      },
-      recommendations: ['Check server logs for detailed error information.']
-    };
-    
-    res.status(500).json(errorResponse);
-  }
+  res.status(503).json({
+    status: 'unavailable',
+    timestamp: new Date().toISOString(),
+    message: 'Databricks integration requires production deployment',
+    diagnostics: {
+      mode: 'development',
+      note: 'TypeScript compilation required for Databricks integration'
+    }
+  });
 });
 
 app.get('/api/databricks/test', async (req, res) => {
-  try {
-    const testResult = await testDatabricksConnection();
-    
-    // Set appropriate HTTP status based on test result
-    const httpStatus = testResult.success ? 200 : 503;
-    res.status(httpStatus).json(testResult);
-  } catch (error) {
-    console.error('Error testing Databricks connection:', error);
-    
-    const errorResponse = {
-      success: false,
-      message: `Test failed: ${error.message}`,
-      diagnostics: {
-        connectionStatus: 'unknown',
-        lastHealthCheck: null,
-        error: error.message || 'Unknown error'
-      },
-      recommendations: ['Check server logs for detailed error information.']
-    };
-    
-    res.status(500).json(errorResponse);
-  }
+  databricksUnavailable(res, 'test');
 });
 
 app.post('/api/databricks/query', async (req, res) => {
-  try {
-    const { query, options = {} } = req.body;
-    
-    if (!query) {
-      return res.status(400).json({ 
-        success: false,
-        error: 'Query is required',
-        recommendations: ['Please provide a valid SQL query in the request body.']
-      });
-    }
-
-    const startTime = Date.now();
-    const result = await executeDatabricksQuery(query, options);
-    const duration = Date.now() - startTime;
-    
-    res.json({
-      success: true,
-      data: result,
-      rowCount: result.length,
-      diagnostics: {
-        executionTime: duration,
-        queryLength: query.length,
-        timestamp: new Date().toISOString()
-      }
-    });
-  } catch (error) {
-    console.error('Error executing Databricks query:', error);
-    
-    const errorMessage = error.message || 'Unknown error';
-    let recommendations = ['Check server logs for detailed error information.'];
-    
-    // Provide specific recommendations based on error type
-    if (errorMessage.includes('timeout')) {
-      recommendations = ['Query timeout. Try optimizing your query or check Databricks warehouse status.'];
-    } else if (errorMessage.includes('permission') || errorMessage.includes('access')) {
-      recommendations = ['Permission denied. Check that the service principal or user has access to the requested tables.'];
-    } else if (errorMessage.includes('syntax')) {
-      recommendations = ['SQL syntax error. Please check your query syntax and try again.'];
-    } else if (errorMessage.includes('table') || errorMessage.includes('database')) {
-      recommendations = ['Table or database not found. Verify the table names and database exists.'];
-    }
-    
-    res.status(500).json({ 
-      success: false, 
-      error: `Query execution failed: ${errorMessage}`,
-      diagnostics: {
-        queryLength: req.body.query?.length || 0,
-        timestamp: new Date().toISOString(),
-        error: errorMessage
-      },
-      recommendations
-    });
-  }
+  databricksUnavailable(res, 'custom query');
 });
 
-app.get('/api/databricks/warehouses', async (req, res) => {
-  try {
-    const warehouses = await getWarehouseInfo();
-    res.json({
-      success: true,
-      data: warehouses
-    });
-  } catch (error) {
-    console.error('Error fetching warehouse info:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: `Failed to fetch warehouse info: ${error.message}` 
-    });
-  }
-});
-
-app.get('/api/databricks/databases', async (req, res) => {
-  try {
-    const databases = await getDatabaseInfo();
-    res.json({
-      success: true,
-      data: databases
-    });
-  } catch (error) {
-    console.error('Error fetching database info:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: `Failed to fetch database info: ${error.message}` 
-    });
-  }
-});
-
-app.get('/api/databricks/databases/:databaseName/tables', async (req, res) => {
-  try {
-    const { databaseName } = req.params;
-    const tables = await getTableInfo(databaseName);
-    res.json({
-      success: true,
-      data: tables,
-      database: databaseName
-    });
-  } catch (error) {
-    console.error('Error fetching table info:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: `Failed to fetch table info: ${error.message}` 
-    });
-  }
-});
-
-// Enhanced Databricks Parts API with better error handling
-app.get('/api/databricks/parts', async (req, res) => {
-  try {
-    const { page = 1, limit = 50, category, condition, search } = req.query;
-    
-    // Helper function to map part category from Databricks type
-    const mapCategory = (type) => {
-      const typeMap = {
-        'Valve': 'Fuel System',
-        'Filter': 'Consumables',
-        'Vane': 'Hot Section',
-        'Pump': 'Hydraulics',
-        'Fuel Nozzle': 'Fuel System',
-        'Seal': 'Hot Section',
-        'Blade': 'Rotating Parts',
-        'controller card': 'Electronics'
-      };
-
-      for (const [key, value] of Object.entries(typeMap)) {
-        if (type && type.includes(key)) {
-          return value;
-        }
-      }
-      return 'Consumables'; // Default
-    };
-
-    // Helper function to determine part condition
-    const mapCondition = (stockAvailable, productionTime) => {
-      if (productionTime === 0) return 'Condemned';
-      if (stockAvailable === 0) return 'Used';
-      if (stockAvailable > 7) return 'New';
-      return 'Refurbished';
-    };
-    
-    // Build query with optional filters for parts_silver table
-    // Note: Properly escape search terms to prevent SQL injection
-    const escapeSQL = (str) => str.replace(/'/g, "''");
-    
-    let query = "SELECT * FROM public_sector.predictive_maintenance_navy_test.parts_silver";
-    const conditions = [];
-    
-    if (search) {
-      const escapedSearch = escapeSQL(search);
-      conditions.push(`(type LIKE '%${escapedSearch}%' OR NSN LIKE '%${escapedSearch}%' OR stock_location LIKE '%${escapedSearch}%')`);
-    }
-    
-    if (conditions.length > 0) {
-      query += " WHERE " + conditions.join(" AND ");
-    }
-    
-    // Add pagination
-    const offset = (page - 1) * limit;
-    query += ` LIMIT ${limit} OFFSET ${offset}`;
-    
-    const startTime = Date.now();
-    const result = await executeDatabricksQuery(query, {});
-    const duration = Date.now() - startTime;
-    
-    // Transform parts_silver schema to application schema
-    const transformedResult = result.map(part => {
-      const category = mapCategory(part.type);
-      const partCondition = mapCondition(part.stock_available || 0, part.production_time || 0);
-      const stockLevel = part.stock_available || 0;
-      const minStock = Math.max(1, Math.floor(stockLevel * 0.3));
-      const maxStock = Math.ceil(stockLevel * 2);
-      
-      // Parse sensors array
-      let sensors = null;
-      try {
-        if (typeof part.sensors === 'string') {
-          sensors = JSON.parse(part.sensors);
-        } else if (Array.isArray(part.sensors)) {
-          sensors = part.sensors;
-        }
-      } catch (e) {
-        sensors = null;
-      }
-
-      return {
-        id: `${part.NSN}-${part.stock_location_id}`,
-        name: part.type,
-        system: 'LM2500',
-        category: category,
-        stockLevel: stockLevel,
-        minStock: minStock,
-        maxStock: maxStock,
-        location: part.stock_location,
-        condition: partCondition,
-        leadTime: `${part.production_time || 0} days`,
-        supplier: part.stock_location,
-        cost: Math.max(100, (part.weight || 1000) * 2),
-        lastUpdated: new Date().toISOString(),
-        // Databricks-specific fields
-        nsn: part.NSN,
-        width: part.width,
-        height: part.height,
-        weight: part.weight,
-        productionTime: part.production_time,
-        sensors: sensors,
-        stockLocationId: part.stock_location_id,
-        latitude: part.lat,
-        longitude: part.long
-      };
-    });
-    
-    // Get total count for pagination
-    let countQuery = "SELECT COUNT(*) as total FROM public_sector.predictive_maintenance_navy_test.parts_silver";
-    if (conditions.length > 0) {
-      countQuery += " WHERE " + conditions.join(" AND ");
-    }
-    
-    const countResult = await executeDatabricksQuery(countQuery, {});
-    const total = countResult[0]?.total || 0;
-    
-    res.json({
-      items: transformedResult,
-      total,
-      page: parseInt(page),
-      pageSize: parseInt(limit),
-      hasNext: (page * limit) < total,
-      hasPrevious: page > 1,
-      diagnostics: {
-        executionTime: duration,
-        queryLength: query.length,
-        timestamp: new Date().toISOString(),
-        source: 'databricks'
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching parts from Databricks:', error);
-    
-    // Fallback to local database if Databricks is not available
-    try {
-      console.log('Falling back to local database for parts data');
-      const db = new Database(join(__dirname, 'backend', 'instance', 'navy_pdm.db'));
-      
-      let localQuery = "SELECT * FROM parts";
-      const conditions = [];
-      const params = [];
-      
-      if (req.query.category) {
-        conditions.push('category = ?');
-        params.push(req.query.category);
-      }
-      
-      if (req.query.condition) {
-        conditions.push('condition = ?');
-        params.push(req.query.condition);
-      }
-      
-      if (req.query.search) {
-        conditions.push('(name LIKE ? OR id LIKE ? OR supplier LIKE ? OR location LIKE ?)');
-        const searchParam = `%${req.query.search}%`;
-        params.push(searchParam, searchParam, searchParam, searchParam);
-      }
-      
-      if (conditions.length > 0) {
-        localQuery += " WHERE " + conditions.join(" AND ");
-      }
-      
-      localQuery += " ORDER BY last_updated DESC";
-      
-      const localResult = db.prepare(localQuery).all(...params);
-      db.close();
-      
-      // Transform snake_case to camelCase for frontend compatibility
-      const transformedResult = localResult.map(part => ({
-        id: part.id,
-        name: part.name,
-        system: part.system,
-        category: part.category,
-        stockLevel: part.stock_level,
-        minStock: part.min_stock,
-        maxStock: part.max_stock,
-        location: part.location,
-        condition: part.condition,
-        leadTime: part.lead_time,
-        supplier: part.supplier,
-        cost: part.cost,
-        lastUpdated: part.last_updated
-      }));
-      
-      res.json({
-        items: transformedResult,
-        total: transformedResult.length,
-        page: parseInt(req.query.page || 1),
-        pageSize: parseInt(req.query.limit || 50),
-        hasNext: false,
-        hasPrevious: false,
-        fallback: true,
-        diagnostics: {
-          executionTime: 0,
-          queryLength: localQuery.length,
-          timestamp: new Date().toISOString(),
-          source: 'local_database',
-          fallbackReason: error.message || 'Databricks connection failed'
-        }
-      });
-    } catch (fallbackError) {
-      console.error('Local database fallback also failed:', fallbackError);
-      
-      const errorMessage = error.message || 'Unknown error';
-      let recommendations = ['Check server logs for detailed error information.'];
-      
-      if (errorMessage.includes('timeout')) {
-        recommendations = ['Databricks connection timeout. Check network connectivity and warehouse status.'];
-      } else if (errorMessage.includes('permission') || errorMessage.includes('access')) {
-        recommendations = ['Permission denied. Check service principal access to Databricks tables.'];
-      } else if (errorMessage.includes('table') || errorMessage.includes('database')) {
-        recommendations = ['Table not found. Verify the parts table exists in Databricks.'];
-      }
-      
-      res.status(500).json({ 
-        success: false, 
-        error: `Failed to fetch parts from both Databricks and local database: ${errorMessage}`,
-        diagnostics: {
-          databricksError: errorMessage,
-          fallbackError: fallbackError.message || 'Local database also failed',
-          timestamp: new Date().toISOString()
-        },
-        recommendations
-      });
-    }
-  }
-});
-
-// Get AI Work Orders from Databricks
 app.get('/api/databricks/ai-work-orders', async (req, res) => {
-  try {
-    const { limit = 50, offset = 0, priority, homeLocation } = req.query;
-    
-    // Force service principal authentication (not user token)
-    // This ensures consistent permissions using the service principal identity
-    // instead of individual user permissions
-    
-    // Build query with optional filters
-    let query = "SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders";
-    const conditions = [];
-    
-    if (priority) {
-      conditions.push(`priority = '${priority}'`);
-    }
-    
-    if (homeLocation) {
-      conditions.push(`home_location = '${homeLocation}'`);
-    }
-    
-    if (conditions.length > 0) {
-      query += " WHERE " + conditions.join(" AND ");
-    }
-    
-    // Add ordering and pagination
-    query += ` ORDER BY hourly_timestamp DESC LIMIT ${limit} OFFSET ${offset}`;
-    
-    const startTime = Date.now();
-    const result = await executeDatabricksQuery(query, {}, null);
-    const duration = Date.now() - startTime;
-    
-    // Get total count for pagination
-    let countQuery = "SELECT COUNT(*) as total FROM public_sector.predictive_maintenance_navy_test.ai_work_orders";
-    if (conditions.length > 0) {
-      countQuery += " WHERE " + conditions.join(" AND ");
-    }
-    
-    const countResult = await executeDatabricksQuery(countQuery, {}, null);
-    const total = countResult[0]?.total || 0;
-    
-    res.json({
-      success: true,
-      data: result,
-      total,
-      diagnostics: {
-        executionTime: duration,
-        queryLength: query.length,
-        timestamp: new Date().toISOString(),
-        source: 'databricks',
-        rowsReturned: result.length
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching AI work orders from Databricks:', error);
-    
-    const errorMessage = error.message || 'Unknown error';
-    let recommendations = ['Check server logs for detailed error information.'];
-    
-    if (errorMessage.includes('timeout')) {
-      recommendations = ['Databricks connection timeout. Check network connectivity and warehouse status.'];
-    } else if (errorMessage.includes('permission') || errorMessage.includes('access')) {
-      recommendations = ['Permission denied. Check service principal access to Databricks tables.'];
-    } else if (errorMessage.includes('table') || errorMessage.includes('database')) {
-      recommendations = ['Table not found. Verify the ai_work_orders table exists in Databricks.'];
-    }
-    
-    res.status(500).json({ 
-      success: false, 
-      error: `Failed to fetch AI work orders from Databricks: ${errorMessage}`,
-      diagnostics: {
-        error: errorMessage,
-        timestamp: new Date().toISOString()
-      },
-      recommendations
-    });
-  }
+  databricksUnavailable(res, 'AI work orders');
 });
 
-// Get single AI Work Order by ID from Databricks
 app.get('/api/databricks/ai-work-orders/:workOrderId', async (req, res) => {
-  try {
-    const { workOrderId } = req.params;
-    
-    // Force service principal authentication (not user token)
-    // This ensures consistent permissions using the service principal identity
-    
-    const query = `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders WHERE work_order = '${workOrderId}'`;
-    
-    const startTime = Date.now();
-    const result = await executeDatabricksQuery(query, {}, null);
-    const duration = Date.now() - startTime;
-    
-    if (result.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: `AI work order ${workOrderId} not found`
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: result[0],
-      diagnostics: {
-        executionTime: duration,
-        queryLength: query.length,
-        timestamp: new Date().toISOString(),
-        source: 'databricks'
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching AI work order by ID from Databricks:', error);
-    
-    const errorMessage = error.message || 'Unknown error';
-    let recommendations = ['Check server logs for detailed error information.'];
-    
-    if (errorMessage.includes('timeout')) {
-      recommendations = ['Databricks connection timeout. Check network connectivity and warehouse status.'];
-    } else if (errorMessage.includes('permission') || errorMessage.includes('access')) {
-      recommendations = ['Permission denied. Check service principal access to Databricks tables.'];
-    } else if (errorMessage.includes('table') || errorMessage.includes('database')) {
-      recommendations = ['Table not found. Verify the ai_work_orders table exists in Databricks.'];
-    }
-    
-    res.status(500).json({ 
-      success: false, 
-      error: `Failed to fetch AI work order from Databricks: ${errorMessage}`,
-      diagnostics: {
-        error: errorMessage,
-        timestamp: new Date().toISOString()
-      },
-      recommendations
-    });
-  }
+  databricksUnavailable(res, 'AI work order details');
 });
 
-// Get Ship Current Status from Databricks (ship_current_status_gold table)
 app.get('/api/databricks/ship-status', async (req, res) => {
+  databricksUnavailable(res, 'ship status');
+});
+
+app.get('/api/databricks/ship-status/:turbineId', async (req, res) => {
+  databricksUnavailable(res, 'ship status by turbine');
+});
+
+// Get parts requisitions (fallback to SQLite)
+app.get('/api/databricks/parts-requisitions', async (req, res) => {
   try {
-    const { limit = 50, offset = 0, designator, homeLocation, turbineId, operable } = req.query;
-
-    // Build query with optional filters
-    let query = "SELECT * FROM public_sector.predictive_maintenance_navy_test.ship_current_status_gold";
-    const conditions = [];
-
-    if (turbineId) {
-      conditions.push(`turbine_id = '${turbineId}'`);
+    const { limit = 1000, orderNumber, partType, stockLocation } = req.query;
+    
+    let query = 'SELECT * FROM parts_requisitions WHERE 1=1';
+    const params = [];
+    
+    if (orderNumber) {
+      query += ' AND order_number = ?';
+      params.push(orderNumber);
     }
-
-    if (designator) {
-      conditions.push(`designator LIKE '%${designator}%'`);
+    
+    if (partType) {
+      query += ' AND part_type LIKE ?';
+      params.push(`%${partType}%`);
     }
-
-    if (homeLocation) {
-      conditions.push(`home_location LIKE '%${homeLocation}%'`);
+    
+    if (stockLocation) {
+      query += ' AND stock_location LIKE ?';
+      params.push(`%${stockLocation}%`);
     }
-
-    if (operable !== undefined) {
-      const operableValue = operable === 'true' || operable === true;
-      conditions.push(`operable = ${operableValue}`);
-    }
-
-    if (conditions.length > 0) {
-      query += " WHERE " + conditions.join(" AND ");
-    }
-
-    // Add ordering and pagination
-    query += ` ORDER BY hourly_timestamp DESC LIMIT ${limit} OFFSET ${offset}`;
-
-    const startTime = Date.now();
-    const result = await executeDatabricksQuery(query, {}, null);
-    const duration = Date.now() - startTime;
-
-    // Get total count for pagination
-    let countQuery = "SELECT COUNT(*) as total FROM public_sector.predictive_maintenance_navy_test.ship_current_status_gold";
-    if (conditions.length > 0) {
-      countQuery += " WHERE " + conditions.join(" AND ");
-    }
-
-    const countResult = await executeDatabricksQuery(countQuery, {}, null);
-    const total = countResult[0]?.total || 0;
-
+    
+    query += ' ORDER BY created_at DESC LIMIT ?';
+    params.push(parseInt(limit));
+    
+    const stmt = db.prepare(query);
+    const requisitions = stmt.all(...params);
+    
     res.json({
       success: true,
-      data: result,
-      total,
-      limit: parseInt(limit),
-      offset: parseInt(offset),
-      hasNext: (parseInt(offset) + parseInt(limit)) < total,
-      hasPrevious: parseInt(offset) > 0,
-      diagnostics: {
-        query,
-        responseTime: duration,
-        recordCount: result.length,
-        totalRecords: total,
-        timestamp: new Date().toISOString()
-      }
+      data: requisitions,
+      count: requisitions.length,
+      source: 'sqlite'
     });
   } catch (error) {
-    console.error('Error fetching ship status from Databricks:', error);
-
-    const errorMessage = error.message || 'Unknown error';
-    let recommendations = ['Check server logs for detailed error information.'];
-
-    if (errorMessage.includes('timeout')) {
-      recommendations = ['Databricks connection timeout. Check network connectivity and warehouse status.'];
-    } else if (errorMessage.includes('permission') || errorMessage.includes('access')) {
-      recommendations = ['Permission denied. Check service principal access to Databricks tables.'];
-    } else if (errorMessage.includes('table') || errorMessage.includes('database')) {
-      recommendations = ['Table not found. Verify the ship_current_status_gold table exists in Databricks.'];
-    }
-
+    console.error('Error fetching parts requisitions:', error);
     res.status(500).json({
       success: false,
-      error: `Failed to fetch ship status from Databricks: ${errorMessage}`,
-      diagnostics: {
-        error: errorMessage,
-        timestamp: new Date().toISOString()
-      },
-      recommendations
+      error: error.message
     });
   }
 });
 
-// Get Ship Current Status by Turbine ID
-app.get('/api/databricks/ship-status/:turbineId', async (req, res) => {
+app.get('/api/databricks/parts-requisitions/:orderNumber', async (req, res) => {
   try {
-    const { turbineId } = req.params;
-
-    const query = `SELECT * FROM public_sector.predictive_maintenance_navy_test.ship_current_status_gold WHERE turbine_id = '${turbineId}' ORDER BY hourly_timestamp DESC LIMIT 1`;
-
-    const startTime = Date.now();
-    const result = await executeDatabricksQuery(query, {}, null);
-    const duration = Date.now() - startTime;
-
-    if (result.length === 0) {
+    const { orderNumber } = req.params;
+    const stmt = db.prepare('SELECT * FROM parts_requisitions WHERE order_number = ?');
+    const requisitions = stmt.all(orderNumber);
+    
+    if (requisitions.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'Ship status not found',
-        turbineId
+        error: 'No requisitions found for this order number'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: requisitions,
+      source: 'sqlite'
+    });
+  } catch (error) {
+    console.error('Error fetching parts requisition:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/databricks/parts-requisitions/ship/:designatorId', async (req, res) => {
+  try {
+    const { designatorId } = req.params;
+    const stmt = db.prepare('SELECT * FROM parts_requisitions WHERE designator_id = ?');
+    const requisitions = stmt.all(designatorId);
+    
+    res.json({
+      success: true,
+      data: requisitions,
+      count: requisitions.length,
+      source: 'sqlite'
+    });
+  } catch (error) {
+    console.error('Error fetching parts requisitions by ship:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Create a new parts requisition/supply order
+app.post('/api/parts-requisitions', async (req, res) => {
+  try {
+    const {
+      partType,
+      quantityShipped,
+      stockLocationId,
+      stockLocation,
+      designatorId,
+      designator,
+      orderNumber
+    } = req.body;
+
+    // Validate required fields
+    if (!partType || !quantityShipped || !stockLocation || !designator) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: partType, quantityShipped, stockLocation, designator'
       });
     }
 
-    res.json({
+    // Parse ship name and designation from designator string
+    const match = designator.match(/^(.+?)\s*\(([^)]+)\)$/);
+    const shipName = match ? match[1].trim() : designator;
+    const shipDesignation = match ? match[2].trim() : '';
+
+    // Generate ID and order number if not provided
+    const finalOrderNumber = orderNumber || `PR-${Date.now().toString().slice(-6)}`;
+    const id = `${finalOrderNumber}-${designatorId || Date.now()}-${partType}`;
+    const createdAt = new Date().toISOString();
+
+    // Insert into database
+    const stmt = db.prepare(`
+      INSERT INTO parts_requisitions (
+        id, order_number, part_type, quantity_shipped,
+        stock_location_id, stock_location, designator_id, designator,
+        ship_name, ship_designation, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const result = stmt.run(
+      id,
+      finalOrderNumber,
+      partType,
+      quantityShipped,
+      stockLocationId || 'supply_1',
+      stockLocation,
+      designatorId || 'unknown',
+      designator,
+      shipName,
+      shipDesignation,
+      createdAt
+    );
+
+    // Fetch the created requisition
+    const getStmt = db.prepare('SELECT * FROM parts_requisitions WHERE id = ?');
+    const createdRequisition = getStmt.get(id);
+
+    console.log(`Created supply order ${finalOrderNumber} for ${quantityShipped}x ${partType}`);
+
+    res.status(201).json({
       success: true,
-      data: result[0],
-      diagnostics: {
-        query,
-        responseTime: duration,
-        timestamp: new Date().toISOString()
-      }
+      data: createdRequisition,
+      message: `Supply order ${finalOrderNumber} created successfully`,
+      source: 'sqlite'
     });
   } catch (error) {
-    console.error('Error fetching ship status by turbine ID from Databricks:', error);
-
-    const errorMessage = error.message || 'Unknown error';
-    let recommendations = ['Check server logs for detailed error information.'];
-
-    if (errorMessage.includes('timeout')) {
-      recommendations = ['Databricks connection timeout. Check network connectivity and warehouse status.'];
-    } else if (errorMessage.includes('permission') || errorMessage.includes('access')) {
-      recommendations = ['Permission denied. Check service principal access to Databricks tables.'];
-    } else if (errorMessage.includes('table') || errorMessage.includes('database')) {
-      recommendations = ['Table not found. Verify the ship_current_status_gold table exists in Databricks.'];
-    }
-
+    console.error('Error creating parts requisition:', error);
     res.status(500).json({
       success: false,
-      error: `Failed to fetch ship status from Databricks: ${errorMessage}`,
-      diagnostics: {
-        error: errorMessage,
-        timestamp: new Date().toISOString()
-      },
-      recommendations
+      error: error.message
     });
   }
 });
 
-// Serve static files from build/client directory
-app.use(express.static(join(__dirname, 'build/client')));
+app.get('/api/databricks/parts', async (req, res) => {
+  databricksUnavailable(res, 'parts from Databricks');
+});
 
-// Import and use React Router server
-let reactRouterServer;
-try {
-  const { createRequestListener } = await import('@react-router/node');
-  const serverBuild = await import('./build/server/index.js');
-  
-  // Create request handler using React Router v7 API
-  // createRequestListener expects an options object with build property
-  reactRouterServer = createRequestListener({
-    build: serverBuild,
-    mode: process.env.NODE_ENV === 'production' ? 'production' : 'development'
-  });
-  
-  console.log('React Router server initialized with routes:', Object.keys(serverBuild.routes || {}));
-} catch (error) {
-  console.error('Failed to import React Router server:', error);
-  console.error('Error stack:', error.stack);
-  // Fallback for development or if server build fails
-  reactRouterServer = (req, res) => {
-    res.status(500).send(`React Router server not available: ${error.message}`);
-  };
-}
+// ============================================================================
+// LOCAL SQLITE API ROUTES (Working in development)
+// ============================================================================
 
-// Handle all other requests with React Router (except API routes)
-app.all('*', (req, res, next) => {
-  // Skip API routes - they should be handled by Express routes above
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ error: 'API endpoint not found' });
+// Get all work orders from SQLite
+app.get('/api/work-orders', async (req, res) => {
+  try {
+    const { status, priority, search, limit, page } = req.query;
+    
+    // Build query with JOINs to get ship and gte_system details
+    let query = `
+      SELECT 
+        wo.wo,
+        wo.fm,
+        wo.priority,
+        wo.status,
+        wo.eta,
+        wo.symptoms as description,
+        wo.parts_required,
+        wo.creation_source,
+        wo.sensor_data,
+        wo.created_at,
+        wo.updated_at,
+        s.name as ship_name,
+        s.homeport,
+        s.designation as ship_designation,
+        g.model as gte_model
+      FROM work_orders wo
+      LEFT JOIN ships s ON wo.ship_id = s.id
+      LEFT JOIN gte_systems g ON wo.gte_system_id = g.id
+      WHERE 1=1
+    `;
+    const params = [];
+    
+    if (status) {
+      query += ' AND wo.status = ?';
+      params.push(status);
+    }
+    if (priority) {
+      query += ' AND wo.priority = ?';
+      params.push(priority);
+    }
+    if (search) {
+      query += ' AND (wo.wo LIKE ? OR s.name LIKE ? OR wo.symptoms LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    
+    query += ' ORDER BY wo.created_at DESC';
+    
+    // Add pagination if requested
+    if (limit) {
+      const limitNum = parseInt(limit, 10);
+      const pageNum = page ? parseInt(page, 10) : 1;
+      const offset = (pageNum - 1) * limitNum;
+      query += ` LIMIT ${limitNum} OFFSET ${offset}`;
+    }
+    
+    const stmt = db.prepare(query);
+    const rows = stmt.all(...params);
+    
+    // Map to camelCase format expected by frontend
+    const workOrders = rows.map(row => ({
+      wo: row.wo,
+      ship: { name: row.ship_name, homeport: row.homeport },
+      homeport: row.homeport,
+      gteSystem: { model: row.gte_model },
+      fm: row.fm,
+      priority: row.priority,
+      status: row.status,
+      creationSource: row.creation_source,
+      eta: row.eta,
+      partsRequired: row.parts_required,
+      description: row.description,
+      sensorData: row.sensor_data,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+    
+    // Get total count
+    let countQuery = `
+      SELECT COUNT(*) as total 
+      FROM work_orders wo
+      LEFT JOIN ships s ON wo.ship_id = s.id
+      WHERE 1=1
+    `;
+    const countParams = [];
+    
+    if (status) {
+      countQuery += ' AND wo.status = ?';
+      countParams.push(status);
+    }
+    if (priority) {
+      countQuery += ' AND wo.priority = ?';
+      countParams.push(priority);
+    }
+    if (search) {
+      countQuery += ' AND (wo.wo LIKE ? OR s.name LIKE ? OR wo.symptoms LIKE ?)';
+      countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    
+    const countStmt = db.prepare(countQuery);
+    const { total } = countStmt.get(...countParams);
+    
+    res.json({
+      success: true,
+      items: workOrders,
+      total,
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : workOrders.length,
+    });
+  } catch (error) {
+    console.error('Failed to fetch work orders:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch work orders',
+      error: error.message,
+    });
   }
-  // Handle all other routes with React Router
-  reactRouterServer(req, res, next);
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Using integrated Node.js API server with WebSocket support`);
-  console.log(`React Router SSR server loaded`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+// Get work order by ID
+app.get('/api/work-orders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('SELECT * FROM work_orders WHERE wo = ?');
+    const workOrder = stmt.get(id);
+    
+    if (!workOrder) {
+      return res.status(404).json({
+        success: false,
+        message: 'Work order not found',
+      });
+    }
+    
+    res.json(workOrder);
+  } catch (error) {
+    console.error('Failed to fetch work order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch work order',
+      error: error.message,
+    });
+  }
 });
+
+// Create work order
+app.post('/api/work-orders', async (req, res) => {
+  try {
+    const workOrder = req.body;
+    
+    // Parse ship if it's an object
+    const shipValue = typeof workOrder.ship === 'object' ? workOrder.ship.name : workOrder.ship;
+    const homeportValue = typeof workOrder.ship === 'object' ? workOrder.ship.homeport : workOrder.homeport;
+    const gteSystemValue = typeof workOrder.gteSystem === 'object' ? workOrder.gteSystem.model : workOrder.gteSystem;
+    
+    const stmt = db.prepare(`
+      INSERT INTO work_orders (wo, ship, homeport, gteSystem, fm, priority, status, creationSource, eta, partsRequired, description, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const now = new Date().toISOString();
+    stmt.run(
+      workOrder.wo,
+      shipValue,
+      homeportValue,
+      gteSystemValue,
+      workOrder.fm,
+      workOrder.priority,
+      workOrder.status || 'Submitted',
+      workOrder.creationSource || 'manual',
+      workOrder.eta,
+      workOrder.partsRequired,
+      workOrder.description,
+      now,
+      now
+    );
+    
+    res.status(201).json({ ...workOrder, createdAt: now, updatedAt: now });
+  } catch (error) {
+    console.error('Failed to create work order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create work order',
+      error: error.message,
+    });
+  }
+});
+
+// Create AI work order
+app.post('/api/work-orders/ai', async (req, res) => {
+  try {
+    const workOrder = req.body;
+    
+    // Parse ship if it's an object
+    const shipValue = typeof workOrder.ship === 'object' ? workOrder.ship.name : workOrder.ship;
+    const homeportValue = typeof workOrder.ship === 'object' ? workOrder.ship.homeport : workOrder.homeport;
+    const gteSystemValue = typeof workOrder.gteSystem === 'object' ? workOrder.gteSystem.model : workOrder.gteSystem;
+    
+    const stmt = db.prepare(`
+      INSERT INTO work_orders (wo, ship, homeport, gteSystem, fm, priority, status, creationSource, eta, partsRequired, description, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const now = new Date().toISOString();
+    stmt.run(
+      workOrder.wo,
+      shipValue,
+      homeportValue,
+      gteSystemValue,
+      workOrder.fm,
+      workOrder.priority,
+      workOrder.status || 'Pending approval',
+      'ai',
+      workOrder.eta,
+      workOrder.partsRequired,
+      workOrder.description,
+      now,
+      now
+    );
+    
+    res.status(201).json({ ...workOrder, creationSource: 'ai', createdAt: now, updatedAt: now });
+  } catch (error) {
+    console.error('Failed to create AI work order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create AI work order',
+      error: error.message,
+    });
+  }
+});
+
+// Update work order
+app.patch('/api/work-orders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    
+    // Build dynamic UPDATE query
+    const fields = Object.keys(updates)
+      .filter(key => key !== 'wo') // Don't allow updating the ID
+      .map(key => `${key} = ?`)
+      .join(', ');
+    
+    if (!fields) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid fields to update',
+      });
+    }
+    
+    const values = Object.keys(updates)
+      .filter(key => key !== 'wo')
+      .map(key => updates[key]);
+    
+    const stmt = db.prepare(`
+      UPDATE work_orders 
+      SET ${fields}, updatedAt = ?
+      WHERE wo = ?
+    `);
+    
+    const now = new Date().toISOString();
+    const result = stmt.run(...values, now, id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Work order not found',
+      });
+    }
+    
+    // Fetch updated work order
+    const selectStmt = db.prepare('SELECT * FROM work_orders WHERE wo = ?');
+    const workOrder = selectStmt.get(id);
+    
+    res.json(workOrder);
+  } catch (error) {
+    console.error('Failed to update work order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update work order',
+      error: error.message,
+    });
+  }
+});
+
+// Delete work order
+app.delete('/api/work-orders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('DELETE FROM work_orders WHERE wo = ?');
+    const result = stmt.run(id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Work order not found',
+      });
+    }
+    
+    res.status(204).send();
+  } catch (error) {
+    console.error('Failed to delete work order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete work order',
+      error: error.message,
+    });
+  }
+});
+
+// Get all parts from SQLite
+app.get('/api/parts', async (req, res) => {
+  try {
+    const { category, condition, stockStatus, search, page, limit } = req.query;
+    let query = 'SELECT * FROM parts WHERE 1=1';
+    const params = [];
+    
+    if (category) {
+      query += ' AND category = ?';
+      params.push(category);
+    }
+    if (condition) {
+      query += ' AND condition = ?';
+      params.push(condition);
+    }
+    if (search) {
+      query += ' AND (name LIKE ? OR id LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+    
+    query += ' ORDER BY name ASC';
+    
+    // Add pagination if requested
+    if (limit) {
+      const limitNum = parseInt(limit, 10);
+      const pageNum = page ? parseInt(page, 10) : 1;
+      const offset = (pageNum - 1) * limitNum;
+      query += ` LIMIT ${limitNum} OFFSET ${offset}`;
+    }
+    
+    const stmt = db.prepare(query);
+    const parts = stmt.all(...params);
+    
+    // Get total count
+    let countQuery = 'SELECT COUNT(*) as total FROM parts WHERE 1=1';
+    if (category) countQuery += ' AND category = ?';
+    if (condition) countQuery += ' AND condition = ?';
+    if (search) countQuery += ' AND (name LIKE ? OR id LIKE ?)';
+    
+    const countStmt = db.prepare(countQuery);
+    const { total } = countStmt.get(...params);
+    
+    res.json({
+      success: true,
+      items: parts,
+      total,
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : parts.length,
+    });
+  } catch (error) {
+    console.error('Failed to fetch parts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch parts',
+      error: error.message,
+    });
+  }
+});
+
+// Get part by ID
+app.get('/api/parts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('SELECT * FROM parts WHERE id = ?');
+    const part = stmt.get(id);
+    
+    if (!part) {
+      return res.status(404).json({
+        success: false,
+        message: 'Part not found',
+      });
+    }
+    
+    res.json(part);
+  } catch (error) {
+    console.error('Failed to fetch part:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch part',
+      error: error.message,
+    });
+  }
+});
+
+// Create part
+app.post('/api/parts', async (req, res) => {
+  try {
+    const part = req.body;
+    const stmt = db.prepare(`
+      INSERT INTO parts (id, name, category, stockLevel, minStock, maxStock, location, condition, cost, supplier, lastUpdated)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const now = new Date().toISOString();
+    stmt.run(
+      part.id,
+      part.name,
+      part.category,
+      part.stockLevel,
+      part.minStock,
+      part.maxStock,
+      part.location,
+      part.condition,
+      part.cost,
+      part.supplier,
+      now
+    );
+    
+    res.status(201).json({ ...part, lastUpdated: now });
+  } catch (error) {
+    console.error('Failed to create part:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create part',
+      error: error.message,
+    });
+  }
+});
+
+// Update part
+app.patch('/api/parts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    
+    // Build dynamic UPDATE query
+    const fields = Object.keys(updates)
+      .filter(key => key !== 'id') // Don't allow updating the ID
+      .map(key => `${key} = ?`)
+      .join(', ');
+    
+    if (!fields) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid fields to update',
+      });
+    }
+    
+    const values = Object.keys(updates)
+      .filter(key => key !== 'id')
+      .map(key => updates[key]);
+    
+    const stmt = db.prepare(`
+      UPDATE parts 
+      SET ${fields}, lastUpdated = ?
+      WHERE id = ?
+    `);
+    
+    const now = new Date().toISOString();
+    const result = stmt.run(...values, now, id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Part not found',
+      });
+    }
+    
+    // Fetch updated part
+    const selectStmt = db.prepare('SELECT * FROM parts WHERE id = ?');
+    const part = selectStmt.get(id);
+    
+    res.json(part);
+  } catch (error) {
+    console.error('Failed to update part:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update part',
+      error: error.message,
+    });
+  }
+});
+
+// Update part stock
+app.patch('/api/parts/:id/stock', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quantity, operation } = req.body;
+    
+    if (!quantity || !operation) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quantity and operation are required',
+      });
+    }
+    
+    // Get current stock level
+    const selectStmt = db.prepare('SELECT stockLevel FROM parts WHERE id = ?');
+    const part = selectStmt.get(id);
+    
+    if (!part) {
+      return res.status(404).json({
+        success: false,
+        message: 'Part not found',
+      });
+    }
+    
+    // Calculate new stock level
+    const currentStock = part.stockLevel;
+    const newStock = operation === 'add' 
+      ? currentStock + quantity 
+      : currentStock - quantity;
+    
+    // Update stock level
+    const updateStmt = db.prepare(`
+      UPDATE parts 
+      SET stockLevel = ?, lastUpdated = ?
+      WHERE id = ?
+    `);
+    
+    const now = new Date().toISOString();
+    updateStmt.run(newStock, now, id);
+    
+    // Fetch updated part
+    const updatedPart = db.prepare('SELECT * FROM parts WHERE id = ?').get(id);
+    
+    res.json(updatedPart);
+  } catch (error) {
+    console.error('Failed to update part stock:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update part stock',
+      error: error.message,
+    });
+  }
+});
+
+// Delete part
+app.delete('/api/parts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('DELETE FROM parts WHERE id = ?');
+    const result = stmt.run(id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Part not found',
+      });
+    }
+    
+    res.status(204).send();
+  } catch (error) {
+    console.error('Failed to delete part:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete part',
+      error: error.message,
+    });
+  }
+});
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Endpoint not found',
+    path: req.path,
+    availableEndpoints: {
+      workOrders: [
+        'GET /api/work-orders',
+        'GET /api/work-orders/:id',
+        'POST /api/work-orders',
+        'PATCH /api/work-orders/:id',
+        'DELETE /api/work-orders/:id'
+      ],
+      parts: [
+        'GET /api/parts',
+        'GET /api/parts/:id',
+        'POST /api/parts',
+        'PATCH /api/parts/:id',
+        'PATCH /api/parts/:id/stock',
+        'DELETE /api/parts/:id'
+      ],
+      databricks: [
+        'Note: Databricks endpoints available in production only'
+      ]
+    }
+  });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
+  });
+});
+
+// ============================================================================
+// SERVER STARTUP
+// ============================================================================
 
 // Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('Shutting down API server...');
+process.on('SIGTERM', () => {
+  console.log('\nSIGTERM received, closing database connection...');
   db.close();
   process.exit(0);
 });
 
-process.on('SIGTERM', () => {
-  console.log('Shutting down API server...');
+process.on('SIGINT', () => {
+  console.log('\nSIGINT received, closing database connection...');
   db.close();
   process.exit(0);
+});
+
+// ============================================================================
+// KEPLER MAP DATA ROUTES
+// ============================================================================
+
+// Get platforms (ships) with location data
+app.get('/api/map/platforms', async (req, res) => {
+  try {
+    const platforms = db.prepare(`
+      SELECT 
+        s.designation,
+        s.name,
+        s.id,
+        s.status,
+        s.homeport,
+        s.lat,
+        s.long,
+        COUNT(DISTINCT wo.wo) as open_work_orders
+      FROM ships s
+      LEFT JOIN work_orders wo ON s.id = wo.ship_id AND wo.status != 'Completed'
+      WHERE s.lat IS NOT NULL AND s.long IS NOT NULL
+      GROUP BY s.id
+    `).all();
+
+    res.json({
+      success: true,
+      data: platforms,
+      count: platforms.length
+    });
+  } catch (error) {
+    console.error('Error fetching platforms:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch platforms data',
+      error: error.message
+    });
+  }
+});
+
+// Get stock locations with coordinates
+app.get('/api/map/stock-locations', async (req, res) => {
+  try {
+    const stockLocations = db.prepare(`
+      SELECT 
+        stock_location_id,
+        stock_location,
+        latitude as lat,
+        longitude as long,
+        COUNT(DISTINCT id) as parts_count,
+        SUM(stock_level) as total_stock
+      FROM parts
+      WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+      AND stock_location_id IS NOT NULL
+      GROUP BY stock_location_id, stock_location, latitude, longitude
+    `).all();
+
+    res.json({
+      success: true,
+      data: stockLocations,
+      count: stockLocations.length
+    });
+  } catch (error) {
+    console.error('Error fetching stock locations:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch stock locations data',
+      error: error.message
+    });
+  }
+});
+
+// Get shipping routes (arcs from stock locations to platforms)
+app.get('/api/map/shipping-routes', async (req, res) => {
+  try {
+    const routes = db.prepare(`
+      SELECT 
+        pr.id,
+        pr.order_number,
+        pr.part_type as type,
+        pr.quantity_shipped as qty_shipped,
+        pr.stock_location_id,
+        pr.stock_location as stock_name,
+        pr.designator,
+        pr.ship_name,
+        p.latitude as source_lat,
+        p.longitude as source_lng,
+        s.lat as target_lat,
+        s.long as target_lng,
+        pr.created_at
+      FROM parts_requisitions pr
+      LEFT JOIN parts p ON pr.stock_location_id = p.stock_location_id
+      LEFT JOIN ships s ON pr.ship_designation = s.designation
+      WHERE p.latitude IS NOT NULL AND p.longitude IS NOT NULL
+      AND s.lat IS NOT NULL AND s.long IS NOT NULL
+      AND pr.quantity_shipped > 0
+      GROUP BY pr.stock_location_id, pr.designator, pr.part_type
+    `).all();
+
+    res.json({
+      success: true,
+      data: routes,
+      count: routes.length
+    });
+  } catch (error) {
+    console.error('Error fetching shipping routes:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch shipping routes data',
+      error: error.message
+    });
+  }
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log('');
+  console.log('='.repeat(70));
+  console.log('Navy PdM API Server (Development Mode)');
+  console.log('='.repeat(70));
+  console.log('');
+  console.log(`✓ Server running on port ${PORT}`);
+  console.log(`✓ API available at http://localhost:${PORT}/api`);
+  console.log(`✓ SQLite database: ${dbPath}`);
+  console.log('');
+  console.log('Available Endpoints:');
+  console.log('');
+  console.log('  Work Orders (SQLite):');
+  console.log('    GET    /api/work-orders              - List all work orders');
+  console.log('    GET    /api/work-orders/:id          - Get work order by ID');
+  console.log('    POST   /api/work-orders              - Create work order');
+  console.log('    POST   /api/work-orders/ai           - Create AI work order');
+  console.log('    PATCH  /api/work-orders/:id          - Update work order');
+  console.log('    DELETE /api/work-orders/:id          - Delete work order');
+  console.log('');
+  console.log('  Parts (SQLite):');
+  console.log('    GET    /api/parts                    - List all parts');
+  console.log('    GET    /api/parts/:id                - Get part by ID');
+  console.log('    POST   /api/parts                    - Create part');
+  console.log('    PATCH  /api/parts/:id                - Update part');
+  console.log('    PATCH  /api/parts/:id/stock          - Update part stock');
+  console.log('    DELETE /api/parts/:id                - Delete part');
+  console.log('');
+  console.log('  Map Data (SQLite):');
+  console.log('    GET    /api/map/platforms            - Get ship locations');
+  console.log('    GET    /api/map/stock-locations      - Get parts warehouse locations');
+  console.log('    GET    /api/map/shipping-routes      - Get parts shipment routes');
+  console.log('');
+  console.log('  Databricks (Placeholder in Development):');
+  console.log('    GET    /api/databricks/health        - Health check');
+  console.log('    GET    /api/databricks/ai-work-orders');
+  console.log('    GET    /api/databricks/ship-status');
+  console.log('    GET    /api/databricks/parts-requisitions');
+  console.log('    GET    /api/databricks/parts');
+  console.log('');
+  console.log('  Note: Databricks endpoints return informative errors in development.');
+  console.log('        They require TypeScript compilation and Databricks credentials');
+  console.log('        for production deployment. See DATABRICKS_SETUP.md for details.');
+  console.log('');
+  console.log('Press Ctrl+C to stop');
+  console.log('='.repeat(70));
+  console.log('');
 });

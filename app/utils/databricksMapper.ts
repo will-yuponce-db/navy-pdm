@@ -1,11 +1,11 @@
-import type { 
-  WorkOrder, 
-  Priority, 
-  Part, 
-  PartCategory, 
+import type {
+  WorkOrder,
+  Priority,
+  Part,
+  PartCategory,
   PartCondition,
   ShipCurrentStatus,
-  DatabricksShipStatus
+  DatabricksShipStatus,
 } from "../types";
 
 /**
@@ -47,26 +47,26 @@ export interface DatabricksAIWorkOrder {
  */
 function parsePartsRequired(partsRequiredJson: string): string {
   try {
-    if (!partsRequiredJson || partsRequiredJson.trim() === '') {
-      return '';
+    if (!partsRequiredJson || partsRequiredJson.trim() === "") {
+      return "";
     }
-    
+
     const partsArray = JSON.parse(partsRequiredJson) as string[];
-    
+
     // Count occurrences of each part
     const partCounts = new Map<string, number>();
-    partsArray.forEach(part => {
+    partsArray.forEach((part) => {
       partCounts.set(part, (partCounts.get(part) || 0) + 1);
     });
-    
+
     // Format as "Part Name (x2)" if count > 1, otherwise just "Part Name"
-    const formattedParts = Array.from(partCounts.entries()).map(([part, count]) => 
-      count > 1 ? `${part} (x${count})` : part
+    const formattedParts = Array.from(partCounts.entries()).map(
+      ([part, count]) => (count > 1 ? `${part} (x${count})` : part),
     );
-    
-    return formattedParts.join(', ');
+
+    return formattedParts.join(", ");
   } catch (error) {
-    console.error('Failed to parse parts_required:', error);
+    console.error("Failed to parse parts_required:", error);
     return partsRequiredJson;
   }
 }
@@ -76,25 +76,28 @@ function parsePartsRequired(partsRequiredJson: string): string {
  */
 function mapMaintenanceType(maintenanceType: string): string {
   const typeMap: Record<string, string> = {
-    'Organizational Level': 'Org Level - Ship\'s force maintenance',
-    'Intermediate Level': 'Intermediate - Regional maintenance center',
-    'Depot Level': 'Depot - Major overhaul/repair facility'
+    "Organizational Level": "Org Level - Ship's force maintenance",
+    "Intermediate Level": "Intermediate - Regional maintenance center",
+    "Depot Level": "Depot - Major overhaul/repair facility",
   };
-  
+
   return typeMap[maintenanceType] || maintenanceType;
 }
 
 /**
  * Determine status based on operable flag and priority
  */
-function determineStatus(operable: boolean, priority: string): WorkOrder['status'] {
-  if (priority === 'CASREP') {
-    return 'Pending approval'; // Critical items need approval
+function determineStatus(
+  operable: boolean,
+  priority: string,
+): WorkOrder["status"] {
+  if (priority === "CASREP") {
+    return "Pending approval"; // Critical items need approval
   }
   if (!operable) {
-    return 'Pending approval'; // Non-operable items need attention
+    return "Pending approval"; // Non-operable items need attention
   }
-  return 'Pending approval'; // AI work orders default to pending approval
+  return "Pending approval"; // AI work orders default to pending approval
 }
 
 /**
@@ -102,21 +105,23 @@ function determineStatus(operable: boolean, priority: string): WorkOrder['status
  */
 function mapPriority(priority: string): Priority {
   const upperPriority = priority.toUpperCase();
-  if (upperPriority === 'CASREP') return 'CASREP';
-  if (upperPriority === 'URGENT') return 'Urgent';
-  return 'Routine';
+  if (upperPriority === "CASREP") return "CASREP";
+  if (upperPriority === "URGENT") return "Urgent";
+  return "Routine";
 }
 
 /**
  * Create a description based on sensor data and prediction
  */
 function createDescription(
-  prediction: string, 
-  maintenanceType: string, 
+  prediction: string,
+  maintenanceType: string,
   operable: boolean,
-  avgEnergy: number
+  avgEnergy: number,
 ): string {
-  const operableStatus = operable ? 'Currently Operable' : 'Currently Non-Operable';
+  const operableStatus = operable
+    ? "Currently Operable"
+    : "Currently Non-Operable";
   return `AI detected ${prediction} anomaly requiring ${maintenanceType}. ${operableStatus}. Average energy output: ${avgEnergy.toFixed(4)}.`;
 }
 
@@ -124,7 +129,7 @@ function createDescription(
  * Map Databricks AI Work Order to WorkOrder type
  */
 export function mapDatabricksWorkOrderToWorkOrder(
-  databricksWO: DatabricksAIWorkOrder
+  databricksWO: DatabricksAIWorkOrder,
 ): WorkOrder {
   const partsRequired = parsePartsRequired(databricksWO.parts_required);
   const maintenanceTypeDesc = mapMaintenanceType(databricksWO.maintenance_type);
@@ -134,9 +139,9 @@ export function mapDatabricksWorkOrderToWorkOrder(
     databricksWO.prediction,
     databricksWO.maintenance_type,
     databricksWO.operable,
-    databricksWO.avg_energy
+    databricksWO.avg_energy,
   );
-  
+
   const workOrder: WorkOrder = {
     wo: databricksWO.work_order,
     shipId: String(databricksWO.designator_id), // Use designator_id as shipId
@@ -149,17 +154,19 @@ export function mapDatabricksWorkOrderToWorkOrder(
     recommendedAction: maintenanceTypeDesc,
     partsRequired: partsRequired,
     slaCategory: databricksWO.maintenance_type,
-    creationSource: 'ai',
+    creationSource: "ai",
     createdAt: new Date(databricksWO.hourly_timestamp),
     updatedAt: new Date(databricksWO.hourly_timestamp),
     // Populate ship information
     ship: {
       id: String(databricksWO.designator_id),
       name: databricksWO.designator,
-      designation: databricksWO.designator.match(/\(([^)]+)\)/)?.[1] || databricksWO.designator,
-      class: 'DDG',
+      designation:
+        databricksWO.designator.match(/\(([^)]+)\)/)?.[1] ||
+        databricksWO.designator,
+      class: "DDG",
       homeport: databricksWO.home_location,
-      status: databricksWO.operable ? 'Active' : 'Maintenance'
+      status: databricksWO.operable ? "Active" : "Maintenance",
     },
     // Store sensor data for analysis
     sensorData: [
@@ -167,17 +174,17 @@ export function mapDatabricksWorkOrderToWorkOrder(
         id: `${databricksWO.turbine_id}-${databricksWO.hourly_timestamp}`,
         sensorId: databricksWO.turbine_id,
         sensorName: databricksWO.prediction,
-        sensorType: 'temperature', // Default type, can be enhanced
+        sensorType: "temperature", // Default type, can be enhanced
         value: databricksWO.avg_energy,
-        unit: 'energy',
+        unit: "energy",
         timestamp: new Date(databricksWO.hourly_timestamp),
-        status: databricksWO.operable ? 'warning' : 'critical',
+        status: databricksWO.operable ? "warning" : "critical",
         location: databricksWO.home_location,
-        systemId: databricksWO.turbine_id
-      }
-    ]
+        systemId: databricksWO.turbine_id,
+      },
+    ],
   };
-  
+
   return workOrder;
 }
 
@@ -185,7 +192,7 @@ export function mapDatabricksWorkOrderToWorkOrder(
  * Map an array of Databricks AI Work Orders to WorkOrder array
  */
 export function mapDatabricksWorkOrdersToWorkOrders(
-  databricksWOs: DatabricksAIWorkOrder[]
+  databricksWOs: DatabricksAIWorkOrder[],
 ): WorkOrder[] {
   return databricksWOs.map(mapDatabricksWorkOrderToWorkOrder);
 }
@@ -194,56 +201,77 @@ export function mapDatabricksWorkOrdersToWorkOrders(
  * Extract unique ships from Databricks AI Work Orders
  */
 export function extractShipsFromDatabricksWOs(
-  databricksWOs: DatabricksAIWorkOrder[]
-): Array<{ id: string; name: string; homeport: string; lat: number; long: number }> {
+  databricksWOs: DatabricksAIWorkOrder[],
+): Array<{
+  id: string;
+  name: string;
+  homeport: string;
+  lat: number;
+  long: number;
+}> {
   const shipsMap = new Map();
-  
-  databricksWOs.forEach(wo => {
+
+  databricksWOs.forEach((wo) => {
     if (!shipsMap.has(wo.designator_id)) {
       shipsMap.set(wo.designator_id, {
         id: String(wo.designator_id),
         name: wo.designator,
         homeport: wo.home_location,
         lat: wo.lat,
-        long: wo.long
+        long: wo.long,
       });
     }
   });
-  
+
   return Array.from(shipsMap.values());
 }
 
 /**
  * Get summary statistics from Databricks AI Work Orders
  */
-export function getDatabricksWorkOrderStats(databricksWOs: DatabricksAIWorkOrder[]) {
+export function getDatabricksWorkOrderStats(
+  databricksWOs: DatabricksAIWorkOrder[],
+) {
   const totalOrders = databricksWOs.length;
-  const casrepCount = databricksWOs.filter(wo => wo.priority === 'CASREP').length;
-  const urgentCount = databricksWOs.filter(wo => wo.priority === 'Urgent').length;
-  const routineCount = databricksWOs.filter(wo => wo.priority === 'Routine').length;
-  const nonOperableCount = databricksWOs.filter(wo => !wo.operable).length;
-  
+  const casrepCount = databricksWOs.filter(
+    (wo) => wo.priority === "CASREP",
+  ).length;
+  const urgentCount = databricksWOs.filter(
+    (wo) => wo.priority === "Urgent",
+  ).length;
+  const routineCount = databricksWOs.filter(
+    (wo) => wo.priority === "Routine",
+  ).length;
+  const nonOperableCount = databricksWOs.filter((wo) => !wo.operable).length;
+
   const maintenanceTypes = new Map<string, number>();
-  databricksWOs.forEach(wo => {
-    maintenanceTypes.set(wo.maintenance_type, (maintenanceTypes.get(wo.maintenance_type) || 0) + 1);
+  databricksWOs.forEach((wo) => {
+    maintenanceTypes.set(
+      wo.maintenance_type,
+      (maintenanceTypes.get(wo.maintenance_type) || 0) + 1,
+    );
   });
-  
+
   const sensorPredictions = new Map<string, number>();
-  databricksWOs.forEach(wo => {
-    sensorPredictions.set(wo.prediction, (sensorPredictions.get(wo.prediction) || 0) + 1);
+  databricksWOs.forEach((wo) => {
+    sensorPredictions.set(
+      wo.prediction,
+      (sensorPredictions.get(wo.prediction) || 0) + 1,
+    );
   });
-  
+
   return {
     total: totalOrders,
     byPriority: {
       CASREP: casrepCount,
       Urgent: urgentCount,
-      Routine: routineCount
+      Routine: routineCount,
     },
     nonOperable: nonOperableCount,
     byMaintenanceType: Object.fromEntries(maintenanceTypes),
     bySensorPrediction: Object.fromEntries(sensorPredictions),
-    averageTTR: databricksWOs.reduce((sum, wo) => sum + wo.ttr, 0) / totalOrders || 0
+    averageTTR:
+      databricksWOs.reduce((sum, wo) => sum + wo.ttr, 0) / totalOrders || 0,
   };
 }
 
@@ -270,17 +298,17 @@ export interface DatabricksPart {
  */
 function mapPartCategory(type: string): PartCategory {
   const typeMap: Record<string, PartCategory> = {
-    'Valve': 'Fuel System',
-    'Filter': 'Consumables',
-    'Vane': 'Hot Section',
-    'Pump': 'Hydraulics',
-    'Fuel Nozzle': 'Fuel System',
-    'Nozzle': 'Fuel System',
-    'Seal': 'Hot Section',
-    'Blade': 'Rotating Parts',
-    'Turbine': 'Rotating Parts',
-    'controller card': 'Electronics',
-    'ECU': 'Electronics'
+    Valve: "Fuel System",
+    Filter: "Consumables",
+    Vane: "Hot Section",
+    Pump: "Hydraulics",
+    "Fuel Nozzle": "Fuel System",
+    Nozzle: "Fuel System",
+    Seal: "Hot Section",
+    Blade: "Rotating Parts",
+    Turbine: "Rotating Parts",
+    "controller card": "Electronics",
+    ECU: "Electronics",
   };
 
   for (const [key, value] of Object.entries(typeMap)) {
@@ -288,17 +316,20 @@ function mapPartCategory(type: string): PartCategory {
       return value;
     }
   }
-  return 'Consumables'; // Default
+  return "Consumables"; // Default
 }
 
 /**
  * Determine part condition based on stock and production time
  */
-function mapPartCondition(stockAvailable: number, productionTime: number): PartCondition {
-  if (productionTime === 0) return 'Condemned';
-  if (stockAvailable === 0) return 'Used';
-  if (stockAvailable > 7) return 'New';
-  return 'Refurbished';
+function mapPartCondition(
+  stockAvailable: number,
+  productionTime: number,
+): PartCondition {
+  if (productionTime === 0) return "Condemned";
+  if (stockAvailable === 0) return "Used";
+  if (stockAvailable > 7) return "New";
+  return "Refurbished";
 }
 
 /**
@@ -323,7 +354,7 @@ export function mapDatabricksPartToPart(databricksPart: DatabricksPart): Part {
   const category = mapPartCategory(databricksPart.type);
   const condition = mapPartCondition(
     databricksPart.stock_available,
-    databricksPart.production_time
+    databricksPart.production_time,
   );
   const stockLevel = databricksPart.stock_available;
   const minStock = Math.max(1, Math.floor(stockLevel * 0.3));
@@ -339,7 +370,7 @@ export function mapDatabricksPartToPart(databricksPart: DatabricksPart): Part {
   const part: Part = {
     id: partId,
     name: databricksPart.type,
-    system: 'LM2500', // Default system
+    system: "LM2500", // Default system
     category: category,
     stockLevel: stockLevel,
     minStock: minStock,
@@ -359,7 +390,7 @@ export function mapDatabricksPartToPart(databricksPart: DatabricksPart): Part {
     sensors: sensors,
     stockLocationId: databricksPart.stock_location_id,
     latitude: databricksPart.lat,
-    longitude: databricksPart.long
+    longitude: databricksPart.long,
   };
 
   return part;
@@ -368,7 +399,9 @@ export function mapDatabricksPartToPart(databricksPart: DatabricksPart): Part {
 /**
  * Map an array of Databricks Parts to Part array
  */
-export function mapDatabricksPartsToParts(databricksParts: DatabricksPart[]): Part[] {
+export function mapDatabricksPartsToParts(
+  databricksParts: DatabricksPart[],
+): Part[] {
   return databricksParts.map(mapDatabricksPartToPart);
 }
 
@@ -377,24 +410,34 @@ export function mapDatabricksPartsToParts(databricksParts: DatabricksPart[]): Pa
  */
 export function getDatabricksPartsStats(databricksParts: DatabricksPart[]) {
   const totalParts = databricksParts.length;
-  const totalStock = databricksParts.reduce((sum, part) => sum + part.stock_available, 0);
-  const outOfStock = databricksParts.filter(part => part.stock_available === 0).length;
-  const lowStock = databricksParts.filter(part => part.stock_available > 0 && part.stock_available <= 3).length;
+  const totalStock = databricksParts.reduce(
+    (sum, part) => sum + part.stock_available,
+    0,
+  );
+  const outOfStock = databricksParts.filter(
+    (part) => part.stock_available === 0,
+  ).length;
+  const lowStock = databricksParts.filter(
+    (part) => part.stock_available > 0 && part.stock_available <= 3,
+  ).length;
 
   const byLocation = new Map<string, number>();
   const byType = new Map<string, number>();
   const bySensors = new Map<string, number>();
 
-  databricksParts.forEach(part => {
+  databricksParts.forEach((part) => {
     // Count by location
-    byLocation.set(part.stock_location, (byLocation.get(part.stock_location) || 0) + 1);
-    
+    byLocation.set(
+      part.stock_location,
+      (byLocation.get(part.stock_location) || 0) + 1,
+    );
+
     // Count by type
     byType.set(part.type, (byType.get(part.type) || 0) + 1);
-    
+
     // Count by sensors
     const sensors = parseSensors(part.sensors);
-    sensors.forEach(sensor => {
+    sensors.forEach((sensor) => {
       bySensors.set(sensor, (bySensors.get(sensor) || 0) + 1);
     });
   });
@@ -408,8 +451,12 @@ export function getDatabricksPartsStats(databricksParts: DatabricksPart[]) {
     byLocation: Object.fromEntries(byLocation),
     byType: Object.fromEntries(byType),
     bySensors: Object.fromEntries(bySensors),
-    averageWeight: databricksParts.reduce((sum, part) => sum + part.weight, 0) / totalParts || 0,
-    averageProductionTime: databricksParts.reduce((sum, part) => sum + part.production_time, 0) / totalParts || 0
+    averageWeight:
+      databricksParts.reduce((sum, part) => sum + part.weight, 0) /
+        totalParts || 0,
+    averageProductionTime:
+      databricksParts.reduce((sum, part) => sum + part.production_time, 0) /
+        totalParts || 0,
   };
 }
 
@@ -422,32 +469,36 @@ export function getDatabricksPartsStats(databricksParts: DatabricksPart[]) {
 /**
  * Parse sensor percentiles from string or array
  */
-function parsePercentiles(value: string | number[] | undefined | null): number[] | null {
+function parsePercentiles(
+  value: string | number[] | undefined | null,
+): number[] | null {
   if (!value) return null;
-  
+
   if (Array.isArray(value)) {
     return value;
   }
-  
-  if (typeof value === 'string') {
+
+  if (typeof value === "string") {
     try {
       const parsed = JSON.parse(value);
       if (Array.isArray(parsed)) {
         return parsed;
       }
-    } catch (e) {
+    } catch {
       // If parsing fails, return null
       return null;
     }
   }
-  
+
   return null;
 }
 
 /**
  * Map a Databricks Ship Status record to ShipCurrentStatus
  */
-export function mapDatabricksShipStatusToShipStatus(databricksStatus: DatabricksShipStatus): ShipCurrentStatus {
+export function mapDatabricksShipStatusToShipStatus(
+  databricksStatus: DatabricksShipStatus,
+): ShipCurrentStatus {
   const status: ShipCurrentStatus = {
     turbineId: databricksStatus.turbine_id,
     hourlyTimestamp: new Date(databricksStatus.hourly_timestamp),
@@ -458,12 +509,18 @@ export function mapDatabricksShipStatusToShipStatus(databricksStatus: Databricks
     stdSensorD: databricksStatus.std_sensor_D,
     stdSensorE: databricksStatus.std_sensor_E,
     stdSensorF: databricksStatus.std_sensor_F,
-    percentilesSensorA: parsePercentiles(databricksStatus.percentiles_sensor_A) ?? undefined,
-    percentilesSensorB: parsePercentiles(databricksStatus.percentiles_sensor_B) ?? undefined,
-    percentilesSensorC: parsePercentiles(databricksStatus.percentiles_sensor_C) ?? undefined,
-    percentilesSensorD: parsePercentiles(databricksStatus.percentiles_sensor_D) ?? undefined,
-    percentilesSensorE: parsePercentiles(databricksStatus.percentiles_sensor_E) ?? undefined,
-    percentilesSensorF: parsePercentiles(databricksStatus.percentiles_sensor_F) ?? undefined,
+    percentilesSensorA:
+      parsePercentiles(databricksStatus.percentiles_sensor_A) ?? undefined,
+    percentilesSensorB:
+      parsePercentiles(databricksStatus.percentiles_sensor_B) ?? undefined,
+    percentilesSensorC:
+      parsePercentiles(databricksStatus.percentiles_sensor_C) ?? undefined,
+    percentilesSensorD:
+      parsePercentiles(databricksStatus.percentiles_sensor_D) ?? undefined,
+    percentilesSensorE:
+      parsePercentiles(databricksStatus.percentiles_sensor_E) ?? undefined,
+    percentilesSensorF:
+      parsePercentiles(databricksStatus.percentiles_sensor_F) ?? undefined,
     homeLocation: databricksStatus.home_location,
     designator: databricksStatus.designator,
     lat: databricksStatus.lat,
@@ -473,7 +530,7 @@ export function mapDatabricksShipStatusToShipStatus(databricksStatus: Databricks
     prediction: databricksStatus.prediction,
     maintenanceType: databricksStatus.maintenance_type,
     operable: databricksStatus.operable,
-    ttr: databricksStatus.ttr
+    ttr: databricksStatus.ttr,
   };
 
   return status;
@@ -482,49 +539,70 @@ export function mapDatabricksShipStatusToShipStatus(databricksStatus: Databricks
 /**
  * Map an array of Databricks Ship Status records to ShipCurrentStatus array
  */
-export function mapDatabricksShipStatusesToShipStatuses(databricksStatuses: DatabricksShipStatus[]): ShipCurrentStatus[] {
+export function mapDatabricksShipStatusesToShipStatuses(
+  databricksStatuses: DatabricksShipStatus[],
+): ShipCurrentStatus[] {
   return databricksStatuses.map(mapDatabricksShipStatusToShipStatus);
 }
 
 /**
  * Get summary statistics from Databricks Ship Statuses
  */
-export function getDatabricksShipStatusStats(databricksStatuses: DatabricksShipStatus[]) {
+export function getDatabricksShipStatusStats(
+  databricksStatuses: DatabricksShipStatus[],
+) {
   const total = databricksStatuses.length;
-  const operable = databricksStatuses.filter(s => s.operable).length;
+  const operable = databricksStatuses.filter((s) => s.operable).length;
   const nonOperable = total - operable;
-  
+
   const byLocation = new Map<string, number>();
   const byDesignator = new Map<string, number>();
   const byPrediction = new Map<string, number>();
   const byMaintenanceType = new Map<string, number>();
-  
-  databricksStatuses.forEach(status => {
+
+  databricksStatuses.forEach((status) => {
     // Count by location
-    byLocation.set(status.home_location, (byLocation.get(status.home_location) || 0) + 1);
-    
+    byLocation.set(
+      status.home_location,
+      (byLocation.get(status.home_location) || 0) + 1,
+    );
+
     // Count by designator
-    byDesignator.set(status.designator, (byDesignator.get(status.designator) || 0) + 1);
-    
+    byDesignator.set(
+      status.designator,
+      (byDesignator.get(status.designator) || 0) + 1,
+    );
+
     // Count by prediction
     if (status.prediction) {
-      byPrediction.set(status.prediction, (byPrediction.get(status.prediction) || 0) + 1);
+      byPrediction.set(
+        status.prediction,
+        (byPrediction.get(status.prediction) || 0) + 1,
+      );
     }
-    
+
     // Count by maintenance type
     if (status.maintenance_type) {
-      byMaintenanceType.set(status.maintenance_type, (byMaintenanceType.get(status.maintenance_type) || 0) + 1);
+      byMaintenanceType.set(
+        status.maintenance_type,
+        (byMaintenanceType.get(status.maintenance_type) || 0) + 1,
+      );
     }
   });
 
   // Calculate average energy
-  const avgEnergy = databricksStatuses.reduce((sum, s) => sum + s.avg_energy, 0) / total || 0;
-  
+  const avgEnergy =
+    databricksStatuses.reduce((sum, s) => sum + s.avg_energy, 0) / total || 0;
+
   // Calculate average TTR (for non-operable only)
-  const nonOperableWithTTR = databricksStatuses.filter(s => !s.operable && s.ttr !== undefined && s.ttr !== null);
-  const avgTTR = nonOperableWithTTR.length > 0
-    ? nonOperableWithTTR.reduce((sum, s) => sum + (s.ttr || 0), 0) / nonOperableWithTTR.length
-    : 0;
+  const nonOperableWithTTR = databricksStatuses.filter(
+    (s) => !s.operable && s.ttr !== undefined && s.ttr !== null,
+  );
+  const avgTTR =
+    nonOperableWithTTR.length > 0
+      ? nonOperableWithTTR.reduce((sum, s) => sum + (s.ttr || 0), 0) /
+        nonOperableWithTTR.length
+      : 0;
 
   return {
     total,
@@ -536,7 +614,188 @@ export function getDatabricksShipStatusStats(databricksStatuses: DatabricksShipS
     byLocation: Object.fromEntries(byLocation),
     byDesignator: Object.fromEntries(byDesignator),
     byPrediction: Object.fromEntries(byPrediction),
-    byMaintenanceType: Object.fromEntries(byMaintenanceType)
+    byMaintenanceType: Object.fromEntries(byMaintenanceType),
   };
 }
 
+/**
+ * ========================================
+ * PARTS REQUISITION MAPPING FUNCTIONS
+ * ========================================
+ */
+
+/**
+ * Databricks Parts Requisition structure from ai_part_orders table
+ * Also supports SQLite format with different column names
+ */
+export interface DatabricksPartsRequisition {
+  stock_location_id: string;
+  designator_id: string;
+  type?: string; // Databricks format
+  part_type?: string; // SQLite format
+  qty_shipped?: number; // Databricks format
+  quantity_shipped?: number; // SQLite format
+  stock_location: string;
+  designator: string;
+  order_number: string;
+  // SQLite-specific fields
+  ship_name?: string;
+  ship_designation?: string;
+  id?: string;
+  created_at?: string;
+}
+
+/**
+ * Application Parts Requisition type
+ */
+export interface PartsRequisition {
+  id: string; // Generated from order_number
+  orderNumber: string;
+  partType: string;
+  quantityShipped: number;
+  stockLocationId: string;
+  stockLocation: string;
+  designatorId: string;
+  designator: string;
+  shipName: string; // Parsed from designator
+  shipDesignation: string; // Parsed from designator (DDG-XX)
+  createdAt?: Date | string;
+}
+
+/**
+ * Parse ship name and designation from designator string
+ * Example: "USS Frank E. Petersen, Jr. (DDG-121)" -> { name: "USS Frank E. Petersen, Jr.", designation: "DDG-121" }
+ */
+function parseDesignator(designator: string): {
+  name: string;
+  designation: string;
+} {
+  const match = designator.match(/^(.+?)\s*\(([^)]+)\)$/);
+  if (match) {
+    return {
+      name: match[1].trim(),
+      designation: match[2].trim(),
+    };
+  }
+  return {
+    name: designator,
+    designation: "",
+  };
+}
+
+/**
+ * Map Databricks Parts Requisition to PartsRequisition type
+ * Handles both Databricks format and SQLite format
+ */
+export function mapDatabricksPartsRequisitionToPartsRequisition(
+  databricksRequisition: DatabricksPartsRequisition,
+): PartsRequisition {
+  // Support both formats
+  const partType =
+    databricksRequisition.type || databricksRequisition.part_type || "";
+  const quantityShipped =
+    databricksRequisition.qty_shipped ??
+    databricksRequisition.quantity_shipped ??
+    0;
+
+  // If SQLite format already has parsed ship name/designation, use them
+  let shipName: string;
+  let shipDesignation: string;
+
+  if (
+    databricksRequisition.ship_name &&
+    databricksRequisition.ship_designation
+  ) {
+    shipName = databricksRequisition.ship_name;
+    shipDesignation = databricksRequisition.ship_designation;
+  } else {
+    const parsed = parseDesignator(databricksRequisition.designator);
+    shipName = parsed.name;
+    shipDesignation = parsed.designation;
+  }
+
+  const requisition: PartsRequisition = {
+    id:
+      databricksRequisition.id ||
+      `${databricksRequisition.order_number}-${databricksRequisition.designator_id}-${partType}`,
+    orderNumber: databricksRequisition.order_number,
+    partType: partType,
+    quantityShipped: quantityShipped,
+    stockLocationId: databricksRequisition.stock_location_id,
+    stockLocation: databricksRequisition.stock_location,
+    designatorId: databricksRequisition.designator_id,
+    designator: databricksRequisition.designator,
+    shipName: shipName,
+    shipDesignation: shipDesignation,
+    createdAt: databricksRequisition.created_at
+      ? new Date(databricksRequisition.created_at)
+      : new Date(),
+  };
+
+  return requisition;
+}
+
+/**
+ * Map an array of Databricks Parts Requisitions to PartsRequisition array
+ */
+export function mapDatabricksPartsRequisitionsToPartsRequisitions(
+  databricksRequisitions: DatabricksPartsRequisition[],
+): PartsRequisition[] {
+  return databricksRequisitions.map(
+    mapDatabricksPartsRequisitionToPartsRequisition,
+  );
+}
+
+/**
+ * Get summary statistics from Databricks Parts Requisitions
+ * Handles both Databricks format and SQLite format
+ */
+export function getDatabricksPartsRequisitionStats(
+  databricksRequisitions: DatabricksPartsRequisition[],
+) {
+  const total = databricksRequisitions.length;
+  const totalQuantity = databricksRequisitions.reduce((sum, req) => {
+    const qty = req.qty_shipped ?? req.quantity_shipped ?? 0;
+    return sum + qty;
+  }, 0);
+
+  const byPartType = new Map<string, number>();
+  const byStockLocation = new Map<string, number>();
+  const byShip = new Map<string, number>();
+  const quantityByType = new Map<string, number>();
+
+  databricksRequisitions.forEach((req) => {
+    const partType = req.type || req.part_type || "";
+    const qty = req.qty_shipped ?? req.quantity_shipped ?? 0;
+
+    // Count by part type
+    byPartType.set(partType, (byPartType.get(partType) || 0) + 1);
+
+    // Count by stock location
+    byStockLocation.set(
+      req.stock_location,
+      (byStockLocation.get(req.stock_location) || 0) + 1,
+    );
+
+    // Count by ship
+    byShip.set(req.designator, (byShip.get(req.designator) || 0) + 1);
+
+    // Sum quantity by type
+    quantityByType.set(partType, (quantityByType.get(partType) || 0) + qty);
+  });
+
+  return {
+    total,
+    totalQuantity,
+    averageQuantity: totalQuantity / total || 0,
+    uniqueOrders: new Set(databricksRequisitions.map((r) => r.order_number))
+      .size,
+    uniqueShips: new Set(databricksRequisitions.map((r) => r.designator_id))
+      .size,
+    uniquePartTypes: byPartType.size,
+    byPartType: Object.fromEntries(byPartType),
+    byStockLocation: Object.fromEntries(byStockLocation),
+    byShip: Object.fromEntries(byShip),
+    quantityByType: Object.fromEntries(quantityByType),
+  };
+}

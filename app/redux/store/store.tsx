@@ -32,11 +32,14 @@ export const store = configureStore({
         ],
       },
     }),
-  devTools: process.env.NODE_ENV !== "production" ? {
-    name: "Navy PdM Store",
-    trace: true,
-    traceLimit: 25,
-  } : false,
+  devTools:
+    process.env.NODE_ENV !== "production"
+      ? {
+          name: "Navy PdM Store",
+          trace: true,
+          traceLimit: 25,
+        }
+      : false,
 });
 
 // Setup listeners for refetchOnFocus/refetchOnReconnect behaviors

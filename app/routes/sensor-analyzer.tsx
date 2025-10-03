@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router";
 import SensorAnalyzer from "~/components/SensorAnalyzer";
 import { Box } from "@mui/material";
@@ -8,7 +8,10 @@ import { selectAllWorkOrders } from "~/redux/services/workOrderSlice";
 export function meta() {
   return [
     { title: "Work Order Evidence Package" },
-    { name: "description", content: "Sensor data evidence package for work order analysis" },
+    {
+      name: "description",
+      content: "Sensor data evidence package for work order analysis",
+    },
   ];
 }
 
@@ -37,17 +40,17 @@ export default function SensorAnalyzerRoute() {
   }
 
   // Find the work order and check if it's AI-generated
-  const workOrder = workOrders.find(wo => wo.wo === workOrderId);
-  
+  const workOrder = workOrders.find((wo) => wo.wo === workOrderId);
+
   // Redirect if work order is manual (not AI-generated)
   useEffect(() => {
-    if (workOrder && workOrder.creationSource !== 'ai') {
+    if (workOrder && workOrder.creationSource !== "ai") {
       navigate(`/work-order?highlight=${workOrderId}`);
     }
   }, [workOrder, workOrderId, navigate]);
 
   // Don't render if work order is manual
-  if (workOrder && workOrder.creationSource !== 'ai') {
+  if (workOrder && workOrder.creationSource !== "ai") {
     return null;
   }
 

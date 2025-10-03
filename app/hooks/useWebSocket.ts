@@ -53,10 +53,12 @@ export const useWebSocket = () => {
     // Handle work order updates
     webSocketService.onWorkOrderUpdated((data) => {
       console.log("Work order updated via WebSocket:", data);
-      dispatch(updateWorkOrder({
-        wo: data.workOrder.wo,
-        updates: data.workOrder
-      }));
+      dispatch(
+        updateWorkOrder({
+          wo: data.workOrder.wo,
+          updates: data.workOrder,
+        }),
+      );
     });
 
     // Cleanup on unmount
