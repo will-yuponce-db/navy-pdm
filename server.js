@@ -120,14 +120,21 @@ async function initDatabricks() {
 async function executeQuery(databricksQuery, sqliteQuery, params = []) {
   let fallbackReason = null;
   
-  // Try Databricks first if connected
-  if (databricksConnected && databricksClient) {
+  // Try Databricks first if client is available (retry on each query)
+  if (databricksClient) {
     try {
       const session = await databricksClient.openSession();
       const queryOperation = await session.executeStatement(databricksQuery, { runAsync: true });
       const result = await queryOperation.fetchAll();
       await queryOperation.close();
       await session.close();
+      
+      // Query succeeded - mark connection as healthy
+      if (!databricksConnected) {
+        console.log('[DATABRICKS] Connection restored successfully');
+        databricksConnected = true;
+      }
+      
       return { data: result, source: 'databricks', fallbackReason: null };
     } catch (error) {
       // Extract meaningful error information
@@ -148,17 +155,17 @@ async function executeQuery(databricksQuery, sqliteQuery, params = []) {
         timestamp: new Date().toISOString()
       };
       
-      // Track error for health monitoring
+      // Track error for health monitoring (but don't disable connection)
       lastDatabricksError = fallbackReason;
       databricksErrorCount++;
-      
-      // Mark connection as unhealthy (but don't disable for all queries)
       databricksConnected = false;
+      
+      // Will fall through to SQLite fallback
     }
-  } else if (!databricksConnected) {
+  } else if (!databricksClient) {
     fallbackReason = {
-      code: 'NOT_CONNECTED',
-      message: 'Databricks connection is not available or has been disabled due to previous errors',
+      code: 'NO_CLIENT',
+      message: 'Databricks client is not initialized. Check credentials and initialization.',
       timestamp: new Date().toISOString()
     };
   }
