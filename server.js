@@ -278,7 +278,7 @@ app.get('/api/databricks/ai-work-orders', async (req, res) => {
     const { limit = 100 } = req.query;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy.ai_work_orders LIMIT ${limit}`,
+      `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders LIMIT ${limit}`,
       `SELECT * FROM work_orders WHERE creation_source = 'ai' LIMIT ${limit}`,
       []
     );
@@ -306,7 +306,7 @@ app.get('/api/databricks/ai-work-orders/:workOrderId', async (req, res) => {
     const { workOrderId } = req.params;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy.ai_work_orders WHERE wo = '${workOrderId}'`,
+      `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders WHERE wo = '${workOrderId}'`,
       'SELECT * FROM work_orders WHERE wo = ? AND creation_source = "ai"',
       [workOrderId]
     );
@@ -340,7 +340,7 @@ app.get('/api/databricks/ship-status', async (req, res) => {
     const { limit = 100 } = req.query;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy.ship_status LIMIT ${limit}`,
+      `SELECT * FROM public_sector.predictive_maintenance_navy_test.ship_status LIMIT ${limit}`,
       `SELECT s.*, COUNT(wo.wo) as open_work_orders 
        FROM ships s 
        LEFT JOIN work_orders wo ON s.id = wo.ship_id AND wo.status != 'Completed' 
@@ -371,7 +371,7 @@ app.get('/api/databricks/ship-status/:turbineId', async (req, res) => {
     const { turbineId } = req.params;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy.ship_status WHERE turbine_id = '${turbineId}'`,
+      `SELECT * FROM public_sector.predictive_maintenance_navy_test.ship_status WHERE turbine_id = '${turbineId}'`,
       'SELECT s.* FROM ships s LEFT JOIN gte_systems g ON s.id = g.ship_id WHERE g.id = ?',
       [turbineId]
     );
@@ -406,7 +406,7 @@ app.get('/api/databricks/parts-requisitions', async (req, res) => {
     const { limit = 1000, orderNumber, partType, stockLocation } = req.query;
     
     // Build Databricks query
-    let databricksQuery = 'SELECT * FROM public_sector.predictive_maintenance_navy.parts_requisitions WHERE 1=1';
+    let databricksQuery = 'SELECT * FROM public_sector.predictive_maintenance_navy_test.parts_requisitions WHERE 1=1';
     let sqliteQuery = 'SELECT * FROM parts_requisitions WHERE 1=1';
     const params = [];
     
@@ -458,7 +458,7 @@ app.get('/api/databricks/parts-requisitions/:orderNumber', async (req, res) => {
     const { orderNumber } = req.params;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy.parts_requisitions WHERE order_number = '${orderNumber}'`,
+      `SELECT * FROM public_sector.predictive_maintenance_navy_test.parts_requisitions WHERE order_number = '${orderNumber}'`,
       'SELECT * FROM parts_requisitions WHERE order_number = ?',
       [orderNumber]
     );
@@ -493,7 +493,7 @@ app.get('/api/databricks/parts-requisitions/ship/:designatorId', async (req, res
     const { designatorId } = req.params;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy.parts_requisitions WHERE designator_id = '${designatorId}'`,
+      `SELECT * FROM public_sector.predictive_maintenance_navy_test.parts_requisitions WHERE designator_id = '${designatorId}'`,
       'SELECT * FROM parts_requisitions WHERE designator_id = ?',
       [designatorId]
     );
@@ -597,7 +597,7 @@ app.get('/api/databricks/parts', async (req, res) => {
     const { limit = 1000, category, condition, search } = req.query;
     
     // Build Databricks query
-    let databricksQuery = 'SELECT * FROM public_sector.predictive_maintenance_navy.parts WHERE 1=1';
+    let databricksQuery = 'SELECT * FROM public_sector.predictive_maintenance_navy_test.parts WHERE 1=1';
     let sqliteQuery = 'SELECT * FROM parts WHERE 1=1';
     const params = [];
     
