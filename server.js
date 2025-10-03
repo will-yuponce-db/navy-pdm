@@ -861,7 +861,7 @@ app.get('/api/map/stock-locations', async (req, res) => {
     const stockLocations = db.prepare(`
       SELECT 
         stock_location_id,
-        stock_location,
+        location as stock_location,
         latitude as lat,
         longitude as long,
         COUNT(DISTINCT id) as parts_count,
@@ -869,7 +869,7 @@ app.get('/api/map/stock-locations', async (req, res) => {
       FROM parts
       WHERE latitude IS NOT NULL AND longitude IS NOT NULL
       AND stock_location_id IS NOT NULL
-      GROUP BY stock_location_id, stock_location, latitude, longitude
+      GROUP BY stock_location_id, location, latitude, longitude
     `).all();
 
     res.json({
