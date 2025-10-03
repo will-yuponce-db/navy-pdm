@@ -57,7 +57,7 @@ function ClientOnlyMap({
   stockLocations: StockLocation[];
   shippingRoutes: ShippingRoute[];
 }) {
-  const [MapComponent, setMapComponent] = useState<any>(null);
+  const [MapComponent, setMapComponent] = useState<React.ComponentType | null>(null);
 
   useEffect(() => {
     // Dynamically import all Leaflet components
@@ -66,6 +66,7 @@ function ClientOnlyMap({
         import("leaflet/dist/leaflet.css");
 
         // Fix Leaflet default marker icons
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         delete (L.Icon.Default.prototype as any)._getIconUrl;
         L.Icon.Default.mergeOptions({
           iconRetinaUrl:
@@ -106,7 +107,7 @@ function ClientOnlyMap({
         });
 
         // Component to fit bounds
-        function FitBounds({ bounds }: { bounds: any }) {
+        function FitBounds({ bounds }: { bounds: L.LatLngBounds | null }) {
           const map = module.useMap();
   useEffect(() => {
             if (bounds) {
