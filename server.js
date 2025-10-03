@@ -950,9 +950,9 @@ if (existsSync(buildClientPath)) {
   }));
 }
 
-// Handle React Router SSR - must be done synchronously at startup
-if (existsSync(buildClientPath) && existsSync(buildServerPath)) {
-  (async () => {
+// Handle React Router SSR - setup function to be called before server starts
+async function setupSSR() {
+  if (existsSync(buildClientPath) && existsSync(buildServerPath)) {
     try {
       const [build, reactRouterExpress] = await Promise.all([
         import(buildServerPath),
@@ -965,37 +965,38 @@ if (existsSync(buildClientPath) && existsSync(buildServerPath)) {
       console.log('✓ React Router SSR enabled');
     } catch (err) {
       console.warn('⚠ React Router SSR not available:', err.message);
+      console.warn('  Check build files and try rebuilding the application');
     }
-  })();
-} else {
-  // 404 handler (only for API routes if frontend is not built)
-  app.use((req, res) => {
-    res.status(404).json({
-    success: false,
-    message: 'Endpoint not found',
-    path: req.path,
-    availableEndpoints: {
-      workOrders: [
-        'GET /api/work-orders',
-        'GET /api/work-orders/:id',
-        'POST /api/work-orders',
-        'PATCH /api/work-orders/:id',
-        'DELETE /api/work-orders/:id'
-      ],
-      parts: [
-        'GET /api/parts',
-        'GET /api/parts/:id',
-        'POST /api/parts',
-        'PATCH /api/parts/:id',
-        'PATCH /api/parts/:id/stock',
-        'DELETE /api/parts/:id'
-      ],
-      databricks: [
-        'Note: Databricks endpoints available in production only'
-      ]
-    }
-  });
-  });
+  } else {
+    // 404 handler (only for API routes if frontend is not built)
+    app.use((req, res) => {
+      res.status(404).json({
+        success: false,
+        message: 'Endpoint not found',
+        path: req.path,
+        availableEndpoints: {
+          workOrders: [
+            'GET /api/work-orders',
+            'GET /api/work-orders/:id',
+            'POST /api/work-orders',
+            'PATCH /api/work-orders/:id',
+            'DELETE /api/work-orders/:id'
+          ],
+          parts: [
+            'GET /api/parts',
+            'GET /api/parts/:id',
+            'POST /api/parts',
+            'PATCH /api/parts/:id',
+            'PATCH /api/parts/:id/stock',
+            'DELETE /api/parts/:id'
+          ],
+          databricks: [
+            'Note: Databricks endpoints available in production only'
+          ]
+        }
+      });
+    });
+  }
 }
 
 // Global error handler
@@ -1025,52 +1026,64 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log('');
-  console.log('='.repeat(70));
-  console.log('Navy PdM API Server');
-  console.log('='.repeat(70));
-  console.log('');
-  console.log(`✓ Server running on port ${PORT}`);
-  console.log(`✓ API available at http://localhost:${PORT}/api`);
-  console.log(`✓ SQLite database: ${dbPath}`);
-  console.log('');
-  console.log('Available Endpoints:');
-  console.log('');
-  console.log('  Work Orders (SQLite):');
-  console.log('    GET    /api/work-orders              - List all work orders');
-  console.log('    GET    /api/work-orders/:id          - Get work order by ID');
-  console.log('    POST   /api/work-orders              - Create work order');
-  console.log('    POST   /api/work-orders/ai           - Create AI work order');
-  console.log('    PATCH  /api/work-orders/:id          - Update work order');
-  console.log('    DELETE /api/work-orders/:id          - Delete work order');
-  console.log('');
-  console.log('  Parts (SQLite):');
-  console.log('    GET    /api/parts                    - List all parts');
-  console.log('    GET    /api/parts/:id                - Get part by ID');
-  console.log('    POST   /api/parts                    - Create part');
-  console.log('    PATCH  /api/parts/:id                - Update part');
-  console.log('    PATCH  /api/parts/:id/stock          - Update part stock');
-  console.log('    DELETE /api/parts/:id                - Delete part');
-  console.log('');
-  console.log('  Map Data (SQLite):');
-  console.log('    GET    /api/map/platforms            - Get ship locations');
-  console.log('    GET    /api/map/stock-locations      - Get parts warehouse locations');
-  console.log('    GET    /api/map/shipping-routes      - Get parts shipment routes');
-  console.log('');
-  console.log('  Databricks (Placeholder in Development):');
-  console.log('    GET    /api/databricks/health        - Health check');
-  console.log('    GET    /api/databricks/ai-work-orders');
-  console.log('    GET    /api/databricks/ship-status');
-  console.log('    GET    /api/databricks/parts-requisitions');
-  console.log('    GET    /api/databricks/parts');
-  console.log('');
-  console.log('  Note: Databricks endpoints return informative errors in development.');
-  console.log('        They require TypeScript compilation and Databricks credentials');
-  console.log('        for production deployment. See DATABRICKS_SETUP.md for details.');
-  console.log('');
-  console.log('Press Ctrl+C to stop');
-  console.log('='.repeat(70));
-  console.log('');
+// Start server - async to wait for SSR setup
+async function startServer() {
+  // Setup SSR before starting to listen
+  await setupSSR();
+  
+  // Now start listening for requests
+  app.listen(PORT, () => {
+    console.log('');
+    console.log('='.repeat(70));
+    console.log('Navy PdM API Server');
+    console.log('='.repeat(70));
+    console.log('');
+    console.log(`✓ Server running on port ${PORT}`);
+    console.log(`✓ API available at http://localhost:${PORT}/api`);
+    console.log(`✓ SQLite database: ${dbPath}`);
+    console.log('');
+    console.log('Available Endpoints:');
+    console.log('');
+    console.log('  Work Orders (SQLite):');
+    console.log('    GET    /api/work-orders              - List all work orders');
+    console.log('    GET    /api/work-orders/:id          - Get work order by ID');
+    console.log('    POST   /api/work-orders              - Create work order');
+    console.log('    POST   /api/work-orders/ai           - Create AI work order');
+    console.log('    PATCH  /api/work-orders/:id          - Update work order');
+    console.log('    DELETE /api/work-orders/:id          - Delete work order');
+    console.log('');
+    console.log('  Parts (SQLite):');
+    console.log('    GET    /api/parts                    - List all parts');
+    console.log('    GET    /api/parts/:id                - Get part by ID');
+    console.log('    POST   /api/parts                    - Create part');
+    console.log('    PATCH  /api/parts/:id                - Update part');
+    console.log('    PATCH  /api/parts/:id/stock          - Update part stock');
+    console.log('    DELETE /api/parts/:id                - Delete part');
+    console.log('');
+    console.log('  Map Data (SQLite):');
+    console.log('    GET    /api/map/platforms            - Get ship locations');
+    console.log('    GET    /api/map/stock-locations      - Get parts warehouse locations');
+    console.log('    GET    /api/map/shipping-routes      - Get parts shipment routes');
+    console.log('');
+    console.log('  Databricks (Placeholder in Development):');
+    console.log('    GET    /api/databricks/health        - Health check');
+    console.log('    GET    /api/databricks/ai-work-orders');
+    console.log('    GET    /api/databricks/ship-status');
+    console.log('    GET    /api/databricks/parts-requisitions');
+    console.log('    GET    /api/databricks/parts');
+    console.log('');
+    console.log('  Note: Databricks endpoints return informative errors in development.');
+    console.log('        They require TypeScript compilation and Databricks credentials');
+    console.log('        for production deployment. See DATABRICKS_SETUP.md for details.');
+    console.log('');
+    console.log('Press Ctrl+C to stop');
+    console.log('='.repeat(70));
+    console.log('');
+  });
+}
+
+// Start the server
+startServer().catch(err => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
 });
