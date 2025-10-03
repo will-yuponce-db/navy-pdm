@@ -3,6 +3,7 @@ import cors from 'cors';
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { existsSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -992,7 +993,7 @@ app.get('/api/map/shipping-routes', async (req, res) => {
 app.listen(PORT, () => {
   console.log('');
   console.log('='.repeat(70));
-  console.log('Navy PdM API Server (Development Mode)');
+  console.log('Navy PdM API Server');
   console.log('='.repeat(70));
   console.log('');
   console.log(`✓ Server running on port ${PORT}`);
