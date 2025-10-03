@@ -9,7 +9,7 @@
     "build": "react-router build",
     "build:prod": "VITE_API_URL=http://localhost:8000/api react-router build",
     "start": "npm run build:prod && concurrently --names \"FRONTEND,API\" --prefix-colors \"cyan,green\" \"npm run start:frontend\" \"npm run start:api\"",
-    "start:frontend": "PORT=3000 react-router-serve ./build/server/index.js",
+    "start:frontend": "PORT=3000 node server-frontend.js",
     "start:api": "PORT=8000 node server.js",
     "start:prod": "node scripts/start-production.js",
     "start:dev": "node server.js",
