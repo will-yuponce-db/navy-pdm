@@ -129,6 +129,14 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                 },
               };
               setWorkOrderInfo(workOrder);
+              
+              // Use work order prediction directly to identify failing sensor
+              const workOrderPrediction = databricksWO.prediction;
+              if (workOrderPrediction && workOrderPrediction !== 'ok' && workOrderPrediction.trim() !== '') {
+                const failingSensorName = workOrderPrediction.split(' - ')[0].trim();
+                console.log('[SensorAnalyzer] Setting failing sensor from work order prediction:', failingSensorName);
+                setFailingSensors(new Set([failingSensorName]));
+              }
 
               // Fetch sensor data for the turbine
               if (databricksWO.turbine_id) {
@@ -167,18 +175,22 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
                   
                   // Process predictions to determine failing sensors
                   const predictions = (sensorResponse as any).predictions || [];
-                  const failing = new Set<string>();
                   
-                  predictions.forEach((pred: any) => {
-                    if (pred.prediction && pred.prediction !== 'ok' && pred.prediction.trim() !== '') {
-                      // Extract just the sensor name (e.g., "sensor_F" from "sensor_F - Depot Level")
-                      const sensorName = pred.prediction.split(' - ')[0].trim();
-                      failing.add(sensorName);
-                    }
+                  // Start with existing failing sensors (from work order)
+                  setFailingSensors((prevFailing) => {
+                    const failing = new Set(prevFailing);
+                    
+                    predictions.forEach((pred: any) => {
+                      if (pred.prediction && pred.prediction !== 'ok' && pred.prediction.trim() !== '') {
+                        // Extract just the sensor name (e.g., "sensor_F" from "sensor_F - Depot Level")
+                        const sensorName = pred.prediction.split(' - ')[0].trim();
+                        failing.add(sensorName);
+                      }
+                    });
+                    
+                    console.log(`[SensorAnalyzer] Predictions analysis - Total: ${predictions.length}, Failing sensors:`, Array.from(failing));
+                    return failing;
                   });
-                  
-                  console.log(`[SensorAnalyzer] Predictions analysis - Total: ${predictions.length}, Failing sensors:`, Array.from(failing));
-                  setFailingSensors(failing);
                   
                   // Map Databricks sensor data to SensorData array (without abnormal_sensor field)
                   const mappedSensorData = sensorResponse.data.flatMap((reading: any) => {
@@ -220,15 +232,19 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
 
                   // Set initial selected sensor - prefer a failing sensor
                   if (!selectedSensor && mappedSensorData.length > 0) {
-                    const failingSensorIds = Array.from(failing);
-                    if (failingSensorIds.length > 0) {
-                      const firstFailingSensor = mappedSensorData.find(
-                        (s) => failingSensorIds.some(f => s.sensorName === f)
-                      );
-                      setSelectedSensor(firstFailingSensor?.sensorId || mappedSensorData[0].sensorId);
-                    } else {
-                      setSelectedSensor(mappedSensorData[0].sensorId);
-                    }
+                    // Use failingSensors state which includes work order prediction
+                    setFailingSensors((currentFailing) => {
+                      const failingSensorIds = Array.from(currentFailing);
+                      if (failingSensorIds.length > 0) {
+                        const firstFailingSensor = mappedSensorData.find(
+                          (s) => failingSensorIds.some(f => s.sensorName === f)
+                        );
+                        setSelectedSensor(firstFailingSensor?.sensorId || mappedSensorData[0].sensorId);
+                      } else {
+                        setSelectedSensor(mappedSensorData[0].sensorId);
+                      }
+                      return currentFailing;
+                    });
                   }
                 } else {
                   console.error('[SensorAnalyzer] Failed to fetch sensor data or no data returned:', {
@@ -338,18 +354,22 @@ const SensorAnalyzer: React.FC<SensorAnalyzerProps> = ({
         if (sensorResponse.success && sensorResponse.data) {
           // Process predictions to determine failing sensors
           const predictions = (sensorResponse as any).predictions || [];
-          const failing = new Set<string>();
           
-          predictions.forEach((pred: any) => {
-            if (pred.prediction && pred.prediction !== 'ok' && pred.prediction.trim() !== '') {
-              // Extract just the sensor name (e.g., "sensor_F" from "sensor_F - Depot Level")
-              const sensorName = pred.prediction.split(' - ')[0].trim();
-              failing.add(sensorName);
-            }
+          // Merge with existing failing sensors (from work order)
+          setFailingSensors((prevFailing) => {
+            const failing = new Set(prevFailing);
+            
+            predictions.forEach((pred: any) => {
+              if (pred.prediction && pred.prediction !== 'ok' && pred.prediction.trim() !== '') {
+                // Extract just the sensor name (e.g., "sensor_F" from "sensor_F - Depot Level")
+                const sensorName = pred.prediction.split(' - ')[0].trim();
+                failing.add(sensorName);
+              }
+            });
+            
+            console.log(`[SensorAnalyzer Refresh] Failing sensors:`, Array.from(failing));
+            return failing;
           });
-          
-          console.log(`[SensorAnalyzer Refresh] Failing sensors:`, Array.from(failing));
-          setFailingSensors(failing);
           
           // Map sensor data
           const mappedSensorData = sensorResponse.data.flatMap((reading: any) => {
