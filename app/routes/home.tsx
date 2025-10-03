@@ -3,10 +3,7 @@ import QuickActions from "~/components/QuickActions";
 import MaintenanceOverview from "~/components/MaintenanceOverview";
 import WorkOrderTable from "~/components/WorkOrderTable";
 import WorkOrderModal from "~/components/WorkOrderModal";
-import MaintenanceCharts from "~/components/MaintenanceCharts";
-import AdvancedAnalytics from "~/components/AdvancedAnalytics";
 import FleetMap from "~/components/FleetMap";
-import PredictiveAnalytics from "~/components/PredictiveAnalytics";
 import { Box, Tabs, Tab } from "@mui/material";
 import { useWorkflowShortcuts } from "~/components/WorkflowShortcuts";
 
@@ -87,10 +84,7 @@ export default function Home() {
           >
             <Tabs value={activeTab} onChange={handleTabChange}>
               <Tab label="Work Orders" />
-              <Tab label="Analytics" />
-              <Tab label="Advanced Analytics" />
               <Tab label="Fleet Map" />
-              <Tab label="Predictive Analytics" />
             </Tabs>
           </Box>
 
@@ -98,13 +92,7 @@ export default function Home() {
             <WorkOrderTable openWorkOrderModal={openWorkOrderModal} />
           )}
 
-          {activeTab === 1 && <MaintenanceCharts />}
-
-          {activeTab === 2 && <AdvancedAnalytics />}
-
-          {activeTab === 3 && <FleetMap />}
-
-          {activeTab === 4 && <PredictiveAnalytics />}
+          {activeTab === 1 && <FleetMap />}
         </Box>
 
         <WorkOrderModal

@@ -867,7 +867,7 @@ export async function getParts(params?: {
   search?: string;
 }): Promise<unknown[]> {
   try {
-    let query = "SELECT * FROM public_sector.predictive_maintenance_navy.parts";
+    let query = "SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_part_orders";
     const conditions: string[] = [];
 
     if (params?.category) {

@@ -604,7 +604,7 @@ app.get('/api/databricks/parts', async (req, res) => {
     const { limit = 1000, category, condition, search } = req.query;
     
     // Build Databricks query
-    let databricksQuery = 'SELECT * FROM public_sector.predictive_maintenance_navy_test.parts WHERE 1=1';
+    let databricksQuery = 'SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_part_orders WHERE 1=1';
     let sqliteQuery = 'SELECT * FROM parts WHERE 1=1';
     const params = [];
     
@@ -1505,6 +1505,11 @@ async function setupSSR() {
         import('@react-router/express')
       ]);
       const { createRequestHandler } = reactRouterExpress;
+      
+      // Explicitly serve favicon before catch-all route
+      app.get('/favicon.ico', (req, res) => {
+        res.sendFile(join(buildClientPath, 'favicon.ico'));
+      });
       
       // Serve React app for all non-API routes
       app.get('*', createRequestHandler({ build }));

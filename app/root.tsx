@@ -30,7 +30,6 @@ import {
   // markAsRead,
   addNotification,
 } from "./redux/services/notificationSlice";
-import { useWebSocket } from "./hooks/useWebSocket";
 
 // Theme Context
 const ThemeContext = createContext({
@@ -215,28 +214,6 @@ const SAMPLE_NOTIFICATIONS = [
   },
 ];
 
-// WebSocket status indicator component
-const WebSocketStatusIndicator = ({
-  isConnected,
-}: {
-  isConnected: boolean;
-}) => (
-  <div
-    style={{
-      position: "fixed",
-      top: 10,
-      right: 10,
-      width: 12,
-      height: 12,
-      borderRadius: "50%",
-      backgroundColor: isConnected ? "#4caf50" : "#f44336",
-      zIndex: 9999,
-      border: "2px solid white",
-      boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-    }}
-    title={isConnected ? "WebSocket Connected" : "WebSocket Disconnected"}
-  />
-);
 
 // Inner component that uses Redux hooks
 function AppContent() {
@@ -247,12 +224,6 @@ function AppContent() {
   const { error, clearError } = useErrorHandler();
   const [isClient, setIsClient] = useState(false);
 
-  // Initialize WebSocket connection
-  const {
-    isConnected,
-    // markAsRead: wsMarkAsRead,
-    // dismiss: wsDismiss,
-  } = useWebSocket();
 
   // Track client-side hydration
   useEffect(() => {
@@ -275,7 +246,6 @@ function AppContent() {
   return (
     <>
       <ErrorSnackbar error={error} onClose={clearError} />
-      {isClient && <WebSocketStatusIndicator isConnected={isConnected} />}
     </>
   );
 }

@@ -27,7 +27,6 @@ import {
 } from "@mui/icons-material";
 import { useSelector } from "react-redux";
 import { useAppDispatch } from "../redux/hooks";
-import { useWebSocket } from "../hooks/useWebSocket";
 import type { RootState } from "../types";
 import {
   dismissNotification,
@@ -55,7 +54,6 @@ export const NotificationButton = () => {
     (state: RootState) => state.notifications.notifications,
   );
   const dispatch = useAppDispatch();
-  const { clearAll } = useWebSocket();
 
   const open = Boolean(anchorEl);
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -95,12 +93,10 @@ export const NotificationButton = () => {
   }, [dispatch]);
 
   const handleClearAll = useCallback(() => {
-    // Clear from server via WebSocket
-    clearAll();
-    // Also clear from local state immediately for better UX
+    // Clear from local state
     dispatch(clearAllNotifications());
     handleClose();
-  }, [clearAll, dispatch, handleClose]);
+  }, [dispatch, handleClose]);
 
   const getTypeIcon = (type: string) => {
     switch (type) {

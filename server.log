@@ -1,11 +1,15 @@
+[DATABRICKS] Skipping initialization - not in production or missing credentials
+✓ React Router SSR enabled
 
 ======================================================================
-Navy PdM API Server (Development Mode)
+Navy PdM API Server
 ======================================================================
 
 ✓ Server running on port 8000
+✓ Mode: development
 ✓ API available at http://localhost:8000/api
 ✓ SQLite database: /Users/will.yuponce/Documents/Projects/Navy PdM/navy-pdm/backend/instance/navy_pdm.db
+✓ Databricks: Disconnected (using SQLite fallback)
 
 Available Endpoints:
 
@@ -25,148 +29,41 @@ Available Endpoints:
     PATCH  /api/parts/:id/stock          - Update part stock
     DELETE /api/parts/:id                - Delete part
 
-  Databricks (Placeholder in Development):
+  Map Data (SQLite):
+    GET    /api/map/platforms            - Get ship locations
+    GET    /api/map/stock-locations      - Get parts warehouse locations
+    GET    /api/map/shipping-routes      - Get parts shipment routes
+
+  Databricks (With SQLite Fallback):
     GET    /api/databricks/health        - Health check
+    GET    /api/databricks/test          - Test connection
+    POST   /api/databricks/query         - Custom query (Databricks only)
     GET    /api/databricks/ai-work-orders
     GET    /api/databricks/ship-status
     GET    /api/databricks/parts-requisitions
     GET    /api/databricks/parts
 
-  Note: Databricks endpoints return informative errors in development.
-        They require TypeScript compilation and Databricks credentials
-        for production deployment. See DATABRICKS_SETUP.md for details.
+  ℹ Databricks endpoints will fall back to SQLite
+    Set NODE_ENV=production and configure Databricks credentials to enable.
 
 Press Ctrl+C to stop
 ======================================================================
 
-[2025-10-03T15:42:51.897Z] GET /api/work-orders - 200 (7ms)
-[2025-10-03T15:43:10.830Z] GET /api/databricks/ai-work-orders - 503 (1ms)
-[2025-10-03T15:43:10.830Z] GET /api/databricks/ai-work-orders - 503 (0ms)
-[2025-10-03T15:43:11.872Z] GET /api/databricks/ai-work-orders - 503 (1ms)
-[2025-10-03T15:43:11.873Z] GET /api/databricks/ai-work-orders - 503 (1ms)
-[2025-10-03T15:43:13.878Z] GET /api/databricks/ai-work-orders - 503 (1ms)
-[2025-10-03T15:43:13.880Z] GET /api/databricks/ai-work-orders - 503 (1ms)
-[2025-10-03T15:43:17.886Z] GET /api/databricks/ai-work-orders - 503 (0ms)
-[2025-10-03T15:43:17.888Z] GET /api/databricks/ai-work-orders - 503 (1ms)
-[2025-10-03T15:43:17.893Z] GET /api/work-orders - 200 (1ms)
-[2025-10-03T15:43:17.894Z] GET /api/work-orders - 304 (1ms)
-[2025-10-03T15:43:22.830Z] GET /api/databricks/parts-requisitions - 503 (1ms)
-[2025-10-03T15:43:22.830Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:43:23.840Z] GET /api/databricks/parts-requisitions - 503 (1ms)
-[2025-10-03T15:43:23.842Z] GET /api/databricks/parts-requisitions - 503 (1ms)
-[2025-10-03T15:43:25.846Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:43:25.848Z] GET /api/databricks/parts-requisitions - 503 (1ms)
-[2025-10-03T15:43:29.861Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:43:29.863Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:43:46.609Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:43:47.655Z] GET /api/databricks/parts-requisitions - 503 (1ms)
-[2025-10-03T15:43:49.660Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:43:53.672Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:10.018Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:10.019Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:11.042Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:11.043Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:13.046Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:13.047Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:17.057Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:17.059Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:27.015Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:28.030Z] GET /api/databricks/parts-requisitions - 503 (1ms)
-[2025-10-03T15:44:30.037Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:31.867Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:31.868Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:32.897Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:32.898Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:34.044Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:34.907Z] GET /api/databricks/parts-requisitions - 503 (1ms)
-[2025-10-03T15:44:34.907Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:38.915Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:38.916Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:39.245Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:40.261Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:42.272Z] GET /api/databricks/parts-requisitions - 503 (1ms)
-[2025-10-03T15:44:44.461Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:45.477Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:46.240Z] GET /api/databricks/ai-work-orders - 503 (0ms)
-[2025-10-03T15:44:46.241Z] GET /api/databricks/ai-work-orders - 503 (1ms)
-[2025-10-03T15:44:47.281Z] GET /api/databricks/ai-work-orders - 503 (0ms)
-[2025-10-03T15:44:47.282Z] GET /api/databricks/ai-work-orders - 503 (0ms)
-[2025-10-03T15:44:47.481Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:47.629Z] GET /api/databricks/ai-work-orders - 503 (1ms)
-[2025-10-03T15:44:47.630Z] GET /api/databricks/ai-work-orders - 503 (0ms)
-[2025-10-03T15:44:48.672Z] GET /api/databricks/ai-work-orders - 503 (0ms)
-[2025-10-03T15:44:48.673Z] GET /api/databricks/ai-work-orders - 503 (0ms)
-[2025-10-03T15:44:49.327Z] GET /api/databricks/ai-work-orders - 503 (1ms)
-[2025-10-03T15:44:49.327Z] GET /api/databricks/ai-work-orders - 503 (0ms)
-[2025-10-03T15:44:50.677Z] GET /api/databricks/ai-work-orders - 503 (0ms)
-[2025-10-03T15:44:50.678Z] GET /api/databricks/ai-work-orders - 503 (0ms)
-[2025-10-03T15:44:51.119Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:44:51.119Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:44:51.488Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:44:52.137Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:44:52.138Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:44:53.859Z] GET /api/databricks/ai-work-orders - 503 (1ms)
-[2025-10-03T15:44:53.860Z] GET /api/databricks/ai-work-orders - 503 (1ms)
-[2025-10-03T15:44:53.864Z] GET /api/work-orders - 200 (0ms)
-[2025-10-03T15:44:53.865Z] GET /api/work-orders - 304 (0ms)
-[2025-10-03T15:44:54.301Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:44:54.302Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:44:54.682Z] GET /api/databricks/ai-work-orders - 503 (0ms)
-[2025-10-03T15:44:54.683Z] GET /api/databricks/ai-work-orders - 503 (1ms)
-[2025-10-03T15:44:54.686Z] GET /api/work-orders - 304 (1ms)
-[2025-10-03T15:44:54.687Z] GET /api/work-orders - 304 (1ms)
-[2025-10-03T15:44:57.815Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:44:57.816Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:44:58.312Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:44:58.313Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:44:58.318Z] GET /api/parts - 200 (2ms)
-[2025-10-03T15:44:58.321Z] GET /api/parts - 304 (2ms)
-[2025-10-03T15:44:58.849Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:44:58.850Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:00.857Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:45:00.857Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:04.868Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:04.871Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:04.875Z] GET /api/parts - 304 (0ms)
-[2025-10-03T15:45:04.876Z] GET /api/parts - 304 (0ms)
-[2025-10-03T15:45:12.004Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:12.004Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:13.036Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:13.036Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:15.041Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:15.046Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:45:19.056Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:19.057Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:19.063Z] GET /api/parts - 304 (1ms)
-[2025-10-03T15:45:19.064Z] GET /api/parts - 304 (0ms)
-[2025-10-03T15:45:21.031Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:21.032Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:21.388Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:22.440Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:24.854Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:45:29.864Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:45:29.876Z] GET /api/parts - 304 (1ms)
-[2025-10-03T15:45:53.787Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:45:54.854Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:45:57.852Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:46:02.863Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:46:02.873Z] GET /api/parts - 304 (1ms)
-[2025-10-03T15:46:45.354Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:46:46.407Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:46:48.423Z] GET /api/databricks/parts - 503 (1ms)
-[2025-10-03T15:46:50.772Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:46:50.774Z] GET /api/databricks/parts-requisitions - 503 (1ms)
-[2025-10-03T15:46:51.788Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:46:51.789Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:46:52.429Z] GET /api/databricks/parts - 503 (0ms)
-[2025-10-03T15:46:52.432Z] GET /api/parts - 304 (1ms)
-[2025-10-03T15:46:53.793Z] GET /api/databricks/parts-requisitions - 503 (1ms)
-[2025-10-03T15:46:53.793Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:46:57.804Z] GET /api/databricks/parts-requisitions - 503 (1ms)
-[2025-10-03T15:46:57.805Z] GET /api/databricks/parts-requisitions - 503 (1ms)
-[2025-10-03T15:46:59.706Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:46:59.706Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:46:59.997Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:47:01.024Z] GET /api/databricks/parts-requisitions - 503 (1ms)
-[2025-10-03T15:47:03.038Z] GET /api/databricks/parts-requisitions - 503 (0ms)
-[2025-10-03T15:47:07.045Z] GET /api/databricks/parts-requisitions - 503 (0ms)
+[2025-10-03T17:47:49.669Z] GET /api/databricks/parts - 200 (4ms)
+[2025-10-03T17:47:54.515Z] GET /api/parts - 200 (1ms)
+[2025-10-03T17:47:59.493Z] GET /api/parts - 200 (1ms)
+[2025-10-03T18:04:01.137Z] GET /api/databricks/ai-work-orders - 200 (1ms)
+[2025-10-03T18:04:01.200Z] GET /api/work-orders - 304 (1ms)
+[2025-10-03T18:04:02.000Z] GET /api/databricks/ai-work-orders - 200 (0ms)
+[2025-10-03T18:04:02.035Z] GET /api/work-orders - 304 (1ms)
+[2025-10-03T18:04:06.069Z] GET /api/databricks/ai-work-orders - 200 (1ms)
+[2025-10-03T18:04:06.120Z] GET /api/work-orders - 304 (1ms)
+[2025-10-03T18:04:09.071Z] GET /api/databricks/ai-work-orders - 200 (1ms)
+[2025-10-03T18:04:09.110Z] GET /api/work-orders - 304 (1ms)
+[2025-10-03T18:06:45.838Z] GET /api/databricks/parts - 200 (0ms)
+[2025-10-03T18:06:45.839Z] GET /api/databricks/parts - 304 (0ms)
+[2025-10-03T18:07:05.307Z] GET /api/databricks/parts - 304 (0ms)
+[2025-10-03T18:07:45.219Z] GET /api/databricks/parts - 304 (1ms)
+[2025-10-03T18:07:46.238Z] GET /api/databricks/parts - 304 (0ms)
+[2025-10-03T18:07:57.289Z] GET /api/databricks/parts - 304 (1ms)
+[2025-10-03T18:08:28.250Z] GET /api/databricks/parts - 304 (0ms)
