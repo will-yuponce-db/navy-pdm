@@ -935,6 +935,8 @@ app.get('/api/map/shipping-routes', async (req, res) => {
 
 // Serve static assets from build/client (if it exists)
 const buildClientPath = join(__dirname, 'build', 'client');
+const buildServerPath = join(__dirname, 'build', 'server', 'index.js');
+
 if (existsSync(buildClientPath)) {
   // Serve static assets with caching
   app.use('/assets', express.static(join(buildClientPath, 'assets'), {
@@ -946,30 +948,29 @@ if (existsSync(buildClientPath)) {
   app.use(express.static(buildClientPath, {
     maxAge: '1h'
   }));
-  
-  // Handle React Router SSR
-  const buildServerPath = join(__dirname, 'build', 'server', 'index.js');
-  if (existsSync(buildServerPath)) {
-    Promise.all([
-      import(buildServerPath),
-      import('@react-router/express')
-    ]).then(([build, reactRouterExpress]) => {
-      const { createRequestHandler } = reactRouterExpress;
-      // Serve React app for all non-API routes
-      app.get('*', createRequestHandler({ build }));
-    }).catch((err) => {
-      console.warn('React Router SSR not available:', err.message);
-    });
-  }
 }
 
-// ============================================================================
-// ERROR HANDLING
-// ============================================================================
-
-// 404 handler (only for API routes if frontend is not built)
-app.use((req, res) => {
-  res.status(404).json({
+// Handle React Router SSR - must be done synchronously at startup
+if (existsSync(buildClientPath) && existsSync(buildServerPath)) {
+  (async () => {
+    try {
+      const [build, reactRouterExpress] = await Promise.all([
+        import(buildServerPath),
+        import('@react-router/express')
+      ]);
+      const { createRequestHandler } = reactRouterExpress;
+      
+      // Serve React app for all non-API routes
+      app.get('*', createRequestHandler({ build }));
+      console.log('✓ React Router SSR enabled');
+    } catch (err) {
+      console.warn('⚠ React Router SSR not available:', err.message);
+    }
+  })();
+} else {
+  // 404 handler (only for API routes if frontend is not built)
+  app.use((req, res) => {
+    res.status(404).json({
     success: false,
     message: 'Endpoint not found',
     path: req.path,
@@ -994,7 +995,8 @@ app.use((req, res) => {
       ]
     }
   });
-});
+  });
+}
 
 // Global error handler
 app.use((err, req, res, next) => {
