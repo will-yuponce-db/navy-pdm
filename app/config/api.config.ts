@@ -99,7 +99,7 @@ export const DATABRICKS_CONFIG = {
 
   // Databricks Catalog and Schema
   catalog: process.env.DATABRICKS_CATALOG || "public_sector",
-  schema: process.env.DATABRICKS_SCHEMA || "predictive_maintenance_navy_test",
+  schema: process.env.DATABRICKS_SCHEMA || "predictive_maintenance_navy",
 
   // Table Names
   tables: {

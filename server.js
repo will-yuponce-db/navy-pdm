@@ -13,6 +13,18 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
+// Databricks table configuration
+const DATABRICKS_CATALOG = process.env.DATABRICKS_CATALOG || 'public_sector';
+const DATABRICKS_SCHEMA = process.env.DATABRICKS_SCHEMA || 'predictive_maintenance_navy';
+const DATABRICKS_TABLES = {
+  aiWorkOrders: `${DATABRICKS_CATALOG}.${DATABRICKS_SCHEMA}.${process.env.DATABRICKS_TABLE_AI_WORK_ORDERS || 'ai_work_orders'}`,
+  currentStatusPredictions: `${DATABRICKS_CATALOG}.${DATABRICKS_SCHEMA}.${process.env.DATABRICKS_TABLE_CURRENT_STATUS || 'current_status_predictions'}`,
+  sensorBronze: `${DATABRICKS_CATALOG}.${DATABRICKS_SCHEMA}.${process.env.DATABRICKS_TABLE_SENSOR_BRONZE || 'sensor_bronze'}`,
+  aiPartOrders: `${DATABRICKS_CATALOG}.${DATABRICKS_SCHEMA}.${process.env.DATABRICKS_TABLE_AI_PART_ORDERS || 'ai_part_orders'}`,
+  partsSilver: `${DATABRICKS_CATALOG}.${DATABRICKS_SCHEMA}.${process.env.DATABRICKS_TABLE_PARTS_SILVER || 'parts_silver'}`,
+  shipCurrentStatusGold: `${DATABRICKS_CATALOG}.${DATABRICKS_SCHEMA}.${process.env.DATABRICKS_TABLE_SHIP_STATUS || 'ship_current_status_gold'}`
+};
+
 // Database setup - SQLite
 const dbPath = join(__dirname, 'backend', 'instance', 'navy_pdm.db');
 const db = new Database(dbPath);
@@ -285,7 +297,7 @@ app.get('/api/databricks/ai-work-orders', async (req, res) => {
     const { limit = 100 } = req.query;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders LIMIT ${limit}`,
+      `SELECT * FROM ${DATABRICKS_TABLES.aiWorkOrders} LIMIT ${limit}`,
       `SELECT * FROM work_orders WHERE creation_source = ? LIMIT ?`,
       ['ai', parseInt(limit)]
     );
@@ -313,7 +325,7 @@ app.get('/api/databricks/ai-work-orders/:workOrderId', async (req, res) => {
     const { workOrderId } = req.params;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders WHERE work_order = '${workOrderId}'`,
+      `SELECT * FROM ${DATABRICKS_TABLES.aiWorkOrders} WHERE work_order = '${workOrderId}'`,
       `SELECT * FROM work_orders WHERE wo = ? AND creation_source = ?`,
       [workOrderId, 'ai']
     );
@@ -348,7 +360,7 @@ app.get('/api/databricks/ship-status', async (req, res) => {
     const { limit = 100 } = req.query;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy_test.current_status_predictions LIMIT ${limit}`,
+      `SELECT * FROM ${DATABRICKS_TABLES.currentStatusPredictions} LIMIT ${limit}`,
       `SELECT s.*, COUNT(wo.wo) as open_work_orders 
        FROM ships s 
        LEFT JOIN work_orders wo ON s.id = wo.ship_id AND wo.status != 'Completed' 
@@ -379,7 +391,7 @@ app.get('/api/databricks/ship-status/:turbineId', async (req, res) => {
     const { turbineId } = req.params;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy_test.current_status_predictions WHERE turbine_id = '${turbineId}'`,
+      `SELECT * FROM ${DATABRICKS_TABLES.currentStatusPredictions} WHERE turbine_id = '${turbineId}'`,
       'SELECT s.* FROM ships s LEFT JOIN gte_systems g ON s.id = g.ship_id WHERE g.id = ?',
       [turbineId]
     );
@@ -415,7 +427,7 @@ app.get('/api/databricks/sensor-data/:turbineId', async (req, res) => {
     const { startTime, endTime, limit = 1000 } = req.query;
     
     // Query sensor_bronze for sensor readings
-    let databricksQuery = `SELECT * FROM public_sector.predictive_maintenance_navy_test.sensor_bronze WHERE turbine_id = '${turbineId}'`;
+    let databricksQuery = `SELECT * FROM ${DATABRICKS_TABLES.sensorBronze} WHERE turbine_id = '${turbineId}'`;
     let sqliteQuery = 'SELECT * FROM sensor_data WHERE turbine_id = ?';
     const params = [turbineId];
     
@@ -443,7 +455,7 @@ app.get('/api/databricks/sensor-data/:turbineId', async (req, res) => {
       try {
         const predictionsQuery = `
           SELECT prediction, hourly_timestamp 
-          FROM public_sector.predictive_maintenance_navy_test.current_status_predictions 
+          FROM ${DATABRICKS_TABLES.currentStatusPredictions} 
           WHERE turbine_id = '${turbineId}'
           AND UNIX_TIMESTAMP(hourly_timestamp) >= ${startTime}
           AND UNIX_TIMESTAMP(hourly_timestamp) <= ${endTime}
@@ -485,7 +497,7 @@ app.get('/api/databricks/parts-requisitions', async (req, res) => {
     const { limit = 1000, orderNumber, partType, stockLocation } = req.query;
     
     // Build Databricks query - using ai_part_orders table
-    let databricksQuery = 'SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_part_orders WHERE 1=1';
+    let databricksQuery = `SELECT * FROM ${DATABRICKS_TABLES.aiPartOrders} WHERE 1=1`;
     let sqliteQuery = 'SELECT * FROM parts_requisitions WHERE 1=1';
     const params = [];
     
@@ -537,7 +549,7 @@ app.get('/api/databricks/parts-requisitions/:orderNumber', async (req, res) => {
     const { orderNumber } = req.params;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_part_orders WHERE order_number = '${orderNumber}'`,
+      `SELECT * FROM ${DATABRICKS_TABLES.aiPartOrders} WHERE order_number = '${orderNumber}'`,
       'SELECT * FROM parts_requisitions WHERE order_number = ?',
       [orderNumber]
     );
@@ -572,7 +584,7 @@ app.get('/api/databricks/parts-requisitions/ship/:designatorId', async (req, res
     const { designatorId } = req.params;
     
     const { data, source, fallbackReason } = await executeQuery(
-      `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_part_orders WHERE designator_id = '${designatorId}'`,
+      `SELECT * FROM ${DATABRICKS_TABLES.aiPartOrders} WHERE designator_id = '${designatorId}'`,
       'SELECT * FROM parts_requisitions WHERE designator_id = ?',
       [designatorId]
     );
@@ -676,7 +688,7 @@ app.get('/api/databricks/parts', async (req, res) => {
     const { limit = 1000, category, condition, search } = req.query;
     
     // Build Databricks query - using parts_silver table
-    let databricksQuery = 'SELECT * FROM public_sector.predictive_maintenance_navy_test.parts_silver WHERE 1=1';
+    let databricksQuery = `SELECT * FROM ${DATABRICKS_TABLES.partsSilver} WHERE 1=1`;
     let sqliteQuery = 'SELECT * FROM parts WHERE 1=1';
     const params = [];
     

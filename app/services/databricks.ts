@@ -1,4 +1,5 @@
 import { DBSQLClient } from "@databricks/sql";
+import { DATABRICKS_TABLES } from "../config/api.config";
 
 // Databricks Configuration Interface
 export interface DatabricksConfig {
@@ -519,7 +520,7 @@ export async function getAIWorkOrders(params?: {
 }): Promise<unknown[]> {
   try {
     let query =
-      "SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders";
+      `SELECT * FROM ${DATABRICKS_TABLES.aiWorkOrders}`;
     const conditions: string[] = [];
 
     if (params?.priority) {
@@ -557,7 +558,7 @@ export async function getAIWorkOrderById(
   workOrderId: string,
 ): Promise<unknown> {
   try {
-    const query = `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders WHERE work_order = '${workOrderId}'`;
+    const query = `SELECT * FROM ${DATABRICKS_TABLES.aiWorkOrders} WHERE work_order = '${workOrderId}'`;
     const result = await executeDatabricksQuery(query);
     return result.length > 0 ? result[0] : null;
   } catch (error) {
@@ -571,7 +572,7 @@ export async function getAIWorkOrdersByTurbineId(
   turbineId: string,
 ): Promise<unknown[]> {
   try {
-    const query = `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_work_orders WHERE turbine_id = '${turbineId}' ORDER BY hourly_timestamp DESC`;
+    const query = `SELECT * FROM ${DATABRICKS_TABLES.aiWorkOrders} WHERE turbine_id = '${turbineId}' ORDER BY hourly_timestamp DESC`;
     const result = await executeDatabricksQuery(query);
     return result;
   } catch (error) {
@@ -719,7 +720,7 @@ export async function getPartsRequisitions(params?: {
 }): Promise<unknown[]> {
   try {
     let query =
-      "SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_part_orders";
+      `SELECT * FROM ${DATABRICKS_TABLES.aiPartOrders}`;
     const conditions: string[] = [];
 
     if (params?.partType) {
@@ -765,7 +766,7 @@ export async function getPartsRequisitionByOrderNumber(
   orderNumber: string,
 ): Promise<unknown[]> {
   try {
-    const query = `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_part_orders WHERE order_number = '${orderNumber}'`;
+    const query = `SELECT * FROM ${DATABRICKS_TABLES.aiPartOrders} WHERE order_number = '${orderNumber}'`;
     const result = await executeDatabricksQuery(query);
     return result;
   } catch (error) {
@@ -781,7 +782,7 @@ export async function getPartsRequisitionsByDesignatorId(
   designatorId: string,
 ): Promise<unknown[]> {
   try {
-    const query = `SELECT * FROM public_sector.predictive_maintenance_navy_test.ai_part_orders WHERE designator_id = '${designatorId}' ORDER BY order_number DESC`;
+    const query = `SELECT * FROM ${DATABRICKS_TABLES.aiPartOrders} WHERE designator_id = '${designatorId}' ORDER BY order_number DESC`;
     const result = await executeDatabricksQuery(query);
     return result;
   } catch (error) {
@@ -803,7 +804,7 @@ export async function getShipStatus(params?: {
 }): Promise<unknown[]> {
   try {
     let query =
-      "SELECT * FROM public_sector.predictive_maintenance_navy_test.ship_current_status_gold";
+      `SELECT * FROM ${DATABRICKS_TABLES.shipCurrentStatusGold}`;
     const conditions: string[] = [];
 
     if (params?.designator) {
@@ -849,7 +850,7 @@ export async function getShipStatusByTurbineId(
   turbineId: string,
 ): Promise<unknown> {
   try {
-    const query = `SELECT * FROM public_sector.predictive_maintenance_navy_test.ship_current_status_gold WHERE turbine_id = '${turbineId}' ORDER BY hourly_timestamp DESC LIMIT 1`;
+    const query = `SELECT * FROM ${DATABRICKS_TABLES.shipCurrentStatusGold} WHERE turbine_id = '${turbineId}' ORDER BY hourly_timestamp DESC LIMIT 1`;
     const result = await executeDatabricksQuery(query);
     return result.length > 0 ? result[0] : null;
   } catch (error) {
@@ -867,7 +868,7 @@ export async function getParts(params?: {
   search?: string;
 }): Promise<unknown[]> {
   try {
-    let query = "SELECT * FROM public_sector.predictive_maintenance_navy_test.parts_silver";
+    let query = `SELECT * FROM ${DATABRICKS_TABLES.partsSilver}`;
     const conditions: string[] = [];
 
     // Note: parts_silver doesn't have category/condition fields, 
